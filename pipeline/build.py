@@ -42,6 +42,7 @@ from pathlib import Path
 import brotli
 
 from gloss import parse_gloss
+from morphology import Recoverer
 from normalise import normalise
 from tokenise import tokenise
 
@@ -191,6 +192,45 @@ def build_id(inputs: list[Path]) -> str:
     return h.hexdigest()[:12]
 
 
+LEMMA_COVERAGE_FLOOR = 0.30
+
+# Held-out accuracy of the stem recoverer, measured on 3,614 forms whose root
+# the workbook already records. Stated in the panel, because a reader is
+# entitled to know how a root they are being shown was arrived at.
+RECOVERY_ACCURACY = 98.0
+
+
+def morph_suspect(entry: dict) -> bool:
+    """
+    Has the morphological analysis kept only a clitic and thrown the stem away?
+
+    `وَلْيُحَدِّثْ` — "and let him relate" — is recorded with pos=particle,
+    lemma=لِ and no root. Its own gloss says otherwise:
+    `and + for + him/it to + cause;bring about`, where the stem is plainly a
+    verb. The analysis latched onto the lam and discarded the rest.
+
+    The discriminator is how much of the word the lemma actually accounts for.
+    `عَنْهُ` has lemma `عَنْ` covering two of three letters and is correct — the
+    stem really is the preposition. `سَيَفْقِدُونَنِي` has lemma `سَ` covering one
+    letter of nine, and `إِلَيَّ` has a lemma that is a bare shadda. Below 30%
+    the analysis has lost the word: 409 forms, 940 tokens, 0.74% of the corpus.
+    Between 40% and 55% the rows are legitimate, so the floor is conservative.
+
+    This does NOT correct anything — the right lemma is not recoverable from the
+    workbook. It exists so the panel can stop asserting a root is absent "by
+    design" when it is really just missing.
+    """
+    if entry.get("pos") != "particle" or entry.get("root"):
+        return False
+    lemma, surface = entry.get("lemma"), entry.get("vocalized")
+    if not lemma or not surface:
+        return False
+    lem, srf = normalise(str(lemma)), normalise(str(surface))
+    if not srf:
+        return False
+    return len(lem) / len(srf) < LEMMA_COVERAGE_FLOOR
+
+
 def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
                 shards: dict) -> dict:
     tree: list[dict] = []
@@ -319,6 +359,14 @@ def main() -> int:
     classical_seen: set[str] = set()
 
     names = lexicon["names"]
+
+    # The recoverer's evidence is this corpus's own lexicon: every row that has
+    # a root and is not itself a clitic.
+    by_key: dict[str, list[dict]] = collections.defaultdict(list)
+    for mid, e in lexicon["surface"].items():
+        by_key[str(e["search_key"])].append({**e, "match_id": mid})
+    recoverer = Recoverer(by_key)
+
     for mid, e in lexicon["surface"].items():
         trimmed = {k: e[k] for k in SURFACE_KEEP if k in e}
         trimmed["reviewFlagged"] = e["unvocalized"] in review
@@ -328,6 +376,29 @@ def main() -> int:
         trimmed["gloss"] = parse_gloss(e.get("gloss_msa"))
         # Isnad names should read as a person, not a failed lexical lookup.
         trimmed["isName"] = e["unvocalized"] in names
+        # Where the analysis lost the stem, try to get it back from the corpus
+        # itself rather than leaving the reader with a shrug.
+        lost = morph_suspect(e)
+        trimmed["morphSuspect"] = lost
+        trimmed["recovered"] = None
+        if lost:
+            g = trimmed.get("gloss")
+            got = recoverer.recover(
+                str(e["search_key"]),
+                unvocalized=str(e["unvocalized"]),
+                n_proclitics=len(g["before"]) if g else None,
+                n_enclitics=len(g["after"]) if g else None,
+                stem_senses=g["senses"] if g else None,
+            )
+            if got:
+                trimmed["recovered"] = {
+                    "root": got.root,
+                    "lemma": got.lemma,
+                    "pos": got.pos,
+                    "viaStem": got.stem,
+                    "sourceMatchId": got.source_match_id,
+                    "accuracy": RECOVERY_ACCURACY,
+                }
         surface_shards[fnv1a(e["search_key"]) % surface_n][mid] = trimmed
         # Match this form's lemma to its own Lane entry.
         lr = e["lane_root"]

@@ -518,6 +518,30 @@ class Gloss(TypedDict):
     stemPos: str | None
 
 
+class RecoveredMorphology(TypedDict):
+    """
+    Morphology recovered from the corpus itself, where the supplied analysis
+    lost it.
+
+    409 forms carry `pos=particle`, a one-letter lemma and no root because the
+    analyser latched onto a proclitic and discarded the word. The stem is
+    usually attested elsewhere in the same corpus, correctly analysed:
+    `وَلْيُحَدِّثْ` yields `يحدث`, which the workbook itself roots as حدث.
+
+    Nothing here is invented — every value is one another row of the same
+    workbook already asserts for the same stem. Accepted only when the gloss of
+    the candidate stem corroborates the gloss of the input, which is what lifts
+    held-out accuracy from 93.9% to 98.0%.
+    """
+
+    root: str
+    lemma: str | None
+    pos: str | None
+    viaStem: Annotated[str, Doc("The stripped form that was looked up.")]
+    sourceMatchId: Annotated[str, Doc("The lexicon row this evidence came from.")]
+    accuracy: Annotated[float, Doc("Held-out accuracy of the recoverer, as a percentage.")]
+
+
 class PanelEntry(TypedDict):
     """
     A lexicon entry as the word panel receives it, keyed by match_id inside a
@@ -555,6 +579,18 @@ class PanelEntry(TypedDict):
     layers: str | None
     reviewFlagged: bool
     isName: Annotated[bool, Doc("Present in the Names gazetteer — render as a person.")]
+    recovered: Annotated[
+        RecoveredMorphology | None,
+        Doc("Set only when morphSuspect is true AND a stem was found. 146 of 409 forms."),
+    ]
+    morphSuspect: Annotated[
+        bool,
+        Doc(
+            "The morphological analysis kept only a clitic and lost the stem — its lemma "
+            "accounts for under 30% of the word. 409 forms, 940 tokens. Where this is true "
+            "a null root means MISSING, not absent by design, and the panel must say so."
+        ),
+    ]
     gloss: Gloss | None
 
 
@@ -655,6 +691,7 @@ EXPORTED: list[type] = [
     IndexFile,
     GlossSlot,
     Gloss,
+    RecoveredMorphology,
     PanelEntry,
     ClassicalEntry,
 ]

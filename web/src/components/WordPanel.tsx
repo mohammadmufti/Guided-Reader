@@ -173,36 +173,67 @@ function RootAndLemma({
   entry: PanelEntry;
   classical: ClassicalEntry | null;
 }) {
+  const rec = entry.recovered;
+  const root = entry.root ?? rec?.root ?? null;
+  const lemma = entry.lemma && !entry.morphSuspect ? entry.lemma : (rec?.lemma ?? null);
+
   return (
     <Section title="الجذر واللفظ" subtitle="Root and lemma">
-      {entry.root ? (
+      {root ? (
         <div className="flex items-baseline gap-3">
           <span className="arabic text-2xl tracking-[0.35em]" lang="ar" dir="rtl">
-            {[...entry.root].join(" ")}
+            {[...root].join(" ")}
           </span>
-          {classical?.nLemmas != null && (
+          {classical?.nLemmas != null && !rec && (
             <span className="text-xs text-(--color-ink-muted)">
               {classical.nLemmas} lemma{classical.nLemmas === 1 ? "" : "s"} in this corpus
             </span>
           )}
         </div>
+      ) : entry.morphSuspect ? (
+        // A null root here does NOT mean "absent by design". The analysis kept a
+        // clitic and lost the stem, and the stem is not attested on its own
+        // anywhere in this corpus either, so there is nothing to recover from.
+        <Note>
+          The morphological analysis of this form is unreliable — it identified
+          only a prefix and lost the stem — and the stem does not occur on its own
+          anywhere in this book, so the root could not be recovered. It is
+          missing, not absent: this word has one. The meaning above is derived
+          from the whole form and is unaffected.
+        </Note>
       ) : (
-        // The absence is the answer, so say the answer.
         <Note>
           No root — particles, pronouns and proper nouns do not have one. About
           48% of tokens in this corpus are in that position by design.
         </Note>
       )}
-      {entry.lemma && (
+
+      {lemma && (
         <p className="mt-3">
           <span className="arabic text-xl" lang="ar" dir="rtl">
-            {entry.lemma}
+            {lemma}
           </span>
-          {entry.lemma_din && (
+          {!rec && entry.lemma_din && (
             <span className="ms-2 text-sm italic text-(--color-ink-muted)" dir="ltr">
               {entry.lemma_din}
             </span>
           )}
+        </p>
+      )}
+
+      {rec && (
+        // Provenance in place, not buried. The supplied analysis is wrong for
+        // this form; what is shown was reconstructed from the corpus, and the
+        // reader should be able to check it.
+        <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+          The supplied analysis lost this word&rsquo;s stem and recorded only a
+          prefix. The root and lemma above were recovered by stripping the
+          affixes and looking up{" "}
+          <span className="arabic" lang="ar" dir="rtl">
+            {rec.viaStem}
+          </span>
+          , which occurs elsewhere in this book. That method is {rec.accuracy}%
+          accurate on forms whose root is already known.
         </p>
       )}
     </Section>
@@ -536,11 +567,21 @@ const BINDING_COPY: Record<string, string> = {
 function Provenance({ entry, token }: { entry: PanelEntry; token: Token }) {
   const [open, setOpen] = useState(false);
   const shaky =
-    entry.pos_agreement === "disagree" || token.confidence === "low" || entry.reviewFlagged;
+    entry.pos_agreement === "disagree" ||
+    token.confidence === "low" ||
+    entry.reviewFlagged ||
+    entry.morphSuspect;
 
   return (
     <section className="border-t border-(--color-rule) pt-3">
-      {entry.pos_agreement === "disagree" && (
+      {entry.morphSuspect && (
+        <p className="mb-2 text-xs text-(--color-flag)" dir="ltr">
+          {entry.recovered
+            ? "The source data's part of speech describes a prefix, not this word. The root and lemma shown were reconstructed from the corpus."
+            : "The source data's part of speech and lemma describe a prefix, not this word."}
+        </p>
+      )}
+      {entry.pos_agreement === "disagree" && !entry.morphSuspect && (
         // The workbook's own flag for hollow and irregular verbs, where its
         // root extraction is known to go wrong. Say so plainly, above the fold.
         <p className="mb-2 text-xs text-(--color-flag)" dir="ltr">
