@@ -39,22 +39,28 @@ export function Reader() {
     };
   }, []);
 
+  // A page can hold more than one record: the hadith, plus any zawa'id
+  // additions that follow it. So a selection has to say WHICH record, not just
+  // which token — token 5 of the addition is not token 5 of the hadith.
+  //
+  //   ?w=5                  token 5 of the hadith        (unchanged, links keep working)
+  //   ?w=zawaid-00008:3     token 3 of that addition
   const selectedRaw = params.get("w");
-  const selected =
-    selectedRaw !== null && /^\d+$/.test(selectedRaw) ? Number(selectedRaw) : null;
+  const selection = parseSelection(selectedRaw);
 
   // Selection lives in the URL so a link carries it, but with `replace` — a
   // reader clicking through fifteen words should not have to press Back fifteen
   // times to leave the hadith.
   const select = useCallback(
-    (i: number | null) => {
+    (recordId: string | null, i: number | null) => {
       const next = new URLSearchParams(params);
       if (i === null) next.delete("w");
-      else next.set("w", String(i));
+      else next.set("w", recordId ? `${recordId}:${i}` : String(i));
       setParams(next, { replace: true });
     },
     [params, setParams],
   );
+  const clearSelection = useCallback(() => select(null, null), [select]);
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -101,8 +107,8 @@ export function Reader() {
     onSearch: useCallback(() => navigate("/search"), [navigate]),
     onEscape: useCallback(() => {
       setBrowserOpen(false);
-      select(null);
-    }, [select]),
+      clearSelection();
+    }, [clearSelection]),
   });
 
   if (status.kind === "error") {
@@ -180,7 +186,7 @@ export function Reader() {
         {page && (
           <PageView
             page={page}
-            selected={selected}
+            selection={selection}
             onSelect={select}
             index={index}
             harakat={settings.harakat}
@@ -225,20 +231,49 @@ function Shell({ children }: { children: React.ReactNode }) {
  * context sits above the text instead of inside the panel, so it stays visible
  * on narrow screens whether or not a word is selected.
  */
+interface Selection {
+  /** null means the page's main record. */
+  recordId: string | null;
+  index: number;
+}
+
+function parseSelection(raw: string | null): Selection | null {
+  if (raw === null) return null;
+  if (/^\d+$/.test(raw)) return { recordId: null, index: Number(raw) };
+  const at = raw.lastIndexOf(":");
+  if (at <= 0) return null;
+  const i = raw.slice(at + 1);
+  if (!/^\d+$/.test(i)) return null;
+  return { recordId: raw.slice(0, at), index: Number(i) };
+}
+
 function PageView({
   page,
-  selected,
+  selection,
   onSelect,
   index,
   harakat,
 }: {
   page: Page;
-  selected: number | null;
-  onSelect: (i: number | null) => void;
+  selection: Selection | null;
+  onSelect: (recordId: string | null, i: number | null) => void;
   index: IndexFile;
   harakat: boolean;
 }) {
   const { main, additions } = page;
+
+  // Which record is the selection in, and which token?
+  const activeRecord =
+    selection === null
+      ? null
+      : selection.recordId === null
+        ? main
+        : (additions.find((a) => a.id === selection.recordId) ?? null);
+  const activeToken = activeRecord?.tokens[selection!.index] ?? null;
+  const indexIn = (recordId: string) =>
+    selection !== null && (selection.recordId ?? main.id) === recordId
+      ? selection.index
+      : null;
   return (
     <div className="grid gap-10 lg:grid-cols-[21rem_minmax(0,1fr)]">
       <article className="lg:order-2">
@@ -273,8 +308,8 @@ function PageView({
 
         <ReadingPane
           record={main}
-          selected={selected}
-          onSelect={onSelect}
+          selected={indexIn(main.id)}
+          onSelect={(i) => onSelect(null, i)}
           harakat={harakat}
         />
 
@@ -283,10 +318,14 @@ function PageView({
             <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
               زيادة الضياء الداغستاني — ليست من أصل الزبيدي
             </p>
+            {/* A zawa'id addition is an unnumbered hadith, not decoration.
+                Its words were left inert in Phase 5, before the panel existed,
+                and stayed that way — 6,063 tokens a reader could see but not
+                look up. */}
             <ReadingPane
               record={add}
-              selected={null}
-              onSelect={() => {}}
+              selected={indexIn(add.id)}
+              onSelect={(i) => onSelect(add.id, i)}
               harakat={harakat}
               muted
             />
@@ -303,7 +342,7 @@ function PageView({
           "max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-xl " +
           "max-lg:border-t max-lg:border-(--color-rule) max-lg:bg-(--color-raised) " +
           "max-lg:p-5 max-lg:shadow-2xl " +
-          (selected === null ? "max-lg:hidden" : "")
+          (activeToken === null ? "max-lg:hidden" : "")
         }
       >
         {/* On a phone the panel is a sheet, and since Lane entries landed it is
@@ -311,14 +350,14 @@ function PageView({
             out of reach, which is how a dismissible sheet becomes a trap. Pin it
             with `sticky`, give it a 40px hit target, and mark it with an X
             rather than a word so it reads as "close" at a glance. */}
-        {selected !== null && (
+        {activeToken !== null && (
           <div className="sticky -top-5 z-10 -mx-5 -mt-5 mb-2 flex items-center justify-between border-b border-(--color-rule) bg-(--color-raised) px-3 py-2 lg:hidden">
             <span className="ps-2 text-xs text-(--color-ink-muted)" lang="ar">
               تفاصيل الكلمة
             </span>
             <button
               type="button"
-              onClick={() => onSelect(null)}
+              onClick={() => onSelect(null, null)}
               aria-label="إغلاق تفاصيل الكلمة"
               className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-(--color-rule)"
             >
@@ -340,8 +379,8 @@ function PageView({
         <WordPanel
           index={index}
           record={main}
-          token={selected !== null ? (main.tokens[selected] ?? null) : null}
-          onSelect={onSelect}
+          token={activeToken}
+          onSelect={(i) => onSelect(null, i)}
         />
       </aside>
     </div>
