@@ -115,8 +115,10 @@ Where the editor cites Ṣaḥīḥ al-Bukhārī — 2,222 of 2,254 hadith — t
 links out to sunnah.com, which carries the full hadith with its isnād, its
 chapter, and an English translation. None of that is held or reproduced here.
 
-There is full-text search over the Arabic. It matches the written form, not the
-root: searching `كتب` will not find `مكتوب`.
+There is full-text search over the Arabic, by written form or by root. Form
+search is exact; root search finds every derivative, and covers the 51.9% of
+tokens that carry a root — particles do not have one. When a form search happens
+to be spelled like a known root, the page offers the root search alongside it.
 
 ---
 

@@ -43,7 +43,7 @@ import brotli
 
 from gloss import parse_gloss
 from morphology import Recoverer
-from normalise import normalise
+from normalise import normalise, root_key
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -354,6 +354,7 @@ def main() -> int:
     # count cannot be known before the content exists.
     surface_n = SURFACE_SHARDS
     classical_n = CLASSICAL_SHARDS
+    surface_lookup: dict[str, dict] = {}
     surface_shards: list[dict] = [{} for _ in range(surface_n)]
     classical_shards: list[dict] = [{} for _ in range(classical_n)]
     classical_seen: set[str] = set()
@@ -415,6 +416,7 @@ def main() -> int:
                     "accuracy": RECOVERY_ACCURACY,
                 }
         surface_shards[fnv1a(e["search_key"]) % surface_n][mid] = trimmed
+        surface_lookup[mid] = trimmed
         # Match this form's lemma to its own Lane entry.
         lr = e["lane_root"]
         trimmed["laneEntry"] = None
@@ -549,8 +551,48 @@ def main() -> int:
             prev = seq
         postings[key] = entries
 
+    # Root postings. Search matches the written form, so `كتب` finds neither
+    # `مكتوب` nor `يكتب` — the empty state has had to apologise for that since
+    # search shipped. 51.9% of tokens carry a root, which covers the content
+    # words; particles stay form-only, which is right.
+    #
+    # Recovered roots are included: 146 forms whose analysis lost the stem now
+    # have one, and leaving them out would make them invisible to exactly the
+    # search most likely to find them.
+    root_of: dict[str, str] = {}
+    for mid, e in lexicon["surface"].items():
+        trimmed_entry = surface_lookup.get(mid)
+        recovered = (trimmed_entry or {}).get("recovered") or {}
+        root = e.get("root") or recovered.get("root")
+        if root:
+            key = root_key(str(root))
+            if key:
+                root_of[mid] = key
+
+    root_seen: dict[str, dict[int, list[int]]] = collections.defaultdict(
+        lambda: collections.defaultdict(list)
+    )
+    for rec in records["records"]:
+        for tok in bindings[rec["id"]]["tokens"]:
+            mid = tok["matchId"]
+            key = root_of.get(mid) if mid else None
+            if key:
+                root_seen[key][rec["seq"]].append(tok["i"])
+
+    root_postings: dict[str, list[list[int]]] = {}
+    for key, per_record in root_seen.items():
+        prev = 0
+        entries = []
+        for seq in sorted(per_record):
+            entries.append([seq - prev, *per_record[seq]])
+            prev = seq
+        root_postings[key] = entries
+
     sizes["search.json"] = [
-        write(DATA / "search.json", {"buildId": bid, "postings": postings})
+        write(
+            DATA / "search.json",
+            {"buildId": bid, "postings": postings, "roots": root_postings},
+        )
     ]
 
     # ---- assertions --------------------------------------------------------

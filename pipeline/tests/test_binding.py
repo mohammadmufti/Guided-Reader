@@ -91,3 +91,23 @@ def test_inna_takes_the_nominative(bindings):
                 if not t["surface"].endswith("ُ"):
                     bad.append((rid, t["surface"]))
     assert not bad, f"majrur after إنما: {bad}"
+
+
+def test_root_index_covers_the_content_words(bindings, records):
+    """
+    Root search only helps where roots exist. 51.9% of tokens carry one; if that
+    collapses, the feature has quietly stopped working.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent.parent / "web" / "public" / "data" / "search.json"
+    if not path.exists():
+        pytest.skip("payload not built")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    roots = data.get("roots", {})
+    assert len(roots) > 2_000, f"only {len(roots)} roots indexed"
+    tokens = sum(len(e) - 1 for entries in roots.values() for e in entries)
+    total = sum(len(r["tokens"]) for r in bindings.values())
+    share = 100 * tokens / total
+    assert 45 < share < 60, f"roots cover {share:.1f}% of tokens — expected about 52%"

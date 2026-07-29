@@ -1,6 +1,6 @@
 import type { IndexFile } from "@/types/contracts";
 import { loadIndex, loadRecord, layerOf } from "@/lib/data";
-import { normalise } from "@/lib/normalise";
+import { normalise, rootKey } from "@/lib/normalise";
 
 const BASE = `${import.meta.env.BASE_URL}data`;
 
@@ -8,6 +8,8 @@ interface SearchFile {
   buildId: string;
   /** Per key: one entry per record, `[deltaSeq, tokenIndex, tokenIndex, ...]`. */
   postings: Record<string, number[][]>;
+  /** Same shape, keyed by root. 2,176 roots over 51.9% of tokens. */
+  roots: Record<string, number[][]>;
 }
 
 /** One record containing a word, and every position it occupies in it. */
@@ -17,6 +19,13 @@ export interface Posting {
 }
 
 let indexPromise: Promise<Map<string, Posting[]>> | null = null;
+let rootIndex: Map<string, Posting[]> = new Map();
+
+/** Roots are loaded with the form index; call after `loadSearchIndex`. */
+export function knownRoot(query: string): string | null {
+  const key = rootKey(query);
+  return key && rootIndex.has(key) ? key : null;
+}
 
 /**
  * The search index is fetched only when someone actually searches.
@@ -32,17 +41,21 @@ export async function loadSearchIndex(): Promise<Map<string, Posting[]>> {
       const res = await fetch(`${BASE}/search.json?v=${index.buildId}`);
       if (!res.ok) throw new Error(`search.json: HTTP ${res.status}`);
       const file = (await res.json()) as SearchFile;
-      const out = new Map<string, Posting[]>();
-      for (const [key, entries] of Object.entries(file.postings)) {
-        const list: Posting[] = [];
-        let acc = 0;
-        for (const entry of entries) {
-          acc += entry[0]!;
-          list.push({ seq: acc, positions: entry.slice(1) });
+      const expand = (src: Record<string, number[][]>) => {
+        const out = new Map<string, Posting[]>();
+        for (const [key, entries] of Object.entries(src)) {
+          const list: Posting[] = [];
+          let acc = 0;
+          for (const entry of entries) {
+            acc += entry[0]!;
+            list.push({ seq: acc, positions: entry.slice(1) });
+          }
+          out.set(key, list);
         }
-        out.set(key, list);
-      }
-      return out;
+        return out;
+      };
+      rootIndex = expand(file.roots ?? {});
+      return expand(file.postings);
     })();
   }
   return indexPromise;
@@ -171,6 +184,59 @@ const SNIPPET_RADIUS = 7;
  * half-remembered phrase should get the closest hadith rather than nothing,
  * and a strict AND on four terms usually returns nothing.
  */
+export type Mode = "form" | "root";
+
+/**
+ * Search by ROOT rather than by written form.
+ *
+ * Form search is exact: `كتب` finds neither `مكتوب` nor `يكتب`. For a student
+ * asking what else comes from a root that is the wrong question answered
+ * precisely. 51.9% of tokens carry a root, so this covers the content words and
+ * leaves particles to form search, which is the right split.
+ */
+export async function searchByRoot(
+  query: string,
+  index: IndexFile,
+): Promise<{ hits: Hit[]; terms: string[]; total: number }> {
+  await loadSearchIndex();
+  const key = rootKey(query.trim());
+  const list = rootIndex.get(key);
+  if (!key || !list) return { hits: [], terms: [key], total: 0 };
+
+  const order = index.navigation.orderedIds;
+  const numberOf = new Map<string, number>();
+  for (const [num, id] of Object.entries(index.navigation.numberIndex)) {
+    if (!numberOf.has(id)) numberOf.set(id, Number(num));
+  }
+  const page = list.slice(0, MAX_RESULTS);
+  const hits = await Promise.all(
+    page.map(async (p) => {
+      const id = order[p.seq - 1]!;
+      const rec = await loadRecord(id, index.buildId);
+      const marked = new Set(p.positions);
+      const first = p.positions[0] ?? 0;
+      const lo = Math.max(0, first - SNIPPET_RADIUS);
+      const hi = Math.min(rec.tokens.length, first + SNIPPET_RADIUS + 1);
+      const parts: { text: string; match: boolean }[] = [];
+      if (lo > 0) parts.push({ text: "… ", match: false });
+      for (let i = lo; i < hi; i++) {
+        parts.push({ text: rec.tokens[i]!.surface, match: marked.has(i) });
+        parts.push({ text: rec.tokens[i]!.punctuationAfter, match: false });
+      }
+      if (hi < rec.tokens.length) parts.push({ text: " …", match: false });
+      return {
+        seq: p.seq,
+        id,
+        number: numberOf.get(id) ?? null,
+        kitab: rec.kitab?.titleAr ?? null,
+        snippet: parts,
+        matched: p.positions.length,
+      };
+    }),
+  );
+  return { hits, terms: [key], total: list.length };
+}
+
 export async function search(
   query: string,
   index: IndexFile,

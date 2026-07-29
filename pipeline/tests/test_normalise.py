@@ -55,3 +55,20 @@ def test_typescript_twin_is_in_sync():
         text=True,
     )
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_root_key_folds_bare_hamza():
+    """
+    The workbook writes hamza-initial roots as ءرض and ءمر; a reader types أرض,
+    which normalise() gives as ارض. Without this fold, root search for any
+    hamzated word silently returns nothing.
+    """
+    from normalise import root_key
+
+    assert root_key("أرض") == root_key("ءرض") == "ارض"
+    assert root_key("أمر") == root_key("ءمر") == "امر"
+    assert root_key("كتب") == "كتب"
+    # Some root values carry stray punctuation, and the panel renders roots
+    # spaced out as radicals.
+    assert root_key("ح د ث") == "حدث"
+    assert root_key("صلو.") == "صلو"

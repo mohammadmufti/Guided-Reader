@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
 import { loadIndex } from "@/lib/data";
-import { search, type Hit } from "@/lib/search";
+import { search, searchByRoot, knownRoot, type Hit, type Mode } from "@/lib/search";
 
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "done"; hits: Hit[]; terms: string[]; total: number }
+  | { kind: "done"; hits: Hit[]; terms: string[]; total: number; rootAvailable: string | null }
   | { kind: "error"; message: string };
 
 /**
@@ -20,6 +20,7 @@ type State =
 export function Search() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
+  const mode: Mode = params.get("mode") === "root" ? "root" : "form";
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
   const [draft, setDraft] = useState(q);
@@ -38,14 +39,22 @@ export function Search() {
     }
     let live = true;
     setState({ kind: "loading" });
-    search(q, index).then(
-      (r) => live && setState({ kind: "done", ...r }),
+    const run = mode === "root" ? searchByRoot : search;
+    run(q, index).then(
+      (r) =>
+        live &&
+        setState({
+          kind: "done",
+          ...r,
+          // Offer the other mode only when it would actually find something.
+          rootAvailable: mode === "form" ? knownRoot(q) : null,
+        }),
       (e: Error) => live && setState({ kind: "error", message: e.message }),
     );
     return () => {
       live = false;
     };
-  }, [q, index]);
+  }, [q, mode, index]);
 
   return (
     <main className="mx-auto max-w-4xl px-5 py-8">
@@ -62,6 +71,31 @@ export function Search() {
         </Link>
       </header>
 
+      {/* Form and root answer different questions: "where does this word
+          appear" and "what else comes from this root". Neither is a fallback
+          for the other, so both are offered rather than one guessed at. */}
+      <div
+        role="radiogroup"
+        aria-label="نوع البحث"
+        className="mb-3 inline-flex rounded-md border border-(--color-rule) p-0.5 text-sm"
+      >
+        {(["form", "root"] as Mode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            onClick={() => setParams({ q: draft, mode: m }, { replace: true })}
+            className={`rounded px-3 py-1 transition-colors ${
+              mode === m ? "bg-(--color-rule) font-semibold" : "text-(--color-ink-muted)"
+            }`}
+            lang="ar"
+          >
+            {m === "form" ? "الصيغة" : "الجذر"}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-start gap-2">
         <input
           id="search-input"
@@ -70,7 +104,7 @@ export function Search() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") setParams({ q: draft }, { replace: true });
+            if (e.key === "Enter") setParams({ q: draft, mode }, { replace: true });
           }}
           placeholder="اكتب كلمة أو أكثر — بالحركات أو بدونها"
           aria-label="ابحث في النص"
@@ -80,7 +114,7 @@ export function Search() {
         />
         <button
           type="button"
-          onClick={() => setParams({ q: draft }, { replace: true })}
+          onClick={() => setParams({ q: draft, mode }, { replace: true })}
           className="shrink-0 rounded-md border border-(--color-rule) px-3 py-2.5 text-sm transition-colors hover:bg-(--color-rule)"
           lang="ar"
         >
@@ -89,8 +123,9 @@ export function Search() {
       </div>
 
       <p className="mt-2 text-xs text-(--color-ink-muted)" lang="ar">
-        الحركات غير مطلوبة؛ يُطابَق البحث على الصيغة المجرَّدة. الكلمات المتعددة
-        تُطابَق معًا.
+        {mode === "form"
+          ? "الحركات غير مطلوبة؛ يُطابَق البحث على الصيغة كما وردت. الكلمات المتعددة تُطابَق معًا."
+          : "ابحث بالجذر لتجد كل مشتقاته — «كتب» تجد «مكتوب» و«يكتب». نحو نصف الكلمات لها جذر."}
       </p>
 
       <div className="mt-7">
@@ -104,7 +139,13 @@ export function Search() {
             {state.message}
           </p>
         )}
-        {state.kind === "done" && <Results state={state} />}
+        {state.kind === "done" && (
+          <Results
+            state={state}
+            mode={mode}
+            onRootSearch={() => setParams({ q: draft, mode: "root" }, { replace: true })}
+          />
+        )}
       </div>
     </main>
   );
@@ -112,22 +153,45 @@ export function Search() {
 
 function Results({
   state,
+  mode,
+  onRootSearch,
 }: {
-  state: { hits: Hit[]; terms: string[]; total: number };
+  state: { hits: Hit[]; terms: string[]; total: number; rootAvailable: string | null };
+  mode: Mode;
+  onRootSearch: () => void;
 }) {
+  const offer = state.rootAvailable && (
+    <p className="mb-4 text-sm" dir="rtl" lang="ar">
+      <button
+        type="button"
+        onClick={onRootSearch}
+        className="underline underline-offset-4 hover:text-(--color-accent)"
+      >
+        ابحث بالجذر{" "}
+        <span className="arabic tracking-[0.3em]">
+          {[...state.rootAvailable].join(" ")}
+        </span>{" "}
+        لتجد كل المشتقات
+      </button>
+    </p>
+  );
+
   if (state.total === 0) {
     return (
       <div className="max-w-prose">
+        {offer}
         <p lang="ar">لا نتائج.</p>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)" lang="ar">
-          جرّب كلمة واحدة، أو صيغة أخرى للكلمة. البحث يطابق الصيغة كما وردت، لا
-          الجذر — فـ«كتب» لا تجد «مكتوب».
+          {mode === "form"
+            ? "جرّب كلمة واحدة، أو صيغة أخرى، أو ابحث بالجذر."
+            : "لا جذر بهذا الشكل في هذا الكتاب. الجذور ثلاثية غالبًا، مثل «كتب»."}
         </p>
       </div>
     );
   }
   return (
     <>
+      {offer}
       <p className="mb-4 text-sm text-(--color-ink-muted)" lang="ar">
         {state.total.toLocaleString("ar-EG")} حديثًا
         {state.hits.length < state.total

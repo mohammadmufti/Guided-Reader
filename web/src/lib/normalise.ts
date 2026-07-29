@@ -31,3 +31,17 @@ export function normalise(form: string): string {
   }
   return out;
 }
+
+/**
+ * Canonical form of a ROOT, for lookup. Looser than normalise(): the
+ * workbook writes hamza-initial roots as ءرض where a reader types أرض, and
+ * recall matters more than precision when asking what shares a root.
+ */
+export function rootKey(root: string): string {
+  let out = "";
+  for (const ch of normalise(root)) {
+    const c = ch === "\u0621" ? "\u0627" : ch;
+    if (c >= "\u0621" && c <= "\u064A") out += c;
+  }
+  return out;
+}

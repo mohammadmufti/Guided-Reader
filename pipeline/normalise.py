@@ -43,3 +43,22 @@ LETTERS = str.maketrans(
 def normalise(form: str) -> str:
     """Fold a vocalised surface form to its `search_key`."""
     return form.translate(DIACRITICS).translate(LETTERS)
+
+
+# Root search needs a second, looser fold. The workbook writes hamza-initial
+# roots with a bare hamza — ءرض, ءمر, ءتي — while a student types أرض, which
+# normalise() turns into ارض. Without folding those together, searching for the
+# root of a hamzated word silently returns nothing.
+ROOT_EXTRA = str.maketrans({"\u0621": "\u0627"})  # ء -> ا
+
+
+def root_key(root: str) -> str:
+    """
+    Canonical form of a ROOT, for lookup.
+
+    Looser than `normalise` on purpose: recall matters more than precision when
+    a reader is asking "what else comes from this root". Also drops the stray
+    punctuation a few root values carry.
+    """
+    folded = normalise(root).translate(ROOT_EXTRA)
+    return "".join(c for c in folded if "\u0621" <= c <= "\u064a")
