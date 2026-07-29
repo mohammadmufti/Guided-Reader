@@ -64,6 +64,13 @@ ACCUSATIVE_TRIGGERS = {normalise(w) for w in "إن أن كأن لكن لعل ل�
 RETRIEVAL_DF_CEILING = 400   # ignore tokens appearing in more rows than this
 MIN_COVERAGE = 0.35          # below this the retrieved row is not the counterpart
 ANCHOR_BLOCK = 2             # matching blocks this short do not pin down position
+WITNESS_BLOCK = 3            # blocks this long are trusted to correct the lexicon
+
+# Nouns governed by these are majrur. al-Tajrid rewrites Bukhari's isnad
+# openings — `سمعت عمرَ بنَ الخطاب` becomes `عن عمرَ بنِ الخطاب` — which CHANGES
+# THE CASE. Alignment transfers Bukhari's vowelling verbatim and so imports the
+# wrong ending. Measured: 194 of 491 `عن <name> بن` openings were wrong.
+IBN_FORMS = {"بن", "ابن", "بنت"}
 REPAIR_MIN_SUPPORT = 20      # evidence needed to overrule an alignment
 REPAIR_MIN_PURITY = 0.90
 
@@ -198,6 +205,9 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
     ref_agree = {"checked": 0, "consistent": 0}
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
+    syntax_fixes: collections.Counter = collections.Counter()
+    witness_fixes: collections.Counter = collections.Counter()
+    surfaces: dict[tuple[str, int], str] = {}
     state: list[tuple[dict, str, list[dict], list[str], list[int | None], list[str | None]]] = []
 
     # ===== Pass 1: Tiers 1, 2, 5 =============================================
@@ -233,9 +243,23 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                 for a, b, size in sm.get_matching_blocks():
                     for d in range(size):
                         i = a + d
+                        witness = bukhari.forms[row][b + d]
+                        if tiers[i] == 1 and size >= WITNESS_BLOCK:
+                            # Tier 1 means the LEXICON had one option — not that
+                            # the option is right. Where a positionally trusted
+                            # alignment shows a different vowelling of the same
+                            # word, the witness wins. The lexicon entry still
+                            # applies: same lemma, same root, different ending.
+                            # 585 tokens, including الْأَعْمَالِ in hadith 1,
+                            # which must be الْأَعْمَالُ after إنما.
+                            lex_form = lex.entry[mids[i]]["vocalized"] if mids[i] else None
+                            if lex_form and witness != lex_form:
+                                surfaces[(rec["id"], i)] = witness
+                                witness_fixes[(lex_form, witness)] += 1
+                            continue
                         if tiers[i] is not None:
                             continue
-                        mid = lex.by_key_form.get((keys[i], bukhari.forms[row][b + d]))
+                        mid = lex.by_key_form.get((keys[i], witness))
                         if mid:
                             tiers[i], mids[i] = 2, mid
                             if size <= ANCHOR_BLOCK and len(row_forms[keys[i]]) > 1:
@@ -244,6 +268,24 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                     ref_agree["checked"] += 1
                     if row + 1 in rec["bukhariRefs"] or coverage >= 0.8:
                         ref_agree["consistent"] += 1
+
+        # ---- syntactic override -------------------------------------------
+        # A hard rule about OUR text's syntax beats a witness to a DIFFERENT
+        # text's syntax. `بن` between two names inherits the case of the name it
+        # follows, and after a preposition that name is majrur.
+        for i, key in enumerate(keys):
+            if key not in IBN_FORMS or i < 2:
+                continue
+            if keys[i - 2] not in GENITIVE_TRIGGERS:
+                continue
+            wanted = [
+                m for m in lex.candidates(key)
+                if final_haraka(lex.entry[m]["vocalized"]) in {KASRA, KASRATAN}
+            ]
+            if len(wanted) == 1 and mids[i] != wanted[0]:
+                mids[i] = wanted[0]
+                tiers[i] = 3
+                syntax_fixes[key] += 1
 
         state.append((rec, leading, tokens, keys, tiers, mids))
 
@@ -327,7 +369,10 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
             }[tier]
             out.append({
                 "i": i,
-                "surface": lex.entry[mid]["vocalized"] if mid else tok["raw"],
+                "surface": surfaces.get(
+                    (rec["id"], i),
+                    lex.entry[mid]["vocalized"] if mid else tok["raw"],
+                ),
                 "raw": tok["raw"],
                 "matchId": mid,
                 "binding": binding,
@@ -342,6 +387,8 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
         bound[rec["id"]] = {"leading": leading, "tokens": out}
 
     reasons.update(repairs)
+    reasons["syntax-override (ibn)"] = sum(syntax_fixes.values())
+    reasons["witness-corrected Tier 1"] = sum(witness_fixes.values())
     return bound, {"tally": tally, "tally_matn": tally_matn, "reasons": reasons,
                    "retrieval": retrieval, "refAgree": ref_agree}
 

@@ -167,19 +167,27 @@ def write(path: Path, obj) -> tuple[int, int, int]:
     return len(blob), len(gz), len(br)
 
 
-def build_id(records: dict, lexicon: dict) -> str:
+def build_id(inputs: list[Path]) -> str:
     """
-    Short content hash of the inputs this payload was built from.
+    Short content hash of every input this payload was built from.
 
     Cache headers can only be `immutable` if the URL changes when the content
-    does, and these filenames do not. The client appends `?v={buildId}` from
-    index.json to every hadith and shard request, which makes those URLs
-    genuinely immutable; index.json itself is the one file that must revalidate.
+    does, and these filenames do not. The client appends `?v={buildId}` to every
+    hadith and shard request, which makes those URLs genuinely immutable;
+    index.json is the one file that must revalidate.
+
+    Hash the FILES, not summary statistics. An earlier version hashed the source
+    checksum, the record count and the lexicon entry count — none of which
+    change when binding changes. So a fix to bind.py that corrected 800 words
+    produced an identical buildId, and any cache honouring `immutable` would
+    have gone on serving the old vowelling for a year.
     """
     h = hashlib.sha256()
-    h.update(records["corpus"]["sourceSha256"].encode())
-    h.update(str(len(records["records"])).encode())
-    h.update(str(len(lexicon["surface"])).encode())
+    for path in inputs:
+        h.update(path.name.encode())
+        with path.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
     return h.hexdigest()[:12]
 
 
@@ -242,7 +250,11 @@ def main() -> int:
 
     sizes: dict[str, list[tuple[int, int, int]]] = {}
 
-    bid = build_id(records, lexicon)
+    bid = build_id([
+        BUILD / args.corpus / "records.json",
+        BUILD / args.corpus / "lexicon.json",
+        BUILD / args.corpus / "bindings.json",
+    ])
 
     # ---- hadith files ------------------------------------------------------
     by_id = {r["id"]: r for r in records["records"]}
