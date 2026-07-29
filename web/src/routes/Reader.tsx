@@ -153,9 +153,11 @@ export function Reader() {
             step={settings.step}
             harakat={settings.harakat}
             theme={settings.theme}
+            face={settings.face}
             onStep={settings.setStep}
             onHarakat={settings.toggleHarakat}
             onTheme={settings.cycleTheme}
+            onFace={settings.cycleFace}
           />
           <Link
             to="/search"

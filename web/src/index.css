@@ -8,6 +8,10 @@
    content and they need room. It is also why the leading scales — see below. */
 @import "@fontsource/amiri/400.css";
 @import "@fontsource/amiri/700.css";
+@import "@fontsource/scheherazade-new/400.css";
+@import "@fontsource/scheherazade-new/700.css";
+@import "@fontsource/noto-naskh-arabic/400.css";
+@import "@fontsource/noto-naskh-arabic/700.css";
 
 /* Apparatus: Inter. The choice was forced rather than free. Transliteration
    needs ʿ (U+02BF) and ʾ (U+02BE), and of five sans faces checked against the
@@ -41,7 +45,16 @@
   --color-accent-soft: oklch(0.93 0.03 213);
   --color-flag: oklch(0.42 0.09 340);
 
-  --font-arabic: "Amiri", "Scheherazade New", "Noto Naskh Arabic", serif;
+  /* Default. Amiri was chosen first, on VERTICAL mark room — it needs 1.90x
+     its size under a full harakat load against Scheherazade's 1.80x. What that
+     measurement missed is the horizontal set: for the same text at the same
+     size Amiri is 294px wide where Scheherazade is 335px and Noto 338px, a
+     12–15% tighter fit, and that is where the dots of adjacent letters crowd.
+     Scheherazade New is SIL's face for languages that carry heavy diacritics,
+     so it is the better default for a reader learning to read vowelled text.
+     Amiri stays available: its texture is the more scholarly of the three and
+     the crowding is a matter of eyes and screens. */
+  --font-arabic: "Scheherazade New", "Amiri", "Noto Naskh Arabic", serif;
   --font-latin: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -93,6 +106,16 @@
 :root[data-ar-step="3"] { --ar-size: 1.75rem;  --ar-leading: 2.05; }
 :root[data-ar-step="4"] { --ar-size: 2.125rem; --ar-leading: 1.98; }
 :root[data-ar-step="5"] { --ar-size: 2.5rem;   --ar-leading: 1.92; }
+
+/* The reading face is a preference, like size and vowel marks. */
+:root[data-ar-face="amiri"] { --font-arabic: "Amiri", serif; }
+:root[data-ar-face="scheherazade"] { --font-arabic: "Scheherazade New", serif; }
+:root[data-ar-face="noto"] { --font-arabic: "Noto Naskh Arabic", serif; }
+
+/* Scheherazade sits smaller on the em than Amiri, so the step scale would read
+   as a size drop when switching. Nudge it back. */
+:root[data-ar-face="scheherazade"] .arabic-body { font-size: calc(var(--ar-size) * 1.06); }
+:root[data-ar-face="noto"] .arabic-body { font-size: calc(var(--ar-size) * 1.02); }
 
 html { color-scheme: light dark; }
 

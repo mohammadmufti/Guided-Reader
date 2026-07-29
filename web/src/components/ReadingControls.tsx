@@ -1,12 +1,15 @@
-import type { ArStep, Theme } from "@/hooks/useSettings";
+import type { ArStep, Theme, Face } from "@/hooks/useSettings";
+import { FACES } from "@/hooks/useSettings";
 
 interface Props {
   step: ArStep;
   harakat: boolean;
   theme: Theme;
+  face: Face;
   onStep: (s: ArStep) => void;
   onHarakat: () => void;
   onTheme: () => void;
+  onFace: () => void;
 }
 
 const THEME_LABEL: Record<Theme, string> = {
@@ -62,9 +65,22 @@ const STEPS: ArStep[] = [1, 2, 3, 4, 5];
  * The harakat toggle exists because the data makes it free and it turns the
  * reader into a self-test: hide the vowels, read the line, show them back.
  */
-export function ReadingControls({ step, harakat, theme, onStep, onHarakat, onTheme }: Props) {
+export function ReadingControls({
+  step,
+  harakat,
+  theme,
+  face,
+  onStep,
+  onHarakat,
+  onTheme,
+  onFace,
+}: Props) {
+  const current = FACES.find((f) => f.id === face) ?? FACES[0]!;
   return (
-    <div className="flex items-center gap-4">
+    // `flex-wrap` matters here: the control row grew a face selector and at
+    // 360px the fixed row ran 7px past the viewport. Controls wrap rather than
+    // overflow, and the gap tightens on small screens.
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
       <div
         role="radiogroup"
         aria-label="حجم الخط"
@@ -92,6 +108,20 @@ export function ReadingControls({ step, harakat, theme, onStep, onHarakat, onThe
           </button>
         ))}
       </div>
+
+      {/* Legibility is partly the face and partly the reader's eyes and screen,
+          so it is offered rather than decided. The label is set in the face it
+          selects, which says more than a name would. */}
+      <button
+        type="button"
+        onClick={onFace}
+        title={current.note}
+        aria-label={`الخط: ${current.label}`}
+        className="arabic rounded-md border border-(--color-rule) px-2.5 py-1 text-base transition-colors hover:bg-(--color-rule)"
+        lang="ar"
+      >
+        {current.label}
+      </button>
 
       <button
         type="button"

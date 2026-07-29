@@ -571,6 +571,13 @@ export interface PanelEntry {
   pos_agreement: string | null;
   layers: string | null;
   reviewFlagged: boolean;
+  /**
+   * How often THIS pipeline bound the entry. Not `freq`, which is the workbook's own count — the
+   * two differ on ~4% of tokens, deliberately.
+   */
+  boundFreq: number;
+  /** Records containing it, by this pipeline's binding. */
+  boundDocFreq: number;
   /** Present in the Names gazetteer — render as a person. */
   isName: boolean;
   /** Set only when morphSuspect is true AND a stem was found. 146 of 409 forms. */

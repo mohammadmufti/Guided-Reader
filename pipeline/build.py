@@ -358,6 +358,19 @@ def main() -> int:
     classical_shards: list[dict] = [{} for _ in range(classical_n)]
     classical_seen: set[str] = set()
 
+    # How often THIS pipeline bound each entry, which is not the same as the
+    # workbook's `freq`. We agree with its binding on 96% of tokens and differ
+    # deliberately on the rest — الله#1 is 6,293 here against its 4,586. The
+    # panel describes what the reader is looking at, so it must count what the
+    # reader is looking at.
+    bound_freq: collections.Counter = collections.Counter()
+    bound_docs: dict[str, set[str]] = collections.defaultdict(set)
+    for rid, rec in bindings.items():
+        for t in rec["tokens"]:
+            if t["matchId"]:
+                bound_freq[t["matchId"]] += 1
+                bound_docs[t["matchId"]].add(rid)
+
     names = lexicon["names"]
 
     # The recoverer's evidence is this corpus's own lexicon: every row that has
@@ -370,6 +383,8 @@ def main() -> int:
     for mid, e in lexicon["surface"].items():
         trimmed = {k: e[k] for k in SURFACE_KEEP if k in e}
         trimmed["reviewFlagged"] = e["unvocalized"] in review
+        trimmed["boundFreq"] = bound_freq.get(mid, 0)
+        trimmed["boundDocFreq"] = len(bound_docs.get(mid, ()))
         # The raw Buckwalter string never ships. It is parsed here, once,
         # against all 21,028 glosses — see gloss.py — so the panel cannot
         # accidentally render `the + prayer;salat + [fem.sg.]` at a reader.
@@ -513,19 +528,27 @@ def main() -> int:
     # Postings are record sequence numbers, delta-encoded ascending: the median
     # key has one posting and the commonest has 2,343, so deltas cost almost
     # nothing on the long tail and a great deal on the head.
-    postings: dict[str, list[int]] = {}
-    seen: dict[str, set[int]] = collections.defaultdict(set)
+    # Postings carry POSITIONS, not just records: `[deltaSeq, i, i, ...]` per
+    # record, flattened. Search reads only the record part; the word panel uses
+    # the positions to show every other occurrence of a word in context, which
+    # is the difference between a dictionary entry and a concordance.
+    seen: dict[str, dict[int, list[int]]] = collections.defaultdict(
+        lambda: collections.defaultdict(list)
+    )
     for rec in records["records"]:
         _, toks = tokenise(rec["textRaw"])
         for tok in toks:
-            seen[normalise(tok["raw"])].add(rec["seq"])
-    for key, seqs in seen.items():
+            seen[normalise(tok["raw"])][rec["seq"]].append(tok["i"])
+
+    postings: dict[str, list[list[int]]] = {}
+    for key, per_record in seen.items():
         prev = 0
-        deltas = []
-        for seq in sorted(seqs):
-            deltas.append(seq - prev)
+        entries: list[list[int]] = []
+        for seq in sorted(per_record):
+            entries.append([seq - prev, *per_record[seq]])
             prev = seq
-        postings[key] = deltas
+        postings[key] = entries
+
     sizes["search.json"] = [
         write(DATA / "search.json", {"buildId": bid, "postings": postings})
     ]

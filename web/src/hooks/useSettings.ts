@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ArStep = 1 | 2 | 3 | 4 | 5;
 export type Theme = "system" | "light" | "dark";
+export type Face = "scheherazade" | "amiri" | "noto";
+
+export const FACES: { id: Face; label: string; note: string }[] = [
+  { id: "scheherazade", label: "شهرزاد", note: "Scheherazade New — the most open of the three" },
+  { id: "amiri", label: "أميري", note: "Amiri — a Bulaq naskh, tighter set" },
+  { id: "noto", label: "نوتو", note: "Noto Naskh — plainest, clearest on small screens" },
+];
 
 const KEY = "tajrid.settings.v1";
 
@@ -9,9 +16,15 @@ export interface Settings {
   step: ArStep;
   harakat: boolean;
   theme: Theme;
+  face: Face;
 }
 
-const DEFAULTS: Settings = { step: 3, harakat: true, theme: "system" };
+const DEFAULTS: Settings = {
+  step: 3,
+  harakat: true,
+  theme: "system",
+  face: "scheherazade",
+};
 
 function read(): Settings {
   // Private-mode Safari throws on localStorage access rather than returning
@@ -23,7 +36,9 @@ function read(): Settings {
     const parsed = JSON.parse(raw) as Partial<Settings>;
     const step = parsed.step;
     const theme = parsed.theme;
+    const face = parsed.face;
     return {
+      face: face === "amiri" || face === "noto" || face === "scheherazade" ? face : "scheherazade",
       step: step === 1 || step === 2 || step === 3 || step === 4 || step === 5 ? step : 3,
       harakat: parsed.harakat !== false,
       theme: theme === "light" || theme === "dark" ? theme : "system",
@@ -43,6 +58,7 @@ export function useSettings() {
 
   useEffect(() => {
     document.documentElement.dataset["arStep"] = String(settings.step);
+    document.documentElement.dataset["arFace"] = settings.face;
     // "system" removes the attribute entirely so the prefers-color-scheme media
     // query decides. That also means no flash: the correct palette is applied
     // by CSS before any JavaScript runs, which would not be true if the theme
@@ -78,7 +94,16 @@ export function useSettings() {
     [],
   );
 
-  return { ...settings, setStep, toggleHarakat, cycleTheme };
+  const cycleFace = useCallback(
+    () =>
+      setSettings((s) => {
+        const at = FACES.findIndex((f) => f.id === s.face);
+        return { ...s, face: FACES[(at + 1) % FACES.length]!.id };
+      }),
+    [],
+  );
+
+  return { ...settings, setStep, toggleHarakat, cycleTheme, cycleFace };
 }
 
 // Harakat, tanwin, shadda, sukun, superscript alef, tatweel — the same set the

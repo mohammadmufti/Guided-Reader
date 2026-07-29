@@ -596,6 +596,14 @@ class PanelEntry(TypedDict):
     pos_agreement: Annotated[str | None, Doc("'disagree' means the root is probably wrong.")]
     layers: str | None
     reviewFlagged: bool
+    boundFreq: Annotated[
+        int,
+        Doc(
+            "How often THIS pipeline bound the entry. Not `freq`, which is the workbook's "
+            "own count — the two differ on ~4% of tokens, deliberately."
+        ),
+    ]
+    boundDocFreq: Annotated[int, Doc("Records containing it, by this pipeline's binding.")]
     isName: Annotated[bool, Doc("Present in the Names gazetteer — render as a person.")]
     recovered: Annotated[
         RecoveredMorphology | None,

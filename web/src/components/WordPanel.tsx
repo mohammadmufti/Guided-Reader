@@ -11,6 +11,8 @@ import type {
   Gloss,
 } from "@/types/contracts";
 import { loadPanel, type PanelData } from "@/lib/lexicon";
+import { loadOccurrences, type Occurrence } from "@/lib/search";
+import { Link } from "react-router-dom";
 
 /**
  * The word panel. Phase 7.
@@ -92,7 +94,7 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       <RootAndLemma entry={entry} classical={classical} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       <Divergence entry={entry} />
-      <InThisCorpus entry={entry} index={index} />
+      <InThisCorpus entry={entry} index={index} record={record} token={token} />
       <ProperNoun entry={entry} />
       <Provenance entry={entry} token={token} />
     </div>
@@ -497,7 +499,111 @@ function Divergence({ entry }: { entry: PanelEntry }) {
 
 /* ------------------------------------------------------ 6. in this corpus */
 
-function InThisCorpus({ entry, index }: { entry: PanelEntry; index: IndexFile }) {
+/**
+ * Every other place this spelling occurs, fetched on request.
+ *
+ * The panel turns from a dictionary entry into a concordance: a reader stops
+ * asking what a word means and starts asking how this author uses it. The index
+ * that makes it possible is 310 KB, so it is loaded when asked for rather than
+ * with every panel — the count is already known from `doc_freq`, so the offer
+ * is free until taken.
+ */
+function Occurrences({
+  entry,
+  index,
+  record,
+  token,
+}: {
+  entry: PanelEntry;
+  index: IndexFile;
+  record: HadithFile;
+  token: Token;
+}) {
+  const [state, setState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "done"; total: number; shown: Occurrence[] }
+  >({ kind: "idle" });
+
+  useEffect(() => setState({ kind: "idle" }), [token.matchId, record.id]);
+
+  const elsewhere = entry.boundFreq - 1;
+  if (elsewhere < 1) return null;
+
+  if (state.kind === "idle") {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setState({ kind: "loading" });
+          // The search key is the first half of the identifier — no need to
+          // ship it twice on 22,464 entries.
+          loadOccurrences(token.matchId ?? "", index, {
+            id: record.id,
+            index: token.i,
+          }).then(
+            (r) => setState({ kind: "done", ...r }),
+            () => setState({ kind: "done", total: 0, shown: [] }),
+          );
+        }}
+        className="mt-2 text-xs text-(--color-ink-muted) underline underline-offset-2"
+        dir="ltr"
+      >
+        Show the other {elsewhere.toLocaleString()} occurrence
+        {elsewhere === 1 ? "" : "s"} of this reading
+      </button>
+    );
+  }
+  if (state.kind === "loading") {
+    return (
+      <p className="mt-2 text-xs text-(--color-ink-muted)" role="status" lang="ar">
+        …
+      </p>
+    );
+  }
+  return (
+    <div className="mt-3 border-t border-(--color-rule) pt-2">
+      <p className="mb-2 text-[0.65rem] uppercase tracking-wide text-(--color-ink-muted)" dir="ltr">
+        Elsewhere{state.total > state.shown.length ? ` — first ${state.shown.length} of ${state.total}` : ""}
+      </p>
+      <ol className="space-y-2">
+        {state.shown.filter((o) => o.number !== null).map((o) => (
+          <li key={`${o.id}:${o.index}`}>
+            <Link
+              to={`/hadith/${o.number}?w=${o.target}`}
+              className="block rounded px-1 py-0.5 transition-colors hover:bg-(--color-rule)"
+            >
+              <span className="me-2 text-xs tabular-nums text-(--color-ink-muted)">
+                {o.number}
+              </span>
+              <span className="arabic text-base leading-loose" lang="ar" dir="rtl">
+                {o.snippet.map((part, i) =>
+                  part.match ? (
+                    <mark key={i} className="bg-(--color-accent-soft) text-(--color-ink)">
+                      {part.text}
+                    </mark>
+                  ) : (
+                    <span key={i}>{part.text}</span>
+                  ),
+                )}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function InThisCorpus({
+  entry,
+  index,
+  record,
+  token,
+}: {
+  entry: PanelEntry;
+  index: IndexFile;
+  record: HadithFile;
+  token: Token;
+}) {
   const layers = (entry.layers ?? "")
     .split(",")
     .map((p) => p.split(":"))
@@ -505,20 +611,20 @@ function InThisCorpus({ entry, index }: { entry: PanelEntry; index: IndexFile })
     .map(([name, n]) => ({ name: (name ?? "").trim(), n: Number(n) }));
 
   const framing =
-    entry.freq === 1
+    entry.boundFreq === 1
       ? "A hapax — it occurs exactly once in the whole book."
       : entry.rank <= 50
         ? `Among the 50 most frequent forms; the top ${entry.rank} account for ${(entry.cum_pct * 100).toFixed(0)}% of all tokens.`
-        : entry.freq >= 100
+        : entry.boundFreq >= 100
           ? "A common form you will meet repeatedly."
           : null;
 
   return (
     <Section title="في هذا الكتاب" subtitle="In this corpus">
       <p className="text-sm" dir="ltr">
-        <strong className="tabular-nums">{entry.freq.toLocaleString()}</strong>{" "}
-        occurrence{entry.freq === 1 ? "" : "s"} across{" "}
-        <strong className="tabular-nums">{entry.doc_freq.toLocaleString()}</strong> of{" "}
+        <strong className="tabular-nums">{entry.boundFreq.toLocaleString()}</strong>{" "}
+        occurrence{entry.boundFreq === 1 ? "" : "s"} across{" "}
+        <strong className="tabular-nums">{entry.boundDocFreq.toLocaleString()}</strong> of{" "}
         {index.counts.hadith.toLocaleString()} records · rank{" "}
         <span className="tabular-nums">{entry.rank.toLocaleString()}</span>
       </p>
@@ -532,6 +638,7 @@ function InThisCorpus({ entry, index }: { entry: PanelEntry; index: IndexFile })
           {layers.map((l) => `${l.n} in ${l.name.replace("heading_", "")}`).join(" · ")}
         </p>
       )}
+      <Occurrences entry={entry} index={index} record={record} token={token} />
     </Section>
   );
 }
