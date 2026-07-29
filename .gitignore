@@ -8,3 +8,6 @@ pipeline/cache/
 pipeline/build/
 web/public/data/
 web/dist/
+
+# TypeScript incremental build state
+*.tsbuildinfo
