@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ArStep = 1 | 2 | 3 | 4 | 5;
+export type Theme = "system" | "light" | "dark";
 
 const KEY = "tajrid.settings.v1";
 
 export interface Settings {
   step: ArStep;
   harakat: boolean;
+  theme: Theme;
 }
 
-const DEFAULTS: Settings = { step: 3, harakat: true };
+const DEFAULTS: Settings = { step: 3, harakat: true, theme: "system" };
 
 function read(): Settings {
   // Private-mode Safari throws on localStorage access rather than returning
@@ -20,9 +22,11 @@ function read(): Settings {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<Settings>;
     const step = parsed.step;
+    const theme = parsed.theme;
     return {
       step: step === 1 || step === 2 || step === 3 || step === 4 || step === 5 ? step : 3,
       harakat: parsed.harakat !== false,
+      theme: theme === "light" || theme === "dark" ? theme : "system",
     };
   } catch {
     return DEFAULTS;
@@ -39,6 +43,15 @@ export function useSettings() {
 
   useEffect(() => {
     document.documentElement.dataset["arStep"] = String(settings.step);
+    // "system" removes the attribute entirely so the prefers-color-scheme media
+    // query decides. That also means no flash: the correct palette is applied
+    // by CSS before any JavaScript runs, which would not be true if the theme
+    // were always resolved in JS.
+    if (settings.theme === "system") {
+      delete document.documentElement.dataset["theme"];
+    } else {
+      document.documentElement.dataset["theme"] = settings.theme;
+    }
     try {
       localStorage.setItem(KEY, JSON.stringify(settings));
     } catch {
@@ -54,8 +67,18 @@ export function useSettings() {
     () => setSettings((s) => ({ ...s, harakat: !s.harakat })),
     [],
   );
+  // Cycles system -> light -> dark -> system. Three states rather than two so
+  // a reader can always get back to following the device.
+  const cycleTheme = useCallback(
+    () =>
+      setSettings((s) => ({
+        ...s,
+        theme: s.theme === "system" ? "light" : s.theme === "light" ? "dark" : "system",
+      })),
+    [],
+  );
 
-  return { ...settings, setStep, toggleHarakat };
+  return { ...settings, setStep, toggleHarakat, cycleTheme };
 }
 
 // Harakat, tanwin, shadda, sukun, superscript alef, tatweel — the same set the

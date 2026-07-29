@@ -45,8 +45,13 @@
   --font-latin: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Dark values appear twice, deliberately. The media query is the default and
+   applies before any JavaScript runs, so there is no flash of the wrong
+   palette; the attribute rule is an explicit override. CSS has no way to share
+   one declaration block between a media condition and an attribute selector,
+   so the alternative is resolving the theme in JS and accepting the flash. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-paper: oklch(0.19 0.012 243);
     --color-raised: oklch(0.235 0.013 243);
     --color-ink: oklch(0.93 0.008 240);
@@ -57,6 +62,21 @@
     --color-flag: oklch(0.82 0.09 340);
   }
 }
+
+:root[data-theme="dark"] {
+  --color-paper: oklch(0.19 0.012 243);
+  --color-raised: oklch(0.235 0.013 243);
+  --color-ink: oklch(0.93 0.008 240);
+  --color-ink-muted: oklch(0.74 0.014 240);
+  --color-rule: oklch(0.35 0.012 240);
+  --color-accent: oklch(0.82 0.09 205);
+  --color-accent-soft: oklch(0.33 0.05 210);
+  --color-flag: oklch(0.82 0.09 340);
+}
+
+/* Keep native controls, scrollbars and form widgets in step with the choice. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 /* ---------------------------------------------------------------------------
    Arabic size steps.

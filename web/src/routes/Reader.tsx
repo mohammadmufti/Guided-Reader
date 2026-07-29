@@ -146,8 +146,10 @@ export function Reader() {
           <ReadingControls
             step={settings.step}
             harakat={settings.harakat}
+            theme={settings.theme}
             onStep={settings.setStep}
             onHarakat={settings.toggleHarakat}
+            onTheme={settings.cycleTheme}
           />
           <Link
             to="/search"
@@ -304,15 +306,36 @@ function PageView({
           (selected === null ? "max-lg:hidden" : "")
         }
       >
+        {/* On a phone the panel is a sheet, and since Lane entries landed it is
+            a tall one. A close control at the top of a scrolling column scrolls
+            out of reach, which is how a dismissible sheet becomes a trap. Pin it
+            with `sticky`, give it a 40px hit target, and mark it with an X
+            rather than a word so it reads as "close" at a glance. */}
         {selected !== null && (
-          <button
-            type="button"
-            onClick={() => onSelect(null)}
-            className="mb-3 ms-auto flex rounded-md border border-(--color-rule) px-2 py-1 text-xs lg:hidden"
-            lang="ar"
-          >
-            إغلاق
-          </button>
+          <div className="sticky -top-5 z-10 -mx-5 -mt-5 mb-2 flex items-center justify-between border-b border-(--color-rule) bg-(--color-raised) px-3 py-2 lg:hidden">
+            <span className="ps-2 text-xs text-(--color-ink-muted)" lang="ar">
+              تفاصيل الكلمة
+            </span>
+            <button
+              type="button"
+              onClick={() => onSelect(null)}
+              aria-label="إغلاق تفاصيل الكلمة"
+              className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-(--color-rule)"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
         )}
         <WordPanel
           index={index}
