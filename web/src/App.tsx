@@ -11,7 +11,13 @@ import { Search } from "@/routes/Search";
  */
 export default function App() {
   return (
-    <BrowserRouter>
+    // GitHub Pages project sites serve from /<repo>/, so the router must be
+    // told where the app starts. Vite's `base` rewrites asset and data URLs but
+    // NOT route matching: without this, /Guided-Reader/hadith/1 is compared
+    // against the route "/hadith/:number", fails, falls through to the
+    // catch-all, and every page renders the "no such hadith" state.
+    // BASE_URL is "/" for a root deploy, so this is a no-op there.
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<Navigate to="/hadith/1" replace />} />
         <Route path="/hadith/:number" element={<Reader />} />

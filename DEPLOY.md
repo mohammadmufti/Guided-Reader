@@ -83,9 +83,28 @@ precompressed files, and brotli-11 beats their on-the-fly compression.
 
 ## Host notes
 
-**GitHub Pages** — simplest, free, no account beyond GitHub. Serves from
-`/<repo>/`, which is why the workflow sets `BASE_PATH`; the app already reads
-`import.meta.env.BASE_URL` for every data fetch. Pages has no SPA fallback, so
+**GitHub Pages** — simplest, free, no account beyond GitHub.
+
+A **user site** (`<you>.github.io`) and any number of **project sites** coexist:
+the user site serves at `https://<you>.github.io/`, a project repo at
+`https://<you>.github.io/<repo>/`. You do not copy the build into the user-site
+repo — enable Pages on the project repo and it deploys itself. Copying 3,132
+generated files into another repository is exactly what this arrangement avoids.
+
+A subpath deploy needs **two** things, and the second is easy to miss:
+
+1. `BASE_PATH` — sets Vite's `base`, so assets and data resolve under `/<repo>/`.
+   The workflow derives it from the repository name.
+2. `basename` on the router — sets where ROUTE MATCHING starts. Vite's `base`
+   does not do this. Without it, `/<repo>/hadith/1` is matched against the route
+   `/hadith/:number`, fails, falls through to the catch-all, and every page
+   renders the "no such hadith" state while assets load perfectly. `App.tsx`
+   passes `import.meta.env.BASE_URL`, which is `"/"` for a root deploy, so the
+   same build works either way.
+
+Verified against a server that mimics Pages' project-site behaviour: `/`, deep
+links, the word panel's shard fetches, search and `/about` all work under
+`/Guided-Reader/`, and unchanged at the root. Pages has no SPA fallback, so
 the workflow copies `index.html` to `404.html` — without it, reloading
 `/hadith/42` returns a 404. Site limit 1 GB; we use 81 MB.
 
