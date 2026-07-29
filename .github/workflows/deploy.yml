@@ -22,19 +22,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python dependencies
-        run: pip install pandas openpyxl pyyaml brotli
+        run: pip install pandas openpyxl pyyaml brotli pytest
 
       # ---------------------------------------------------------------------
       # The source downloads are 70 MB and never change: the OpenITI text, the
@@ -46,7 +46,7 @@ jobs:
       # build loudly — the cache cannot smuggle in changed input.
       # ---------------------------------------------------------------------
       - name: Cache source downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: pipeline/cache
           key: sources-${{ hashFiles('pipeline/corpora/*.yaml') }}
@@ -55,7 +55,7 @@ jobs:
       # parsed entries, ~90 s to produce. Keyed on the ingester itself.
       - name: Cache Lane ingest
         id: lane-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: pipeline/build/lane
           key: lane-${{ hashFiles('pipeline/lane.py') }}
@@ -86,6 +86,21 @@ jobs:
           # Pages or Netlify, drop this flag — they do serve them.
           python pipeline/build.py   --corpus tajrid --no-precompress
 
+      # The second corpus is the whole basis of the generalisation claim and is
+      # exercised nowhere else. Segmenting it is cheap and it is the thing most
+      # likely to rot unnoticed.
+      - name: Segment the second corpus
+        run: |
+          python pipeline/fetch.py   --corpus rawd
+          python pipeline/segment.py --corpus rawd
+
+      # Pipeline tests run on EVERY build, including pushes. They need no
+      # browser, add about ten seconds, and cover the part of the system whose
+      # failures are silent — a mis-join or a lost stem produces a wrong word,
+      # not an error.
+      - name: Pipeline tests
+        run: python -m pytest pipeline/tests -q
+
       - name: Typecheck and build the app
         working-directory: web
         env:
@@ -106,19 +121,23 @@ jobs:
         with:
           path: web/dist
 
-  # The end-to-end gates. Separate job so a rendering regression is visible on
-  # its own, and so it can run in parallel with nothing blocking the deploy on
-  # a browser download.
+  # The end-to-end gates: 241 browser assertions across the reader, the word
+  # panel and accessibility.
+  #
+  # PULL REQUESTS ONLY, deliberately. See SPEC.md §8 — a red build should not
+  # stand between one maintainer and a deploy. The consequence is that a change
+  # pushed straight to `main` is never checked by a browser, so anything worth
+  # checking goes through a pull request.
   test:
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: github-pages
           path: /tmp/site

@@ -11,22 +11,32 @@ Every word panel ends with **How this reading was arrived at**. Open it.
 ## 1. The vowelling is not always certain
 
 Half the words in this book have a spelling that could be read more than one
-way — 49.7% of all tokens, on 2,631 ambiguous spellings. Each word is bound to
-a dictionary entry in one of four ways, and the panel always tells you which.
+way — 49.7% of all tokens, on 2,631 ambiguous spellings. Each word is bound to a
+dictionary entry in one of several ways, and the panel always tells you which.
 
-| How the reading was arrived at | Share of the text | Accuracy |
+| How the reading was arrived at | Share | Accuracy |
 |---|--:|--:|
-| Only one entry matches the spelling | 50.3% | Not in doubt |
-| Transferred from a vocalised Bukhārī edition at the aligned word | 46.0% | High |
-| Inferred from the same phrase elsewhere in the book | 2.0% | **97.2%** |
-| The most frequent reading of that spelling — a guess | 1.8% | **69.9%** |
+| One entry matched, and its vowelling was witnessed | 49.0% | not in doubt |
+| Transferred from a vocalised Bukhārī edition at the aligned word | 45.8% | high |
+| Inferred from the same phrase elsewhere in the book | 2.1% | **97.2%** |
+| One entry matched, but its vowelling was itself a guess | 1.2% | consonants certain, vowels not |
+| The most frequent reading of that spelling — a guess | 1.8% | **70.1%** |
 | Not in the lexicon at all | 12 tokens | — |
 
-The last two rows are measured, not estimated. Tokens in the second row have an
-independent witness, so hiding it and re-deriving the answer says what the lower
-tiers are worth: the inference rules are right 97.2% of the time and the
-frequency fallback 69.9%. **Roughly one word in every 140 is a guess that is
-probably right and might not be.** Those words carry a dotted underline.
+The two accuracy figures are measured, not estimated. Tokens in the second row
+have an independent witness, so hiding it and re-deriving the answer says what
+the lower rows are worth. Those measurements live in the test suite and fail the
+build if they stop being true.
+
+**Roughly one word in every 56 is a guess.** Those carry a dotted underline.
+
+A note on the fourth row, because it was wrong until recently. Earlier versions
+said that when only one dictionary entry matched a spelling the reading was "not
+in doubt". That is the wrong claim: it means the lexicon offered one option, not
+that the option is correct. 1,551 tokens sit on an entry whose own vowelling was
+the source data's most frequent guess rather than a witnessed reading — and in
+`إِنَّمَا الْأَعْمَالُ` the single available option was the wrong case. Those
+tokens now say so.
 
 ## 2. The classical entry is Lane's, unedited
 
@@ -54,15 +64,27 @@ For ṣalāh that sample read "the middle of the back of a human being", which i
 real sense of the root — it is sense A2 of that very entry — and a catastrophic
 thing to present as the meaning of the word. That field no longer exists.*
 
-## 3. Some roots are wrong, and the panel says so
+## 3. Some roots are wrong, and some were reconstructed
 
 Root extraction fails predictably on hollow and irregular verbs — *kāna* and its
 relatives. Where the two morphological analysers disagree, the panel warns above
 the fold that **the root shown may be wrong**. Do not quietly ignore that line.
 
+**409 forms lost their stem entirely.** The supplied analysis latched onto a
+prefix and discarded the word: `وَلْيُحَدِّثْ`, "and let him relate", was recorded
+as a particle with lemma `لِ` and no root. For **146 of them** the root has been
+reconstructed by stripping the affixes and looking the remainder up elsewhere in
+this same book — `يحدث` is here, correctly analysed, so حدث is recoverable. That
+method is **98% accurate** on forms whose root is already known, and the panel
+says when it has been used and which stem it went through. Nothing is invented:
+every reconstructed root is one the source data already asserts for that stem.
+
+The other **263** stay blank, because their stem does not occur on its own
+anywhere in this book. Those say the root is *missing, not absent* — which is a
+different statement from the one below.
+
 Separately, about 48% of tokens have no root at all. That is not a failure:
-particles, pronouns and proper nouns do not have one, and the panel says so
-rather than showing an empty box.
+particles, pronouns and proper nouns do not have one, and the panel says so.
 
 ## 4. The editorial layers are less reliable than the hadith
 
@@ -86,8 +108,15 @@ Reported for honesty, since they are visible in the supplied data:
 
 ## 6. What this is not
 
-No translation, no commentary, no corpus search, no audio. It shows you one
-hadith at a time and tells you about the words in it.
+No translation, no commentary, no audio. It shows you one hadith at a time and
+tells you about the words in it.
+
+Where the editor cites Ṣaḥīḥ al-Bukhārī — 2,222 of 2,254 hadith — that reference
+links out to sunnah.com, which carries the full hadith with its isnād, its
+chapter, and an English translation. None of that is held or reproduced here.
+
+There is full-text search over the Arabic. It matches the written form, not the
+root: searching `كتب` will not find `مكتوب`.
 
 ---
 

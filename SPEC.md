@@ -608,3 +608,32 @@ Accessibility unchanged.
   rendered text. A test that fails for the wrong reason is worse than no test.
 - **Do not read exit codes through a pipe.** `cmd | tail` reports `tail`'s
   status, not `cmd`'s.
+
+---
+
+## 8. Working agreement
+
+Decided deliberately; do not change it without saying why.
+
+**Validation happens on pull requests, not on pushes to `main`.** The `test` job
+in `.github/workflows/deploy.yml` is gated on `github.event_name ==
+'pull_request'`, so a push to `main` builds and deploys without running the
+gates. That is intentional: a red build should not stand between an author and a
+deploy on a project with one maintainer.
+
+The consequence has to be stated plainly, because it is easy to forget: **a
+change pushed straight to `main` is never tested by CI.** If a change is worth
+checking, open a pull request. The four end-to-end suites and the pipeline gates
+run there, on the built artifact, in a clean Linux environment — which is not
+the same thing as having been checked on the author's machine or in an
+assistant's sandbox.
+
+**Deliver changed files, not archives.** When handing work over, list the
+destination path for every file and give the exact `git` command. A fix that
+lands in the wrong directory, or a set of five files delivered as four, is
+indistinguishable from a bug.
+
+**Measurements are code.** Any figure quoted as evidence — an accuracy, a
+coverage percentage, a byte budget — belongs in a committed test that fails when
+it stops being true. A number produced by a throwaway script is an assertion,
+not a measurement, and it decays silently.

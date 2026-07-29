@@ -557,18 +557,26 @@ function ProperNoun({ entry }: { entry: PanelEntry }) {
 /* ---------------------------------------------------------- 8. provenance */
 
 const BINDING_COPY: Record<string, string> = {
-  unique: "Only one lexicon entry matches this spelling, so the reading is not in doubt.",
+  unique: "Only one lexicon entry matches this spelling.",
   aligned:
     "The vowelling was transferred from the matching word in a fully vocalised edition of Bukhārī.",
   heuristic: "The vowelling was inferred, not witnessed.",
   unbound: "No lexicon entry.",
 };
 
+const UNIQUE_COPY = {
+  high: "Only one lexicon entry matches this spelling, and its vowelling comes from a witnessed reading.",
+  // Unopposed is not the same as certain. 1,551 tokens are here.
+  medium:
+    "Only one lexicon entry matches this spelling, but that entry's own vowelling was the source data's most frequent guess rather than a witnessed reading. The consonants are not in doubt; the vowels are.",
+} as const;
+
 function Provenance({ entry, token }: { entry: PanelEntry; token: Token }) {
   const [open, setOpen] = useState(false);
   const shaky =
     entry.pos_agreement === "disagree" ||
     token.confidence === "low" ||
+    (token.binding === "unique" && token.confidence === "medium") ||
     entry.reviewFlagged ||
     entry.morphSuspect;
 
@@ -608,7 +616,11 @@ function Provenance({ entry, token }: { entry: PanelEntry; token: Token }) {
           <Row label="Binding">
             {token.binding} · {token.confidence} confidence
           </Row>
-          <p className="text-(--color-ink-muted)">{BINDING_COPY[token.binding]}</p>
+          <p className="text-(--color-ink-muted)">
+            {token.binding === "unique"
+              ? UNIQUE_COPY[token.confidence === "medium" ? "medium" : "high"]
+              : BINDING_COPY[token.binding]}
+          </p>
           {entry.voc_source && <Row label="Vowelling source">{entry.voc_source}</Row>}
           {entry.morph_confidence && (
             <Row label="Morphology">{entry.morph_confidence.replace(/_/g, " ")}</Row>

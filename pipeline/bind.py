@@ -83,6 +83,31 @@ def final_haraka(vocalised: str) -> str | None:
     return None
 
 
+def _is_lexicon_guess(voc_source) -> bool:
+    """
+    Did the workbook WITNESS this vowelling, or fall back to its commonest?
+
+    `voc_source` reads like `aligned:4508,lexicon_mfv:74`. Where the fallback
+    outweighs the aligned evidence, the form's vowelling is the workbook's own
+    guess — and a form with exactly one such candidate is not "unambiguous", it
+    is unopposed. الْأَعْمَالِ was one of these: four occurrences, three of them
+    from the fallback, and the reader was told the reading was not in doubt.
+    """
+    if not isinstance(voc_source, str):
+        return False
+    counts: dict[str, int] = {}
+    for part in voc_source.split(","):
+        if ":" in part:
+            name, _, n = part.rpartition(":")
+            try:
+                counts[name.strip()] = int(n)
+            except ValueError:
+                pass
+    fallback = sum(v for k, v in counts.items() if k.startswith("lexicon_mfv"))
+    witnessed = sum(v for k, v in counts.items() if k.startswith("aligned"))
+    return fallback > witnessed
+
+
 class Lexicon:
     def __init__(self, workbook: Path) -> None:
         S = pd.read_excel(workbook, sheet_name="Surface")
@@ -100,6 +125,10 @@ class Lexicon:
             self.entry[mid] = {
                 "vocalized": voc, "freq": int(r["freq"]), "pos": r["pos"],
                 "unvocalized": str(r["unvocalized"]), "search_key": key,
+                # The workbook records how IT arrived at each vowelling. Tiering
+                # never read this column, which is how a guess came to be
+                # labelled "not in doubt".
+                "lexiconGuess": _is_lexicon_guess(r.get("voc_source")),
             }
             self.by_key_form.setdefault((key, voc), mid)
         self.review = set(pd.read_excel(workbook, sheet_name="Review")["surface"].astype(str))
@@ -206,6 +235,7 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
     syntax_fixes: collections.Counter = collections.Counter()
+    unopposed = 0
     witness_fixes: collections.Counter = collections.Counter()
     surfaces: dict[tuple[str, int], str] = {}
     state: list[tuple[dict, str, list[dict], list[str], list[int | None], list[str | None]]] = []
@@ -367,6 +397,15 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                 3: ("heuristic", "medium"), 4: ("heuristic", "low"),
                 5: ("unbound", "none"),
             }[tier]
+            # Tier 1 means the LEXICON offered one candidate — not that the
+            # candidate is right. Where that candidate's own vowelling was the
+            # workbook's fallback rather than a witness, the reading is not
+            # certain and must not be labelled as if it were. The TIER is
+            # unchanged, so coverage accounting and the 90% gate stay
+            # comparable; only the honesty of the label moves.
+            if tier == 1 and mid and lex.entry[mid]["lexiconGuess"]:
+                confidence = "medium"
+                unopposed += 1
             out.append({
                 "i": i,
                 "surface": surfaces.get(
@@ -387,6 +426,7 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
         bound[rec["id"]] = {"leading": leading, "tokens": out}
 
     reasons.update(repairs)
+    reasons["Tier 1 unopposed but unwitnessed"] = unopposed
     reasons["syntax-override (ibn)"] = sum(syntax_fixes.values())
     reasons["witness-corrected Tier 1"] = sum(witness_fixes.values())
     return bound, {"tally": tally, "tally_matn": tally_matn, "reasons": reasons,

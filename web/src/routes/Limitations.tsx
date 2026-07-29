@@ -47,10 +47,11 @@ export function Limitations() {
           </thead>
           <tbody>
             {[
-              ["Only one entry matches the spelling", "50.3%", "not in doubt"],
-              ["Transferred from a vocalised Bukhārī edition", "46.0%", "high"],
-              ["Inferred from the same phrase elsewhere", "2.0%", "97.2%"],
-              ["Most frequent reading — a guess", "1.8%", "69.9%"],
+              ["One entry matched, and its vowelling was witnessed", "49.0%", "not in doubt"],
+              ["Transferred from a vocalised Bukhārī edition", "45.8%", "high"],
+              ["Inferred from the same phrase elsewhere", "2.1%", "97.2%"],
+              ["One entry matched, but its vowelling was itself a guess", "1.2%", "vowels uncertain"],
+              ["Most frequent reading — a guess", "1.8%", "70.1%"],
               ["Not in the lexicon at all", "12 tokens", "—"],
             ].map(([a, b, c]) => (
               <tr key={a} className="border-b border-(--color-rule)">
@@ -62,8 +63,9 @@ export function Limitations() {
           </tbody>
         </table>
         <p className="mt-3 text-sm leading-relaxed text-(--color-ink-muted)">
-          The last two figures are measured, not estimated. Roughly{" "}
-          <strong className="text-(--color-ink)">one word in every 140</strong> is
+          The two accuracy figures are measured, not estimated, and are pinned
+          by the test suite. Roughly{" "}
+          <strong className="text-(--color-ink)">one word in every 56</strong> is
           a guess that is probably right and might not be. Those words carry a
           dotted underline.
         </p>
@@ -82,10 +84,20 @@ export function Limitations() {
       </section>
 
       <section className="mt-8" dir="ltr">
-        <h2 className="text-lg">3. Some roots are wrong, and the panel says so</h2>
+        <h2 className="text-lg">3. Some roots are wrong, some were reconstructed</h2>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
           Root extraction fails predictably on hollow and irregular verbs. Where
           the analysers disagree the panel warns that the root may be wrong.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          409 forms lost their stem entirely — the source analysis kept a prefix
+          and discarded the word. For 146 the root was reconstructed by stripping
+          the affixes and looking the remainder up elsewhere in this same book, a
+          method that is 98% accurate on forms whose root is already known. The
+          panel says when it has been used. The other 263 stay blank and say the
+          root is <em>missing, not absent</em>.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
           Separately, about 48% of tokens have no root at all — particles,
           pronouns and proper nouns do not have one. That is an answer, not a gap.
         </p>

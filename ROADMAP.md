@@ -340,7 +340,7 @@ Replace the fixed 64/16 shard constants with a target bytes-per-shard computed
 at build time, and assert the resulting maximum shard size against the latency
 budget. Without this, A.2 silently regresses first-panel latency by 10×.
 
-### E.4 The preview artifact is a second implementation — *medium*
+### E.4 The preview artifact is a second implementation — *medium* — ✅ RETIRED
 
 `preview_template.jsx` reimplements the reading pane, the word panel, the
 controls and search as a single self-contained file, so the work can be shown
@@ -353,7 +353,7 @@ favour of deploying the actual static site somewhere previewable. The second is
 probably right — the payload is static and immutable and wants a CDN, not a
 bundler.
 
-### E.3 CI — *small*
+### E.3 CI — *small* — ✅ SHIPPED (pipeline tests on every build; browser gates on pull requests)
 
 `codegen.py --check`, the pipeline gates, and the four e2e suites all run
 headless already. Nothing enforces them between changes.
