@@ -18,6 +18,17 @@ export type Binding = "aligned" | "unique" | "heuristic" | "unbound";
 
 export type Confidence = "high" | "medium" | "low" | "none";
 
+/**
+ * Where an editorial cross-reference points. Corpus-specific, so it lives in
+ * `corpora/{id}.yaml`: al-Tajrid cites Sahih al-Bukhari, another text would cite something
+ * else. `url` carries a single `{n}` placeholder for the cited number.
+ */
+export interface ReferenceLink {
+  label: string;
+  labelAr: string;
+  url: string;
+}
+
 /** Provenance for the whole corpus. Rendered in the UI's colophon. */
 export interface CorpusMeta {
   /** Stable slug, matches the corpora/{id}.yaml filename. */
@@ -38,6 +49,8 @@ export interface CorpusMeta {
   sourceSha256: string;
   /** Print edition the source encodes, if stated. */
   edition: string | null;
+  /** How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing. */
+  referenceLink: ReferenceLink | null;
 }
 
 /** The book (kitab) a record sits in. */

@@ -399,6 +399,7 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         )["sources"]["text"]["retrieved"],
         "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "edition": disp.get("edition"),
+        "referenceLink": (cfg.get("segmentation") or {}).get("reference_link"),
     }
 
     ordered = [r["id"] for r in seg.records]

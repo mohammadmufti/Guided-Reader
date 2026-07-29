@@ -65,6 +65,20 @@ Confidence = Literal["high", "medium", "low", "none"]
 # --------------------------------------------------------------------------
 
 
+class ReferenceLink(TypedDict):
+    """
+    Where an editorial cross-reference points.
+
+    Corpus-specific, so it lives in `corpora/{id}.yaml`: al-Tajrid cites Sahih
+    al-Bukhari, another text would cite something else. `url` carries a single
+    `{n}` placeholder for the cited number.
+    """
+
+    label: str
+    labelAr: str
+    url: str
+
+
 class CorpusMeta(TypedDict):
     """Provenance for the whole corpus. Rendered in the UI's colophon."""
 
@@ -77,6 +91,10 @@ class CorpusMeta(TypedDict):
     sourceRetrieved: Annotated[str, Doc("ISO date of retrieval.")]
     sourceSha256: Annotated[str, Doc("Checksum of the exact bytes parsed.")]
     edition: Annotated[str | None, Doc("Print edition the source encodes, if stated.")]
+    referenceLink: Annotated[
+        ReferenceLink | None,
+        Doc("How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing."),
+    ]
 
 
 class KitabRef(TypedDict):
@@ -663,6 +681,7 @@ class ClassicalEntry(TypedDict):
 
 # Emitted to TypeScript, in dependency order.
 EXPORTED: list[type] = [
+    ReferenceLink,
     CorpusMeta,
     KitabRef,
     BabRef,

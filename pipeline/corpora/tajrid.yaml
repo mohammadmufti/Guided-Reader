@@ -98,6 +98,16 @@ segmentation:
   # Editorial apparatus, excluded from the text and from the token count.
   editorial_reference: '\(\s*بخاري\s*:\s*([\d\s،,و\u2013-]+?)\s*\)'
 
+  # Where an editorial cross-reference points. al-Tajrid cites Sahih al-Bukhari
+  # by the standard numbering, which runs to 7,563 — the same range our extracted
+  # references cover — so each one resolves on sunnah.com. Linking out costs
+  # nothing legally and gives the reader the full hadith with its isnad and an
+  # English translation, none of which we redistribute.
+  reference_link:
+    label: "Bukhārī"
+    labelAr: "صحيح البخاري"
+    url: "https://sunnah.com/bukhari:{n}"
+
   layer_names:
     body: matn
     aside: zawaid

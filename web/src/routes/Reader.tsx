@@ -295,7 +295,7 @@ function PageView({
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
             {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
             {main.bukhariRefs.length > 0 && (
-              <span className="tabular-nums">Bukhārī {main.bukhariRefs.join(", ")}</span>
+              <BukhariRefs refs={main.bukhariRefs} link={index.corpus.referenceLink} />
             )}
           </span>
         </div>
@@ -384,6 +384,49 @@ function PageView({
         />
       </aside>
     </div>
+  );
+}
+
+/**
+ * The editorial cross-reference, as links.
+ *
+ * al-Tajrid is an abridgement: it strips the isnad and keeps the matn, and the
+ * `(بخاري: N)` note is the editor pointing at the full hadith. Making that
+ * clickable gives a reader the chain, the surrounding chapter and an English
+ * translation — none of which this project holds or redistributes.
+ *
+ * The URL template comes from the corpus config, not from here, because what a
+ * text cites is a property of the text.
+ */
+function BukhariRefs({
+  refs,
+  link,
+}: {
+  refs: number[];
+  link: { label: string; labelAr: string; url: string } | null;
+}) {
+  if (!link) {
+    return <span className="tabular-nums">{refs.join(", ")}</span>;
+  }
+  return (
+    <span className="tabular-nums">
+      {link.label}{" "}
+      {refs.map((n, i) => (
+        <span key={n}>
+          {i > 0 && ", "}
+          <a
+            href={link.url.replace("{n}", String(n))}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`${link.label} ${n} — opens sunnah.com in a new tab`}
+            aria-label={`${link.label} ${n}, opens in a new tab`}
+            className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+          >
+            {n}
+          </a>
+        </span>
+      ))}
+    </span>
   );
 }
 
