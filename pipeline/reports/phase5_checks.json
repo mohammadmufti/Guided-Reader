@@ -1,0 +1,132 @@
+[
+ {
+  "check": "/ redirects to hadith 1",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/1"
+ },
+ {
+  "check": "document is RTL",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "hadith 1 renders text",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "buttons step forward and back",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "ArrowLeft advances, ArrowRight retreats (RTL)",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "'/' focuses the jump field",
+  "pass": true,
+  "detail": "jump"
+ },
+ {
+  "check": "jump-to reaches the last hadith",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "last hadith renders",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "next is disabled at the end",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "out-of-range number is rejected in place",
+  "pass": true,
+  "detail": "النطاق ١ إلى 2254"
+ },
+ {
+  "check": "non-numeric input is rejected",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "book browser opens",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "browser lists every kitab",
+  "pass": true,
+  "detail": "92"
+ },
+ {
+  "check": "browser jumps to the first hadith of a kitab",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "Esc closes the browser",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "deep link restores the record",
+  "pass": true,
+  "detail": "showed 1128"
+ },
+ {
+  "check": "deep link restores kitab context",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "back/forward restore both URL and content",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "unknown number shows a 404 state",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "404 keeps the jump control",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "404 offers a working way out",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "cumulative layout shift over 12 navigations < 0.02",
+  "pass": true,
+  "detail": "CLS=0.0000"
+ },
+ {
+  "check": "header does not move",
+  "pass": true,
+  "detail": "0.00px"
+ },
+ {
+  "check": "Arabic column is on the left of the apparatus",
+  "pass": true,
+  "detail": "article x=164, aside x=940"
+ },
+ {
+  "check": "Arabic column is the wider of the two",
+  "pass": true,
+  "detail": "article 736px vs aside 336px"
+ },
+ {
+  "check": "no horizontal overflow at 380px",
+  "pass": true,
+  "detail": "0px"
+ }
+]

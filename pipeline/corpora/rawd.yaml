@@ -1,0 +1,54 @@
+# Second corpus, added to test the generalisation claim.
+#
+# al-Rawd al-Mictar fi khabar al-aqtar — a geographical dictionary, deliberately
+# a DIFFERENT genre from a hadith collection, and carrying the `.mARkdown`
+# extension al-Tajrid lacks. Chosen to break things, not to flatter the config.
+id: rawd
+
+display:
+  titleAr: "الروض المعطار في خبر الأقطار"
+  titleEn: "al-Rawḍ al-Miʿṭār"
+  author: "Muḥammad b. ʿAbd al-Munʿim al-Ḥimyarī"
+  authorDied: "900 AH"
+  edition: "unknown"
+  rights: "public-domain"
+
+sources:
+  text:
+    kind: http
+    uri: https://raw.githubusercontent.com/OpenITI/0900AH/master/data/0900IbnCabdMuncimHimyari/0900IbnCabdMuncimHimyari.RawdMictar/0900IbnCabdMuncimHimyari.RawdMictar.Shamela0001043-ara1.mARkdown
+    filename: rawd.mARkdown
+    encoding: utf-8
+
+# Starting point: the OpenITI defaults, with the hadith-specific machinery
+# (zawa'id bullets, the Bukhari cross-reference, the kitab/abwab prefixes)
+# omitted because this text has no reason to carry them.
+segmentation:
+  # This text tags dictionary entries with an OpenITI SEMANTIC marker rather
+  # than the `### |` section syntax al-Tajrid uses. 1,613 `$DIC_TOP$` entries
+  # against 29 `### |` letter headings. Both are matched here.
+  section: '^###\s*(?:\|+|\$DIC_TOP\$)\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+    # Verse hemistich separator. Another mARkdown convention al-Tajrid never
+    # uses; found by the 19 warnings the run emitted after the section fix.
+    - name: verse_separator
+      pattern: '%~%'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  heading_top_prefixes: ["حرف", "باب"]
+  layer_names:
+    body: matn
+    aside: zawaid
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  workbook_index_phantoms: false

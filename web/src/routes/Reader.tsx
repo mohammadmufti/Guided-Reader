@@ -1,0 +1,388 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
+import type { IndexFile } from "@/types/contracts";
+import { loadIndex, loadPage, neighbours, type Page } from "@/lib/data";
+import { useKeyboard } from "@/hooks/useKeyboard";
+import { useSettings } from "@/hooks/useSettings";
+import { NavControls } from "@/components/NavControls";
+import { JumpTo } from "@/components/JumpTo";
+import { BookBrowser } from "@/components/BookBrowser";
+import { ReadingControls } from "@/components/ReadingControls";
+import { ReadingPane } from "@/components/ReadingPane";
+import { WordPanel } from "@/components/WordPanel";
+
+type Status =
+  | { kind: "loading" }
+  | { kind: "ready"; page: Page }
+  | { kind: "missing"; number: number }
+  | { kind: "error"; message: string };
+
+export function Reader() {
+  const { number: raw } = useParams();
+  const navigate = useNavigate();
+  const [index, setIndex] = useState<IndexFile | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const [params, setParams] = useSearchParams();
+  const jumpRef = useRef<HTMLInputElement>(null);
+  const settings = useSettings();
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  const selectedRaw = params.get("w");
+  const selected =
+    selectedRaw !== null && /^\d+$/.test(selectedRaw) ? Number(selectedRaw) : null;
+
+  // Selection lives in the URL so a link carries it, but with `replace` — a
+  // reader clicking through fifteen words should not have to press Back fifteen
+  // times to leave the hadith.
+  const select = useCallback(
+    (i: number | null) => {
+      const next = new URLSearchParams(params);
+      if (i === null) next.delete("w");
+      else next.set("w", String(i));
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
+
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    loadIndex().then(setIndex, (e: Error) =>
+      setStatus({ kind: "error", message: e.message }),
+    );
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (!index) return;
+    const n = Number(raw);
+    if (!raw || !/^\d+$/.test(raw) || !Number.isFinite(n)) {
+      setStatus({ kind: "missing", number: NaN });
+      return;
+    }
+    let live = true;
+    loadPage(n).then(
+      (page) => {
+        if (!live) return;
+        setStatus(page ? { kind: "ready", page } : { kind: "missing", number: n });
+        window.scrollTo({ top: 0 });
+      },
+      (e: Error) => live && setStatus({ kind: "error", message: e.message }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [raw, index, reloadKey]);
+
+  const page = status.kind === "ready" ? status.page : null;
+  const current = raw && /^\d+$/.test(raw) ? Number(raw) : null;
+  const near =
+    index && current !== null ? neighbours(index, current) : { prev: null, next: null };
+
+  useKeyboard({
+    onNext: useCallback(() => {
+      if (near.next) navigate(`/hadith/${near.next}`);
+    }, [near.next, navigate]),
+    onPrev: useCallback(() => {
+      if (near.prev) navigate(`/hadith/${near.prev}`);
+    }, [near.prev, navigate]),
+    onFocusJump: useCallback(() => jumpRef.current?.focus(), []),
+    onSearch: useCallback(() => navigate("/search"), [navigate]),
+    onEscape: useCallback(() => {
+      setBrowserOpen(false);
+      select(null);
+    }, [select]),
+  });
+
+  if (status.kind === "error") {
+    return (
+      <Shell>
+        <ErrorState
+          message={status.message}
+          online={online}
+          onRetry={() => {
+            setStatus({ kind: "loading" });
+            setReloadKey((k) => k + 1);
+          }}
+        />
+      </Shell>
+    );
+  }
+  if (!index) return <Shell>{null}</Shell>;
+
+  return (
+    <Shell>
+      {!online && (
+        <p
+          role="status"
+          className="mb-4 rounded-md border border-(--color-flag) px-3 py-2 text-xs text-(--color-flag)"
+          lang="ar"
+        >
+          لا يوجد اتصال. ما حُمِّل من قبل ما زال متاحًا.
+        </p>
+      )}
+
+      <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-(--color-rule) pb-4">
+        <div>
+          <Link to="/hadith/1" className="arabic block text-xl leading-tight" lang="ar">
+            {index.corpus.titleAr}
+          </Link>
+          <p className="mt-1 text-xs text-(--color-ink-muted)" dir="ltr" lang="en">
+            {index.corpus.titleEn} · {index.counts.hadith.toLocaleString()} hadith
+          </p>
+        </div>
+        <div className="flex flex-wrap items-start gap-3">
+          <ReadingControls
+            step={settings.step}
+            harakat={settings.harakat}
+            onStep={settings.setStep}
+            onHarakat={settings.toggleHarakat}
+          />
+          <Link
+            to="/search"
+            className="rounded-md border border-(--color-rule) px-2.5 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
+            lang="ar"
+          >
+            بحث
+          </Link>
+          <button
+            type="button"
+            onClick={() => setBrowserOpen(true)}
+            className="rounded-md border border-(--color-rule) px-2.5 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
+            lang="ar"
+          >
+            الكتب والأبواب
+          </button>
+          <JumpTo ref={jumpRef} index={index} />
+        </div>
+      </header>
+
+      <div style={{ minHeight: "60vh" }}>
+        {status.kind === "loading" && (
+          <p className="text-sm text-(--color-ink-muted)" role="status" lang="ar">
+            جارٍ التحميل…
+          </p>
+        )}
+        {status.kind === "missing" && <MissingState number={status.number} index={index} />}
+        {page && (
+          <PageView
+            page={page}
+            selected={selected}
+            onSelect={select}
+            index={index}
+            harakat={settings.harakat}
+          />
+        )}
+      </div>
+
+      {status.kind !== "missing" && (
+        <footer className="mt-10 border-t border-(--color-rule) pt-4 max-lg:pb-24">
+          <NavControls prevNumber={near.prev} nextNumber={near.next} />
+          <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-(--color-ink-muted)" dir="ltr">
+            <span>← next · → previous · / jump · Esc close</span>
+            <Link to="/about" className="underline underline-offset-2">
+              What you are trusting
+            </Link>
+          </p>
+        </footer>
+      )}
+
+      <BookBrowser
+        index={index}
+        open={browserOpen}
+        onClose={() => setBrowserOpen(false)}
+        currentKitab={page?.main.kitab?.index ?? null}
+      />
+    </Shell>
+  );
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto max-w-6xl px-5 py-7">{children}</main>;
+}
+
+/**
+ * Requirement 3: the Arabic occupies the LEFT of the page, the apparatus the
+ * right. Those are physical sides and the document is RTL, so in a two-track
+ * grid the NARROW track is declared first — track 1 is the rightmost when the
+ * writing direction is right-to-left.
+ *
+ * Below `lg` the panel is a bottom sheet rather than a column stacked under the
+ * fold, so selecting a word produces feedback you can actually see. Record
+ * context sits above the text instead of inside the panel, so it stays visible
+ * on narrow screens whether or not a word is selected.
+ */
+function PageView({
+  page,
+  selected,
+  onSelect,
+  index,
+  harakat,
+}: {
+  page: Page;
+  selected: number | null;
+  onSelect: (i: number | null) => void;
+  index: IndexFile;
+  harakat: boolean;
+}) {
+  const { main, additions } = page;
+  return (
+    <div className="grid gap-10 lg:grid-cols-[21rem_minmax(0,1fr)]">
+      <article className="lg:order-2">
+        <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-(--color-rule) pb-3">
+          {/* Stable hook: tests should not depend on styling classes. */}
+          <span data-hadith-number className="text-3xl tabular-nums">
+            {main.number}
+          </span>
+          {main.kitab && (
+            <span className="arabic text-sm" lang="ar">
+              {main.kitab.titleAr}
+            </span>
+          )}
+          {main.bab && (
+            <span className="arabic text-sm text-(--color-ink-muted)" lang="ar">
+              {main.bab.titleAr}
+            </span>
+          )}
+          <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
+            {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
+            {main.bukhariRefs.length > 0 && (
+              <span className="tabular-nums">Bukhārī {main.bukhariRefs.join(", ")}</span>
+            )}
+          </span>
+        </div>
+
+        {main.numbersCovered.length > 1 && (
+          <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
+            هذا السجل يشمل الحديثين {main.numbersCovered.join(" و")}؛ جاءا في سطر واحد في الأصل.
+          </p>
+        )}
+
+        <ReadingPane
+          record={main}
+          selected={selected}
+          onSelect={onSelect}
+          harakat={harakat}
+        />
+
+        {additions.map((add) => (
+          <section key={add.id} className="mt-9 border-t border-dashed border-(--color-rule) pt-5">
+            <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
+              زيادة الضياء الداغستاني — ليست من أصل الزبيدي
+            </p>
+            <ReadingPane
+              record={add}
+              selected={null}
+              onSelect={() => {}}
+              harakat={harakat}
+              muted
+            />
+          </section>
+        ))}
+      </article>
+
+      <aside
+        aria-label="تفاصيل الكلمة"
+        className={
+          "lg:order-1 lg:static lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
+          "lg:bg-(--color-raised) lg:p-5 lg:shadow-sm " +
+          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[68vh] " +
+          "max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-xl " +
+          "max-lg:border-t max-lg:border-(--color-rule) max-lg:bg-(--color-raised) " +
+          "max-lg:p-5 max-lg:shadow-2xl " +
+          (selected === null ? "max-lg:hidden" : "")
+        }
+      >
+        {selected !== null && (
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="mb-3 ms-auto flex rounded-md border border-(--color-rule) px-2 py-1 text-xs lg:hidden"
+            lang="ar"
+          >
+            إغلاق
+          </button>
+        )}
+        <WordPanel
+          index={index}
+          record={main}
+          token={selected !== null ? (main.tokens[selected] ?? null) : null}
+          onSelect={onSelect}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function MissingState({ number, index }: { number: number; index: IndexFile }) {
+  const max = Number(
+    Object.keys(index.navigation.numberIndex).sort((a, b) => Number(b) - Number(a))[0],
+  );
+  return (
+    <div className="max-w-prose">
+      <h1 className="text-xl" lang="ar">
+        لا يوجد حديث بهذا الرقم
+      </h1>
+      <p className="mt-2 text-sm text-(--color-ink-muted)" lang="ar">
+        {Number.isNaN(number)
+          ? "الرقم المطلوب غير صالح."
+          : `الحديث رقم ${number} ليس في هذه النسخة.`}{" "}
+        النطاق المتاح من ١ إلى {max}.
+      </p>
+      <p className="mt-4">
+        <Link
+          to="/hadith/1"
+          className="rounded-md border border-(--color-rule) px-3 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
+          lang="ar"
+        >
+          ابدأ من الحديث الأول
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+function ErrorState({
+  message,
+  online,
+  onRetry,
+}: {
+  message: string;
+  online: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="max-w-prose">
+      <h1 className="text-xl" lang="ar">
+        {online ? "تعذّر تحميل النص" : "لا يوجد اتصال بالإنترنت"}
+      </h1>
+      <p className="mt-2 text-sm text-(--color-ink-muted)" lang="ar">
+        {online
+          ? "فشل تحميل أحد ملفات البيانات."
+          : "تحقّق من الاتصال ثم أعد المحاولة."}
+      </p>
+      <p className="mt-2 font-mono text-xs text-(--color-ink-muted)" dir="ltr">
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 rounded-md border border-(--color-rule) px-3 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
+        lang="ar"
+      >
+        أعد المحاولة
+      </button>
+    </div>
+  );
+}

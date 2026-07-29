@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+*.pyc
+
+# Generated. CI rebuilds all of it in about four minutes; committing it would
+# put 81 MB and 3,132 files in every clone and make each rebuild a 3,132-file diff.
+pipeline/cache/
+pipeline/build/
+web/public/data/
+web/dist/

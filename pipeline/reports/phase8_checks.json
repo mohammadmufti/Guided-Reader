@@ -1,0 +1,157 @@
+[
+ {
+  "check": "contrast light: active size tick (non-text)",
+  "pass": true,
+  "detail": "7.02:1 (needs 3.0, 99px)"
+ },
+ {
+  "check": "contrast light: Arabic word on paper",
+  "pass": true,
+  "detail": "16.5:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast light: Arabic word, SELECTED",
+  "pass": true,
+  "detail": "14.57:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast light: Arabic word, HOVERED",
+  "pass": true,
+  "detail": "13.17:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast light: panel body text",
+  "pass": true,
+  "detail": "17.71:1 (needs 3.0, 36px)"
+ },
+ {
+  "check": "contrast light: header subtitle (muted)",
+  "pass": true,
+  "detail": "6.06:1 (needs 4.5, 12px)"
+ },
+ {
+  "check": "contrast light: keyboard hint (muted, small)",
+  "pass": true,
+  "detail": "6.06:1 (needs 4.5, 12px)"
+ },
+ {
+  "check": "hover state resolves a colour (light)",
+  "pass": true,
+  "detail": "{'bg': 'lab(88.4164 -1.39144 -2.58569)', 'fg': 'lab(8.35375 -1.69004 -4.72319)'}"
+ },
+ {
+  "check": "contrast dark: active size tick (non-text)",
+  "pass": true,
+  "detail": "10.86:1 (needs 3.0, 99px)"
+ },
+ {
+  "check": "contrast dark: Arabic word on paper",
+  "pass": true,
+  "detail": "15.02:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast dark: Arabic word, SELECTED",
+  "pass": true,
+  "detail": "9.81:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast dark: Arabic word, HOVERED",
+  "pass": true,
+  "detail": "9.43:1 (needs 3.0, 28px)"
+ },
+ {
+  "check": "contrast dark: panel body text",
+  "pass": true,
+  "detail": "13.58:1 (needs 3.0, 36px)"
+ },
+ {
+  "check": "contrast dark: header subtitle (muted)",
+  "pass": true,
+  "detail": "7.98:1 (needs 4.5, 12px)"
+ },
+ {
+  "check": "contrast dark: keyboard hint (muted, small)",
+  "pass": true,
+  "detail": "7.98:1 (needs 4.5, 12px)"
+ },
+ {
+  "check": "hover state resolves a colour (dark)",
+  "pass": true,
+  "detail": "{'bg': 'oklab(0.349998 -0.0060029 -0.0103838 / 0.992933)', 'fg': 'lab(91.8927 -1.3099 -2.6396)'}"
+ },
+ {
+  "check": "reduced motion kills all transitions",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "size control is reachable by Tab",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "size control works from the keyboard",
+  "pass": true,
+  "detail": "28px -> 20px"
+ },
+ {
+  "check": "size step is recorded on the document",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "size choice persists across a reload",
+  "pass": true,
+  "detail": "step 1"
+ },
+ {
+  "check": "harakat toggle removes the vowel marks",
+  "pass": true,
+  "detail": "'عن'"
+ },
+ {
+  "check": "harakat toggle restores them",
+  "pass": true,
+  "detail": "'عَنْ'"
+ },
+ {
+  "check": "word selectable by keyboard",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/1?w=4"
+ },
+ {
+  "check": "Escape clears the selection",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/1"
+ },
+ {
+  "check": "no horizontal overflow at 360px",
+  "pass": true,
+  "detail": "0px"
+ },
+ {
+  "check": "panel is a bottom sheet at 360px",
+  "pass": true,
+  "detail": "bottom at 900 of 900"
+ },
+ {
+  "check": "no horizontal overflow at 768px",
+  "pass": true,
+  "detail": "0px"
+ },
+ {
+  "check": "panel is a bottom sheet at 768px",
+  "pass": true,
+  "detail": "bottom at 900 of 900"
+ },
+ {
+  "check": "no horizontal overflow at 1440px",
+  "pass": true,
+  "detail": "0px"
+ },
+ {
+  "check": "panel is a right column at 1440px",
+  "pass": true,
+  "detail": "article 736px, aside 336px"
+ }
+]

@@ -1,0 +1,102 @@
+[
+ {
+  "check": "every clickable token is its own element",
+  "pass": true,
+  "detail": "39 spans vs 39 clickable tokens"
+ },
+ {
+  "check": "unbound tokens are not focusable",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "same line breaking at sm (20px)",
+  "pass": true,
+  "detail": "2 lines vs 2"
+ },
+ {
+  "check": "line ink extents match within 1px at sm (20px)",
+  "pass": true,
+  "detail": "worst deviation 0px across 2 lines; bitmap differs on 0.00% of pixels"
+ },
+ {
+  "check": "same line breaking at md (30px)",
+  "pass": true,
+  "detail": "3 lines vs 3"
+ },
+ {
+  "check": "line ink extents match within 1px at md (30px)",
+  "pass": true,
+  "detail": "worst deviation 0px across 3 lines; bitmap differs on 5.79% of pixels"
+ },
+ {
+  "check": "same line breaking at lg (40px)",
+  "pass": true,
+  "detail": "4 lines vs 4"
+ },
+ {
+  "check": "line ink extents match within 1px at lg (40px)",
+  "pass": true,
+  "detail": "worst deviation 0px across 4 lines; bitmap differs on 0.00% of pixels"
+ },
+ {
+  "check": "click selects a word",
+  "pass": true,
+  "detail": "w=0"
+ },
+ {
+  "check": "selection is visible",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "keyboard traversal reaches every clickable word",
+  "pass": true,
+  "detail": "39/39"
+ },
+ {
+  "check": "traversal never lands on an unbound token",
+  "pass": true,
+  "detail": "0 unbound in this record"
+ },
+ {
+  "check": "word arrows do not change the hadith",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/1?w=38"
+ },
+ {
+  "check": "Escape hands the arrows back to hadith navigation",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/2"
+ },
+ {
+  "check": "deep link restores the selection",
+  "pass": true,
+  "detail": "restored token 4"
+ },
+ {
+  "check": "selection survives a reload",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "selecting words does not stack history entries",
+  "pass": true,
+  "detail": "back from http://127.0.0.1:5173/hadith/2"
+ },
+ {
+  "check": "no layout shift on selection",
+  "pass": true,
+  "detail": "CLS=0.00000"
+ },
+ {
+  "check": "neighbouring words do not move",
+  "pass": true,
+  "detail": "0.00px"
+ },
+ {
+  "check": "confidence is carried into the DOM",
+  "pass": true,
+  "detail": "low=0, medium=1 in hadith 7"
+ }
+]

@@ -1,0 +1,151 @@
+name: Build and deploy
+
+# Everything runs here, not on anyone's machine. Push to main and the site
+# rebuilds; open a PR and it builds without deploying so you can see it fail
+# before it matters.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Python dependencies
+        run: pip install pandas openpyxl pyyaml brotli
+
+      # ---------------------------------------------------------------------
+      # The source downloads are 70 MB and never change: the OpenITI text, the
+      # vocalised Bukhari, and Lane's 61 MB database. fetch.py is idempotent and
+      # checksum-guarded, so a cache hit means it verifies and exits.
+      #
+      # Keyed on the corpus configs, because that is what determines WHICH
+      # sources are wanted. A checksum mismatch inside fetch.py still fails the
+      # build loudly — the cache cannot smuggle in changed input.
+      # ---------------------------------------------------------------------
+      - name: Cache source downloads
+        uses: actions/cache@v4
+        with:
+          path: pipeline/cache
+          key: sources-${{ hashFiles('pipeline/corpora/*.yaml') }}
+
+      # Lane is ingested whole, once, and shared across every corpus. 72 MB of
+      # parsed entries, ~90 s to produce. Keyed on the ingester itself.
+      - name: Cache Lane ingest
+        id: lane-cache
+        uses: actions/cache@v4
+        with:
+          path: pipeline/build/lane
+          key: lane-${{ hashFiles('pipeline/lane.py') }}
+
+      - name: Fetch sources
+        run: |
+          python pipeline/fetch.py --corpus lane
+          python pipeline/fetch.py --corpus tajrid
+
+      - name: Ingest Lane
+        if: steps.lane-cache.outputs.cache-hit != 'true'
+        run: python pipeline/lane.py
+
+      # ---------------------------------------------------------------------
+      # Contracts are generated from Python. If someone hand-edits the
+      # TypeScript, this fails here rather than drifting silently.
+      # ---------------------------------------------------------------------
+      - name: Check generated code is in sync
+        run: python pipeline/codegen.py --check
+
+      - name: Run the pipeline
+        run: |
+          python pipeline/segment.py --corpus tajrid
+          python pipeline/lexicon.py --corpus tajrid
+          python pipeline/bind.py    --corpus tajrid
+          # GitHub Pages compresses on the fly and ignores .br/.gz siblings,
+          # so producing them costs 136 s and 42 MB for nothing. On Cloudflare
+          # Pages or Netlify, drop this flag — they do serve them.
+          python pipeline/build.py   --corpus tajrid --no-precompress
+
+      - name: Typecheck and build the app
+        working-directory: web
+        env:
+          # Pages serves from /<repo>/. Set to "/" for a custom domain.
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: |
+          npm ci
+          npx tsc -b
+          npm run build
+
+      # Pages has no SPA fallback: a deep link to /hadith/42 would 404 on
+      # reload. Serving index.html as the 404 page is the standard workaround
+      # and costs one copy.
+      - name: SPA fallback
+        run: cp web/dist/index.html web/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  # The end-to-end gates. Separate job so a rendering regression is visible on
+  # its own, and so it can run in parallel with nothing blocking the deploy on
+  # a browser download.
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: /tmp/site
+      - name: Unpack and serve
+        run: |
+          mkdir -p /tmp/dist && tar -xf /tmp/site/artifact.tar -C /tmp/dist
+          pip install playwright pillow && playwright install --with-deps chromium
+          # NOT `python -m http.server`: it has no SPA fallback, so every
+          # deep-link assertion in the gates would fail on a 404 that has
+          # nothing to do with the app.
+          python web/serve.py /tmp/dist 5173 &
+          sleep 3
+      - name: Gates
+        working-directory: web
+        run: |
+          python e2e_phase5.py
+          python e2e_phase6.py
+          python e2e_phase7.py
+          python e2e_phase8.py
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

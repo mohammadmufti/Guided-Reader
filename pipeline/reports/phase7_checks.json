@@ -1,0 +1,832 @@
+[
+ {
+  "check": "empty state invites action",
+  "pass": true,
+  "detail": "Select any word to see how it works.\n\nYou get its vowelling "
+ },
+ {
+  "check": "empty state suggests a word",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "empty-state suggestion selects a word",
+  "pass": true,
+  "detail": "http://127.0.0.1:5173/hadith/1?w=38"
+ },
+ {
+  "check": "panel is not empty — curated_pair (hadith 783, word 36)",
+  "pass": true,
+  "detail": "2784 chars"
+ },
+ {
+  "check": "no raw Buckwalter — curated_pair (hadith 783, word 36)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — curated_pair (hadith 783, word 36)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — curated_pair (hadith 783, word 36)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — curated_pair (hadith 351, word 44)",
+  "pass": true,
+  "detail": "3147 chars"
+ },
+ {
+  "check": "no raw Buckwalter — curated_pair (hadith 351, word 44)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — curated_pair (hadith 351, word 44)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — curated_pair (hadith 351, word 44)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:aligned (hadith 1469, word 34)",
+  "pass": true,
+  "detail": "699 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:aligned (hadith 1469, word 34)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:aligned (hadith 1469, word 34)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:aligned (hadith 1469, word 34)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:aligned (hadith 174, word 2)",
+  "pass": true,
+  "detail": "4962 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:aligned (hadith 174, word 2)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:aligned (hadith 174, word 2)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:aligned (hadith 174, word 2)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:curated (hadith 185, word 18)",
+  "pass": true,
+  "detail": "968 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:curated (hadith 185, word 18)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:curated (hadith 185, word 18)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:curated (hadith 185, word 18)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:curated (hadith 2079, word 17)",
+  "pass": true,
+  "detail": "754 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:curated (hadith 2079, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:curated (hadith 2079, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:curated (hadith 2079, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:developed_sense (hadith 1723, word 41)",
+  "pass": true,
+  "detail": "1405 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:developed_sense (hadith 1723, word 41)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:developed_sense (hadith 1723, word 41)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:developed_sense (hadith 1723, word 41)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:developed_sense (hadith 302, word 121)",
+  "pass": true,
+  "detail": "1752 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:developed_sense (hadith 302, word 121)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:developed_sense (hadith 302, word 121)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:developed_sense (hadith 302, word 121)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:divergent (hadith 1167, word 163)",
+  "pass": true,
+  "detail": "793 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:divergent (hadith 1167, word 163)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:divergent (hadith 1167, word 163)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:divergent (hadith 1167, word 163)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:divergent (hadith 1629, word 117)",
+  "pass": true,
+  "detail": "1248 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:divergent (hadith 1629, word 117)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:divergent (hadith 1629, word 117)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:divergent (hadith 1629, word 117)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:no_classical_entry (hadith 224, word 26)",
+  "pass": true,
+  "detail": "317 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:no_classical_entry (hadith 224, word 26)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:no_classical_entry (hadith 224, word 26)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:no_classical_entry (hadith 224, word 26)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:no_classical_entry (hadith 1752, word 30)",
+  "pass": true,
+  "detail": "269 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:no_classical_entry (hadith 1752, word 30)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:no_classical_entry (hadith 1752, word 30)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:no_classical_entry (hadith 1752, word 30)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:no_msa_gloss (hadith 928, word 97)",
+  "pass": true,
+  "detail": "807 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:no_msa_gloss (hadith 928, word 97)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:no_msa_gloss (hadith 928, word 97)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:no_msa_gloss (hadith 928, word 97)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:no_msa_gloss (hadith 114, word 16)",
+  "pass": true,
+  "detail": "1388 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:no_msa_gloss (hadith 114, word 16)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:no_msa_gloss (hadith 114, word 16)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:no_msa_gloss (hadith 114, word 16)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:not_applicable (hadith 228, word 347)",
+  "pass": true,
+  "detail": "411 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:not_applicable (hadith 228, word 347)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:not_applicable (hadith 228, word 347)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:not_applicable (hadith 228, word 347)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — div:not_applicable (hadith 1195, word 1)",
+  "pass": true,
+  "detail": "613 chars"
+ },
+ {
+  "check": "no raw Buckwalter — div:not_applicable (hadith 1195, word 1)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — div:not_applicable (hadith 1195, word 1)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — div:not_applicable (hadith 1195, word 1)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — hapax (hadith 1201, word 1422)",
+  "pass": true,
+  "detail": "1532 chars"
+ },
+ {
+  "check": "no raw Buckwalter — hapax (hadith 1201, word 1422)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — hapax (hadith 1201, word 1422)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — hapax (hadith 1201, word 1422)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — hapax (hadith 187, word 38)",
+  "pass": true,
+  "detail": "1887 chars"
+ },
+ {
+  "check": "no raw Buckwalter — hapax (hadith 187, word 38)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — hapax (hadith 187, word 38)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — hapax (hadith 187, word 38)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — low_confidence (hadith 827, word 17)",
+  "pass": true,
+  "detail": "1012 chars"
+ },
+ {
+  "check": "no raw Buckwalter — low_confidence (hadith 827, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — low_confidence (hadith 827, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — low_confidence (hadith 827, word 17)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — low_confidence (hadith 377, word 5)",
+  "pass": true,
+  "detail": "527 chars"
+ },
+ {
+  "check": "no raw Buckwalter — low_confidence (hadith 377, word 5)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — low_confidence (hadith 377, word 5)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — low_confidence (hadith 377, word 5)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — medium_confidence (hadith 1829, word 29)",
+  "pass": true,
+  "detail": "2210 chars"
+ },
+ {
+  "check": "no raw Buckwalter — medium_confidence (hadith 1829, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — medium_confidence (hadith 1829, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — medium_confidence (hadith 1829, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — medium_confidence (hadith 200, word 7)",
+  "pass": true,
+  "detail": "506 chars"
+ },
+ {
+  "check": "no raw Buckwalter — medium_confidence (hadith 200, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — medium_confidence (hadith 200, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — medium_confidence (hadith 200, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — no_gloss (hadith 620, word 106)",
+  "pass": true,
+  "detail": "2495 chars"
+ },
+ {
+  "check": "no raw Buckwalter — no_gloss (hadith 620, word 106)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — no_gloss (hadith 620, word 106)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — no_gloss (hadith 620, word 106)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — no_gloss (hadith 1093, word 64)",
+  "pass": true,
+  "detail": "2335 chars"
+ },
+ {
+  "check": "no raw Buckwalter — no_gloss (hadith 1093, word 64)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — no_gloss (hadith 1093, word 64)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — no_gloss (hadith 1093, word 64)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — pos_disagree (hadith 1567, word 21)",
+  "pass": true,
+  "detail": "636 chars"
+ },
+ {
+  "check": "no raw Buckwalter — pos_disagree (hadith 1567, word 21)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — pos_disagree (hadith 1567, word 21)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — pos_disagree (hadith 1567, word 21)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — pos_disagree (hadith 1556, word 7)",
+  "pass": true,
+  "detail": "636 chars"
+ },
+ {
+  "check": "no raw Buckwalter — pos_disagree (hadith 1556, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — pos_disagree (hadith 1556, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — pos_disagree (hadith 1556, word 7)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — proper_noun (hadith 1622, word 78)",
+  "pass": true,
+  "detail": "650 chars"
+ },
+ {
+  "check": "no raw Buckwalter — proper_noun (hadith 1622, word 78)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — proper_noun (hadith 1622, word 78)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — proper_noun (hadith 1622, word 78)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — proper_noun (hadith 198, word 23)",
+  "pass": true,
+  "detail": "669 chars"
+ },
+ {
+  "check": "no raw Buckwalter — proper_noun (hadith 198, word 23)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — proper_noun (hadith 198, word 23)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — proper_noun (hadith 198, word 23)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — review_flagged (hadith 1714, word 975)",
+  "pass": true,
+  "detail": "580 chars"
+ },
+ {
+  "check": "no raw Buckwalter — review_flagged (hadith 1714, word 975)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — review_flagged (hadith 1714, word 975)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — review_flagged (hadith 1714, word 975)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — review_flagged (hadith 228, word 139)",
+  "pass": true,
+  "detail": "1439 chars"
+ },
+ {
+  "check": "no raw Buckwalter — review_flagged (hadith 228, word 139)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — review_flagged (hadith 228, word 139)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — review_flagged (hadith 228, word 139)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — root_absent (hadith 612, word 20)",
+  "pass": true,
+  "detail": "476 chars"
+ },
+ {
+  "check": "no raw Buckwalter — root_absent (hadith 612, word 20)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — root_absent (hadith 612, word 20)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — root_absent (hadith 612, word 20)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — root_absent (hadith 103, word 166)",
+  "pass": true,
+  "detail": "414 chars"
+ },
+ {
+  "check": "no raw Buckwalter — root_absent (hadith 103, word 166)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — root_absent (hadith 103, word 166)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — root_absent (hadith 103, word 166)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — root_present (hadith 1341, word 54)",
+  "pass": true,
+  "detail": "1388 chars"
+ },
+ {
+  "check": "no raw Buckwalter — root_present (hadith 1341, word 54)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — root_present (hadith 1341, word 54)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — root_present (hadith 1341, word 54)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — root_present (hadith 1942, word 10)",
+  "pass": true,
+  "detail": "1198 chars"
+ },
+ {
+  "check": "no raw Buckwalter — root_present (hadith 1942, word 10)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — root_present (hadith 1942, word 10)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — root_present (hadith 1942, word 10)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — top50 (hadith 373, word 14)",
+  "pass": true,
+  "detail": "473 chars"
+ },
+ {
+  "check": "no raw Buckwalter — top50 (hadith 373, word 14)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — top50 (hadith 373, word 14)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — top50 (hadith 373, word 14)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — top50 (hadith 850, word 4)",
+  "pass": true,
+  "detail": "506 chars"
+ },
+ {
+  "check": "no raw Buckwalter — top50 (hadith 850, word 4)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — top50 (hadith 850, word 4)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — top50 (hadith 850, word 4)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — unbound (hadith 24, word 29)",
+  "pass": true,
+  "detail": "131 chars"
+ },
+ {
+  "check": "no raw Buckwalter — unbound (hadith 24, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — unbound (hadith 24, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — unbound (hadith 24, word 29)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "panel is not empty — unbound (hadith 7, word 137)",
+  "pass": true,
+  "detail": "132 chars"
+ },
+ {
+  "check": "no raw Buckwalter — unbound (hadith 7, word 137)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no untreated nulls — unbound (hadith 7, word 137)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "no lonely label — unbound (hadith 7, word 137)",
+  "pass": true,
+  "detail": "[]"
+ },
+ {
+  "check": "curated shows both literal and technical",
+  "pass": true,
+  "detail": "وُضُوءَكَ /  / wuḍūʾaka /  / NOUN / المعنى / MEANING / ritual ablution, / state of purity / your / الجذر واللفظ / ROOT AND LEMMA / و ض ء /  / وُضُوء"
+ },
+ {
+  "check": "Lane entry names whose entry it is",
+  "pass": true,
+  "detail": "يُصَلِّي\n\nyuṣallī\n\nVERB\nالمعنى\nMEANING\npray,\nworship\nhe/it\nالجذر واللفظ\nROOT AND"
+ },
+ {
+  "check": "Lane sources are explained rather than left as bare letters",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "a Lane entry appeared in the walkthrough",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "the mechanically sampled sense is gone from the payload",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "not_applicable shows no divergence section",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "absent root is explained, not left blank",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "analyser disagreement warns that the root may be wrong",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "provenance is collapsed by default",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "check": "every divergence value was exercised",
+  "pass": true,
+  "detail": "['aligned', 'curated', 'developed_sense', 'divergent', 'no_classical_entry', 'no_msa_gloss', 'not_applicable']"
+ },
+ {
+  "check": "no console or page errors during the walkthrough",
+  "pass": true,
+  "detail": "[]"
+ }
+]

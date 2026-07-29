@@ -1,0 +1,25 @@
+# A corpus-INDEPENDENT lexical source.
+#
+# Fetched through the same machinery as a corpus so it gets the same checksum
+# and idempotence guarantees, but it is not a text to read — it is the classical
+# apparatus that every corpus draws on. Roadmap B.2 will move sources like this
+# into a shared store; until then it lives here and is fetched with
+# `--corpus lane`, which keeps it in its own manifest.
+id: lane
+
+display:
+  titleEn: "Lane's Arabic-English Lexicon"
+  author: "Edward William Lane"
+  authorDied: "1876"
+  edition: "London: Williams & Norgate, 1863–1893"
+  # The TEXT is public domain — Lane died in 1876 and the lexicon was published
+  # 1863–1893. THIS DIGITISATION is distributed under GPL-3.0 by the
+  # laneslexicon project. Attribute it, and review the compilation licence
+  # before redistributing derived data.
+  rights: "text public-domain; this digitisation GPL-3.0 (laneslexicon/LexiconDatabase)"
+
+sources:
+  db:
+    kind: http
+    uri: https://raw.githubusercontent.com/laneslexicon/LexiconDatabase/master/lexicon.sqlite.zip
+    filename: lexicon.sqlite.zip

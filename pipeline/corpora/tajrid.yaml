@@ -1,0 +1,140 @@
+# Corpus configuration — al-Tajrid al-Sarih
+#
+# Phase 0 populates the `sources` block only. Later phases add segmentation
+# rules, the record-ID scheme, and the sheet/column mapping; Phase 9 finishes
+# the job of making every corpus-specific assumption live in a file like this
+# rather than in code.
+
+id: tajrid
+
+display:
+  titleAr: "التجريد الصريح لأحاديث الجامع الصحيح"
+  titleEn: "al-Tajrīd al-Ṣarīḥ"
+  # Verbatim from the OpenITI header (010.AuthorNAME / 011.AuthorDIED).
+  authorAr: "أحمد بن أحمد بن عبد اللطيف الشرجي، زين الدين الزبيدي"
+  author: "Aḥmad b. Aḥmad b. ʿAbd al-Laṭīf al-Sharjī, Zayn al-Dīn al-Zabīdī"
+  authorDied: "893 AH"
+  # 041.EdNUMBER + 043.EdPUBLISHER.
+  edition: "مؤسسة الرسالة ناشرون، دمشق — الأولى، ١٤٣٠ هـ / ٢٠٠٩ م"
+  subject: "كتب التخريج والزوائد"
+  # Public domain: the author died in 893 AH.
+  rights: "public-domain"
+
+sources:
+  text:
+    kind: http
+    # OpenITI mARkdown. The bare URI IS the file — this text carries no
+    # .completed or .mARkdown sibling, so do not append an extension.
+    uri: https://raw.githubusercontent.com/OpenITI/0900AH/master/data/0893IbnAhmadZaynDinSharji/0893IbnAhmadZaynDinSharji.TajridSarih/0893IbnAhmadZaynDinSharji.TajridSarih.Shamela0096283-ara1
+    filename: tajrid.mARkdown
+    encoding: utf-8
+
+  lexicon:
+    kind: local
+    # User-supplied workbook. Copied into the cache so the pipeline has a
+    # checksummed, immutable input rather than reaching outside the repo.
+    path: Tajrid_frequency_tables.xlsx
+    filename: Tajrid_frequency_tables.xlsx
+
+  vocalisation_reference:
+    kind: http
+    # Fully-diacritised Sahih al-Bukhari, the Phase 3 Tier-2 alignment target.
+    #
+    # PATH DISCOVERY (Phase 0): the naive guess 404s because the directory name
+    # contains spaces and must be percent-encoded. Found by walking
+    # /repos/abdelrahmaan/Hadith-Data-Sets/git/trees/master?recursive=1 — the
+    # repo has exactly 31 blobs and two Bukhari files. We take the WITH-tashkil
+    # one (8.1 MB); "Sahih Bukhari Without_Tashkel.csv" (4.5 MB) is useless here.
+    uri: https://raw.githubusercontent.com/abdelrahmaan/Hadith-Data-Sets/master/All%20Hadith%20Books/Sahih%20Bukhari.csv
+    filename: sahih_bukhari_vocalised.csv
+    encoding: utf-8
+    # Single-column CSV, header row is literally "Sahih Bukhari", one hadith
+    # per row, no chapter metadata. Confirmed by inspection at Phase 0.
+    notes: |
+      Repo is unlicensed (no LICENSE file, license = null via the GitHub API).
+      Used here only as an alignment reference to transfer vocalisation; no
+      Bukhari text is redistributed in the app's output payload.
+
+# ---------------------------------------------------------------------------
+# Segmentation. Every one of these was hard-coded in Phase 1 and is
+# configuration now, because OpenITI conventions differ between texts.
+# ---------------------------------------------------------------------------
+segmentation:
+  # Line grammar. al-Tajrid has exactly ONE structural level: `### ||` never
+  # occurs in 2,711 structural lines, which is why the kitab/bab hierarchy has
+  # to be inferred rather than read off.
+  section: '^###\s*\|\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+
+  # Order matters. Manuscript markers occur INSIDE both the div tags and the
+  # page brackets, so ms### is stripped first or the others fail to match.
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+
+  # A numbered opener. Some carry more than one number on one line — hadith
+  # 1201 and 1202 share an opener — so the parser chains them.
+  opener: '^(\d+)\s*-\s*(.*)$'
+
+  # A zawa'id addition: an unnumbered body introduced by a bullet and closed by
+  # a note. 88 bullets, 88 notes. The note is metadata, not a record.
+  aside_bullet: '^•\s*(.*)$'
+  aside_marker: 'زوائد الضياء'
+
+  # With one structural level, a heading is book-level if it opens with one of
+  # these and chapter-level otherwise. Most chapter titles do NOT contain the
+  # word باب — in Kitab al-Maghazi they are named by battle, in al-Tafsir by
+  # Qur'anic verse. This rule reproduces the workbook's heading_kitab token
+  # tally exactly, 224 = 224.
+  heading_top_prefixes: ["كتاب", "أبواب"]
+
+  # Editorial apparatus, excluded from the text and from the token count.
+  editorial_reference: '\(\s*بخاري\s*:\s*([\d\s،,و\u2013-]+?)\s*\)'
+
+  layer_names:
+    body: matn
+    aside: zawaid
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+
+  # The workbook's pipeline emitted an extra empty record after each kitab
+  # heading; carrying that index lets its `first_record` and `kwic` columns
+  # resolve against our records.
+  workbook_index_phantoms: true
+
+# Measured against the supplied workbook. The segmenter reports its delta
+# against these; a corpus without a workbook simply omits the block.
+expected:
+  layer_tokens:
+    matn: 119077
+    zawaid: 6063
+    heading_bab: 970
+    frontmatter: 873
+    heading_kitab: 224
+
+lexicon:
+  workbook: Tajrid_frequency_tables.xlsx
+  # Required sheets and the columns the pipeline reads from each. A different
+  # text with a different workbook drops in provided it carries these.
+  sheets:
+    Surface:
+      required: [match_id, search_key, vocalized, unvocalized, freq, rank, pct,
+                 cum_pct, doc_freq, pos, lemma, root, gloss_msa, layers,
+                 first_record, divergence]
+      key: match_id
+    Lemma: {key: lemma}
+    Root: {key: root}
+    Names: {key: name}
+    TechnicalSenses: {key: key}
+    Divergence: {key: lemma}
+    Review: {key: surface}      # keyed by UNVOCALIZED form, not search_key
+    Unvocalized: {key: unvocalized}
+  normalisation: din_search_key   # see pipeline/normalise.py
