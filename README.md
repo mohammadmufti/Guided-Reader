@@ -151,3 +151,17 @@ web/
 
 Do not hand-edit `web/src/types/contracts.ts`. Edit `contracts.py` and run
 `python pipeline/codegen.py`.
+
+---
+
+## Licence
+
+**GPL-3.0-or-later** — see [`LICENSE`](LICENSE).
+
+That follows from the dependency graph rather than from preference: the
+morphological analysis uses `farahidi`, `qalsadi`, `tashaphyne` and `arramooz`,
+all of which are GPL, and Lane's digitisation is GPL-3.0 as well. `NOTICE.md`
+lists every third-party component, the typeface licences, and the provenance of
+each text — including which sources are used for alignment only and are not
+redistributed.
+
