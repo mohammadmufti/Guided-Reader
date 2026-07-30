@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python dependencies
-        run: pip install pandas openpyxl pyyaml brotli pytest
+        run: pip install pandas openpyxl pyyaml brotli pytest qalsadi
 
       # ---------------------------------------------------------------------
       # The source downloads are 70 MB and never change: the OpenITI text, the
@@ -53,6 +53,15 @@ jobs:
 
       # Lane is ingested whole, once, and shared across every corpus. 72 MB of
       # parsed entries, ~90 s to produce. Keyed on the ingester itself.
+      # qalsadi over 22,464 forms takes about 2.5 minutes and the output only
+      # changes when the workbook or the script does.
+      - name: Cache morphological analysis
+        id: morph-cache
+        uses: actions/cache@v5
+        with:
+          path: pipeline/build/morphology
+          key: morph-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx') }}
+
       - name: Cache Lane ingest
         id: lane-cache
         uses: actions/cache@v5
@@ -73,6 +82,12 @@ jobs:
       # Contracts are generated from Python. If someone hand-edits the
       # TypeScript, this fails here rather than drifting silently.
       # ---------------------------------------------------------------------
+      - name: Analyse morphology
+        if: steps.morph-cache.outputs.cache-hit != 'true'
+        run: |
+          pip install qalsadi
+          python pipeline/analyse.py
+
       - name: Check generated code is in sync
         run: python pipeline/codegen.py --check
 

@@ -175,9 +175,20 @@ function RootAndLemma({
   entry: PanelEntry;
   classical: ClassicalEntry | null;
 }) {
+  // Precedence: the workbook, then the analysers run directly, then recovery
+  // from the corpus itself. Whichever answers, the panel says which.
+  const ana = entry.analysed;
   const rec = entry.recovered;
-  const root = entry.root ?? rec?.root ?? null;
-  const lemma = entry.lemma && !entry.morphSuspect ? entry.lemma : (rec?.lemma ?? null);
+  const root = entry.root ?? ana?.root ?? rec?.root ?? null;
+  const lemma =
+    entry.lemma && !entry.morphSuspect ? entry.lemma : (ana?.lemma ?? rec?.lemma ?? null);
+  const source: "workbook" | "analyser" | "corpus" | null = entry.root
+    ? "workbook"
+    : ana?.root
+      ? "analyser"
+      : rec?.root
+        ? "corpus"
+        : null;
 
   return (
     <Section title="الجذر واللفظ" subtitle="Root and lemma">
@@ -223,7 +234,35 @@ function RootAndLemma({
         </p>
       )}
 
-      {rec && (
+      {source === "analyser" && (
+        <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+          The source data lost this word&rsquo;s stem and recorded only a prefix.
+          The root and lemma above come from running the morphological analysers
+          directly — qalsadi for the lemma, the arramooz dictionaries for the
+          root. Where both the source data and the analysers have an opinion they
+          agree on 92.3% of forms.
+          {ana?.rootAlternatives.length ? (
+            <>
+              {" "}The dictionaries also offer{" "}
+              <span className="arabic" lang="ar" dir="rtl">
+                {ana.rootAlternatives.join("، ")}
+              </span>
+              .
+            </>
+          ) : null}
+        </p>
+      )}
+
+      {entry.rootDisputed && (
+        <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-flag)" dir="ltr">
+          The source data and the morphological dictionaries give different roots
+          for this word. The one shown is the source data&rsquo;s. Neither is
+          authoritative — they differ on about 8% of forms, and the dictionaries
+          are sometimes the correct one.
+        </p>
+      )}
+
+      {source === "corpus" && rec && (
         // Provenance in place, not buried. The supplied analysis is wrong for
         // this form; what is shown was reconstructed from the corpus, and the
         // reader should be able to check it.

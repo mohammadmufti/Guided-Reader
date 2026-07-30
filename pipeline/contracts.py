@@ -560,6 +560,25 @@ class RecoveredMorphology(TypedDict):
     accuracy: Annotated[float, Doc("Held-out accuracy of the recoverer, as a percentage.")]
 
 
+class AnalysedMorphology(TypedDict):
+    """
+    Morphology from the analysers run directly — `qalsadi` for the lemma and
+    part of speech, the `arramooz` dictionaries for the root.
+
+    Present only where the workbook has nothing or lost the stem: it never
+    overwrites a workbook value. 87.9% of forms resolve to a root this way
+    against the workbook's 51.9% of tokens, and the two agree on 92.3% of the
+    forms where both have an opinion.
+    """
+
+    lemma: str | None
+    pos: str | None
+    root: str | None
+    rootAlternatives: Annotated[
+        list[str], Doc("Other roots the dictionaries offer for the same lemma.")
+    ]
+
+
 class PanelEntry(TypedDict):
     """
     A lexicon entry as the word panel receives it, keyed by match_id inside a
@@ -605,6 +624,13 @@ class PanelEntry(TypedDict):
     ]
     boundDocFreq: Annotated[int, Doc("Records containing it, by this pipeline's binding.")]
     isName: Annotated[bool, Doc("Present in the Names gazetteer — render as a person.")]
+    analysed: Annotated[
+        AnalysedMorphology | None,
+        Doc("Direct analyser output, used only where the workbook has nothing."),
+    ]
+    rootDisputed: Annotated[
+        bool, Doc("The workbook and the analysers give different roots. Neither is authoritative.")
+    ]
     recovered: Annotated[
         RecoveredMorphology | None,
         Doc("Set only when morphSuspect is true AND a stem was found. 146 of 409 forms."),
@@ -718,6 +744,7 @@ EXPORTED: list[type] = [
     IndexFile,
     GlossSlot,
     Gloss,
+    AnalysedMorphology,
     RecoveredMorphology,
     PanelEntry,
     ClassicalEntry,

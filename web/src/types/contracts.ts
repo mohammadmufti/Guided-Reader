@@ -516,6 +516,21 @@ export interface Gloss {
 }
 
 /**
+ * Morphology from the analysers run directly — `qalsadi` for the lemma and part of speech, the
+ * `arramooz` dictionaries for the root. Present only where the workbook has nothing or lost
+ * the stem: it never overwrites a workbook value. 87.9% of forms resolve to a root this way
+ * against the workbook's 51.9% of tokens, and the two agree on 92.3% of the forms where both
+ * have an opinion.
+ */
+export interface AnalysedMorphology {
+  lemma: string | null;
+  pos: string | null;
+  root: string | null;
+  /** Other roots the dictionaries offer for the same lemma. */
+  rootAlternatives: string[];
+}
+
+/**
  * Morphology recovered from the corpus itself, where the supplied analysis lost it. 409 forms
  * carry `pos=particle`, a one-letter lemma and no root because the analyser latched onto a
  * proclitic and discarded the word. The stem is usually attested elsewhere in the same corpus,
@@ -580,6 +595,10 @@ export interface PanelEntry {
   boundDocFreq: number;
   /** Present in the Names gazetteer — render as a person. */
   isName: boolean;
+  /** Direct analyser output, used only where the workbook has nothing. */
+  analysed: AnalysedMorphology | null;
+  /** The workbook and the analysers give different roots. Neither is authoritative. */
+  rootDisputed: boolean;
   /** Set only when morphSuspect is true AND a stem was found. 146 of 409 forms. */
   recovered: RecoveredMorphology | null;
   /**

@@ -328,6 +328,18 @@ def main() -> int:
     # more importantly — the entry for THIS WORD: Lane organises roots into
     # per-headword entries, so a lemma can be matched to its own entry rather
     # than handed a sense sampled from anywhere under the root.
+    # Morphology run directly, at LOWER precedence than the workbook. Where the
+    # workbook has a value it keeps it; where it lost the stem, this fills the
+    # gap. They agree on 92.3% of roots and neither is authoritative on the rest
+    # — حِسَابُكُمَا is rooted حشر by the workbook and حسب here, and here is
+    # right — so the source is recorded and the disagreement stays visible.
+    analyses_path = BUILD / "morphology" / "analyses.json"
+    analyses: dict = {}
+    if analyses_path.exists():
+        analyses = json.loads(analyses_path.read_text(encoding="utf-8"))
+    else:
+        print("  (no analyser output — run pipeline/analyse.py; roots will be workbook-only)")
+
     lane_path = BUILD / "lane" / "entries.json"
     lane: dict = {}
     if lane_path.exists():
@@ -396,6 +408,25 @@ def main() -> int:
         # itself rather than leaving the reader with a shrug.
         lost = morph_suspect(e)
         trimmed["morphSuspect"] = lost
+
+        # Precedence: workbook -> direct analysers -> corpus-internal recovery.
+        analysed = analyses.get(str(e["vocalized"]))
+        trimmed["analysed"] = None
+        if analysed and (lost or not e.get("root")):
+            trimmed["analysed"] = {
+                "lemma": analysed.get("lemma"),
+                "pos": analysed.get("pos"),
+                "root": analysed.get("root"),
+                "rootAlternatives": analysed.get("rootAlternatives") or [],
+            }
+        # Recorded whenever both have an opinion, so a reader can see that the
+        # sources differ rather than being handed one silently.
+        trimmed["rootDisputed"] = bool(
+            e.get("root")
+            and analysed
+            and analysed.get("root")
+            and root_key(str(e["root"])) != root_key(str(analysed["root"]))
+        )
         trimmed["recovered"] = None
         if lost:
             g = trimmed.get("gloss")

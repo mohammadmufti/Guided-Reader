@@ -142,12 +142,24 @@ def main() -> int:
         check("not_applicable shows no divergence section",
               "senses differ" not in na_text and "diverge" not in na_text)
 
-        # root-absent explains itself
-        ra = next(c for c in SAMPLE if c["criterion"] == "root_absent")
-        page.goto(f"{BASE}/hadith/{ra['number']}?w={ra['i']}", wait_until="networkidle")
-        page.wait_for_selector('aside [data-panel="ready"]')
+        # Root-absent explains itself. The sample is chosen on the WORKBOOK
+        # having no root, and since the analysers landed most of those forms now
+        # have one — 20,720 of 22,464 carry a root from some source. So walk the
+        # sample for one that is still blank everywhere; if none is, the
+        # explanation has nothing left to explain and the check is moot.
+        explained = None
+        for c in SAMPLE:
+            if c["criterion"] != "root_absent":
+                continue
+            page.goto(f"{BASE}/hadith/{c['number']}?w={c['i']}", wait_until="networkidle")
+            page.wait_for_selector('aside [data-panel="ready"]')
+            body = page.locator("aside").inner_text()
+            if "ROOT AND LEMMA" in body.upper() and "do not have one" in body:
+                explained = c
+                break
         check("absent root is explained, not left blank",
-              "do not have one" in page.locator("aside").inner_text())
+              explained is not None,
+              "no sampled form is root-less any more" if explained is None else "")
 
         # pos_agreement = disagree warns plainly
         pd = next(c for c in SAMPLE if c["criterion"] == "pos_disagree")
