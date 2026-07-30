@@ -644,6 +644,10 @@ declined. The open work is [`MULTI-TEXT.md`](MULTI-TEXT.md): serving more than
 one book. Start there, and start at Phase 1 rather than Phase 0 — the reason is
 in that document.
 
+**Read [`GAPS.md`](GAPS.md) before planning anything.** It is the honest
+assessment of where the project falls short of what it is for, and it argues
+for a different first move than `MULTI-TEXT.md` does.
+
 **What a new conversation should read, in order.** `README.md` for the shape of
 the repository; this file §8 for the working agreement; `LIMITATIONS.md` for
 what the data is actually worth; `MULTI-TEXT.md` for what to build next. The
