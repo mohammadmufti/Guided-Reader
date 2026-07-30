@@ -1,0 +1,38 @@
+# Hand corrections for al-Tajrīd, applied last and beating every derived source.
+#
+# The build derives vowelling from an aligned witness, morphology from analysers
+# and meaning from a lexicon. All three are measured and none is perfect. This
+# file is where a reader's judgement overrides them permanently, instead of
+# being reported once and lost.
+#
+# Two ways to key an entry:
+#
+#   by_token   a specific word in a specific record — for a contextual error
+#   by_form    every occurrence of a vocalised form — for a lexical error
+#
+# Every entry needs a `note` saying WHY. A correction without a reason is
+# indistinguishable from a typo six months later.
+#
+# Both errors below were found by reading, and both were structural: they led to
+# the Tier 1 witness-correction pass and the ibn syntactic override, which
+# together fixed 779 tokens. They are recorded here as the reference examples;
+# the pipeline now handles both, so neither currently changes anything, and
+# `test_corrections.py` asserts exactly that.
+
+by_token: []
+  # - record: matn-00004
+  #   token: 17
+  #   surface: الْأَعْمَالُ
+  #   note: >
+  #     إنما is كافة ومكفوفة, so الأعمال is مبتدأ مرفوع. The lexicon held only
+  #     the genitive form and Tier 1 claimed the token before alignment could
+  #     object. Now handled by witness-correction of Tier 1.
+
+by_form: []
+  # - search_key: بن
+  #   after: عن
+  #   surface: بْنِ
+  #   note: >
+  #     al-Tajrīd rewrites Bukhārī's isnād openings — سمعت عمرَ بنَ الخطاب
+  #     becomes عن عمرَ بنِ الخطاب — which changes the case. Now handled by the
+  #     ibn syntactic override.

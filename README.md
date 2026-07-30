@@ -13,6 +13,7 @@ About one word in 140 is a guess. The app says which ones.
 - [`SPEC.md`](SPEC.md) — the build spec, corrected against the measured data
 - [`ADDENDUM-adding-sources.md`](ADDENDUM-adding-sources.md) — adding a corpus
   or a lexicon workbook
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — the shared lexicon and per-corpus alignment
 - [`ROADMAP.md`](ROADMAP.md) — what is not built yet, and why in that order
 - [`DEPLOY.md`](DEPLOY.md) — CI, hosting, and seeing changes live
 

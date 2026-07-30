@@ -32,6 +32,8 @@ import json
 import math
 import random
 import re
+
+import yaml
 import sys
 from pathlib import Path
 
@@ -315,7 +317,33 @@ def tier3_collocation(
     return None
 
 
-def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tuple[dict, dict]:
+def load_corrections(corpus: str) -> tuple[dict, dict]:
+    """
+    Hand corrections, applied after every derived source.
+
+    Precedence exists so a reader's judgement is not overwritten by the next
+    rebuild. Everything else in this file is measured and fallible; this is the
+    one input that is neither, and it wins.
+    """
+    path = ROOT / "corrections" / f"{corpus}.yaml"
+    if not path.exists():
+        return {}, {}
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    by_token = {
+        (str(e["record"]), int(e["token"])): e for e in (doc.get("by_token") or [])
+    }
+    by_form = {}
+    for e in doc.get("by_form") or []:
+        by_form.setdefault(str(e["search_key"]), []).append(e)
+    return by_token, by_form
+
+
+def bind_corpus(
+    records: list[dict],
+    lex: Lexicon,
+    bukhari: BukhariIndex,
+    corrections: tuple[dict, dict] = ({}, {}),
+) -> tuple[dict, dict]:
     bound: dict[str, dict] = {}
     tally = collections.Counter()
     tally_matn = collections.Counter()
@@ -326,6 +354,8 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
     repairs = collections.Counter()
     syntax_fixes: collections.Counter = collections.Counter()
     unopposed = 0
+    corrected: set[tuple[str, int]] = set()
+    corr_token, corr_form = corrections
     witness_fixes: collections.Counter = collections.Counter()
     surfaces: dict[tuple[str, int], str] = {}
     state: list[tuple[dict, str, list[dict], list[str], list[int | None], list[str | None]]] = []
@@ -360,6 +390,14 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                 for k, f in zip(bukhari.norm[row], bukhari.forms[row]):
                     row_forms[k].add(f)
                 sm = difflib.SequenceMatcher(None, keys, bukhari.norm[row], autojunk=False)
+                # A gap-filling pass was tried here and removed: difflib returns
+                # MAXIMAL blocks under a longest common subsequence, so a word
+                # unique in both gaps would already be matched — matching it
+                # extends the subsequence. It produced exactly zero fills. The
+                # 1,670 unmatched-but-present tokens are REORDERINGS, and
+                # matching those means allowing crossing alignments, which
+                # abandons the positional determinacy that makes Tier 2 worth
+                # calling high confidence.
                 for a, b, size in sm.get_matching_blocks():
                     for d in range(size):
                         i = a + d
@@ -495,6 +533,21 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
         out = []
         for i, tok in enumerate(tokens):
             tier, mid = tiers[i], mids[i]
+            # Corrections last, so they beat witness, analyser and lexicon
+            # alike. A corrected reading is not a guess and is not labelled one.
+            fix = corr_token.get((rec["id"], i))
+            if fix is None:
+                for cand in corr_form.get(keys[i], []):
+                    prev = tokens[i - 1]["raw"] if i else None
+                    if "after" not in cand or cand["after"] == prev:
+                        fix = cand
+                        break
+            if fix is not None:
+                minted_id = lex.mint_from_witness(keys[i], str(fix["surface"]))
+                if minted_id:
+                    tiers[i], mids[i] = 1, minted_id
+                    corrected.add((rec["id"], i))
+
             binding, confidence = {
                 1: ("unique", "high"), 2: ("aligned", "high"),
                 3: ("heuristic", "medium"), 4: ("heuristic", "low"),
@@ -530,6 +583,7 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
 
     reasons.update(repairs)
     reasons["Tier 1 unopposed but unwitnessed"] = unopposed
+    reasons["hand corrections applied"] = len(corrected)
     reasons["syntax-override (ibn)"] = sum(syntax_fixes.values())
     reasons["witness-corrected Tier 1"] = sum(witness_fixes.values())
     return bound, {"tally": tally, "tally_matn": tally_matn, "reasons": reasons,

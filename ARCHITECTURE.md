@@ -117,9 +117,23 @@ not more witnesses:
 | aligned record, unmatched token | 7,665 | **6.1%** | **better aligner** |
 | record never aligned | 149 | 0.1% | another witness |
 
-`difflib.SequenceMatcher` is a generic longest-common-subsequence matcher. It
-fails where an abridger paraphrases, elides or reorders — which is most of the
-6.1%. Replace it with:
+**Measured, and the headroom is much smaller than this table suggests.** Of the
+7,665 unmatched tokens, only **1,670 (21.8%)** have their word present in the
+witness row at all; the other **5,995 (78.2%)** are genuinely absent — the
+abridger's own wording, or a different recension. No aligner recovers those.
+
+And a gap-filling pass over the 1,670 produced **zero** matches, for a structural
+reason: `difflib` returns maximal blocks under a longest common subsequence, so
+a word unique in both gaps is already matched. The residue is REORDERING, and
+matching a reordering means allowing crossing alignments — which gives up the
+positional determinacy that makes Tier 2 high confidence in the first place.
+
+**Recommendation: do not do D-1.** The realistic ceiling is 1.3% of the corpus,
+it cannot be reached without weakening the guarantee that makes the tier
+meaningful, and B-3 delivered three times as much by widening the inventory
+instead. What follows is kept for the record.
+
+Were it attempted anyway:
 
 1. **Anchor on rare words.** Match low-document-frequency tokens first; they are
    nearly unambiguous and they partition the sequence.
@@ -157,7 +171,7 @@ Wire the existing sources through it. Output must be **byte-identical** to today
 *Gate:* the payload is unchanged; every field carries a source; all 41 tests and
 243 browser assertions pass.
 
-### B-2 — qalsadi as a provider
+### B-2 — qalsadi as a provider — ✅ SHIPPED
 
 Fill lemma/root/pos wherever the workbook lost them, at lower precedence than
 the workbook's own non-null values.
@@ -167,7 +181,7 @@ the workbook's own non-null values.
 forms where the workbook has one, and published. `لِتَكُونَ` still wrong, and
 still labelled wrong.
 
-### B-3 — Witness-derived inventory
+### B-3 — Witness-derived inventory — ✅ SHIPPED
 
 Build the form inventory from the witness rather than the workbook. Keep the
 workbook for gloss, curated senses and names.
@@ -185,7 +199,7 @@ derive from a byte budget, so this is a re-partition, not a re-design.
 *Gate:* adding a second corpus adds lexicon entries without modifying existing
 ones — assert the shared store is append-only for unchanged forms.
 
-### D-1 — The aligner
+### D-1 — The aligner — ❌ MEASURED, NOT WORTH DOING
 
 Anchored Needleman–Wunsch as above.
 
@@ -194,7 +208,7 @@ Tier 2 does not fall. Both must hold — coverage bought by accepting bad
 alignments is worse than honest gaps, because the interface calls Tier 2 high
 confidence.
 
-### E-1 — Corrections
+### E-1 — Corrections — ✅ SHIPPED
 
 `corpora/{id}/corrections.yaml`, keyed by stable `match_id` or
 `(record, token)`, applied last, highest precedence, each entry carrying a note.
