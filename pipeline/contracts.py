@@ -579,6 +579,22 @@ class AnalysedMorphology(TypedDict):
     ]
 
 
+class CorpusStats(TypedDict):
+    """
+    How a form behaves in ONE corpus. Shipped separately from the lexical entry
+    so that entry can be shared: everything here changes when the text changes,
+    and nothing here is a property of the word.
+    """
+
+    freq: int
+    doc_freq: int
+    rank: int
+    cum_pct: float
+    layers: str | None
+    boundFreq: int
+    boundDocFreq: int
+
+
 class PanelEntry(TypedDict):
     """
     A lexicon entry as the word panel receives it, keyed by match_id inside a
@@ -753,6 +769,7 @@ EXPORTED: list[type] = [
     Gloss,
     AnalysedMorphology,
     RecoveredMorphology,
+    CorpusStats,
     PanelEntry,
     ClassicalEntry,
 ]

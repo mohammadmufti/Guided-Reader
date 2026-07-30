@@ -552,6 +552,21 @@ export interface RecoveredMorphology {
 }
 
 /**
+ * How a form behaves in ONE corpus. Shipped separately from the lexical entry so that entry
+ * can be shared: everything here changes when the text changes, and nothing here is a property
+ * of the word.
+ */
+export interface CorpusStats {
+  freq: number;
+  doc_freq: number;
+  rank: number;
+  cum_pct: number;
+  layers: string | null;
+  boundFreq: number;
+  boundDocFreq: number;
+}
+
+/**
  * A lexicon entry as the word panel receives it, keyed by match_id inside a surface shard.
  * Trimmed from the 31-column workbook row: `kwic` and `first_record` are binding-verification
  * data the reading pane never needs, and the classical apparatus lives in its own map keyed by

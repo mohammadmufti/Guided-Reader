@@ -5,6 +5,7 @@ import type {
   Token,
   PanelEntry,
   ClassicalEntry,
+  CorpusStats,
   LaneRoot,
   LaneEntry,
   LaneRun,
@@ -94,7 +95,7 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       <RootAndLemma entry={entry} classical={classical} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       <Divergence entry={entry} />
-      <InThisCorpus entry={entry} index={index} record={record} token={token} />
+      <InThisCorpus stats={data.stats} index={index} record={record} token={token} />
       <ProperNoun entry={entry} />
       <Provenance entry={entry} token={token} />
     </div>
@@ -548,12 +549,12 @@ function Divergence({ entry }: { entry: PanelEntry }) {
  * is free until taken.
  */
 function Occurrences({
-  entry,
+  stats,
   index,
   record,
   token,
 }: {
-  entry: PanelEntry;
+  stats: CorpusStats;
   index: IndexFile;
   record: HadithFile;
   token: Token;
@@ -564,7 +565,7 @@ function Occurrences({
 
   useEffect(() => setState({ kind: "idle" }), [token.matchId, record.id]);
 
-  const elsewhere = entry.boundFreq - 1;
+  const elsewhere = stats.boundFreq - 1;
   if (elsewhere < 1) return null;
 
   if (state.kind === "idle") {
@@ -633,39 +634,42 @@ function Occurrences({
 }
 
 function InThisCorpus({
-  entry,
+  stats,
   index,
   record,
   token,
 }: {
-  entry: PanelEntry;
+  stats: CorpusStats | null;
   index: IndexFile;
   record: HadithFile;
   token: Token;
 }) {
-  const layers = (entry.layers ?? "")
+  if (!stats) return null;
+  const layers = (stats.layers ?? "")
     .split(",")
     .map((p) => p.split(":"))
     .filter((p) => p.length === 2)
     .map(([name, n]) => ({ name: (name ?? "").trim(), n: Number(n) }));
 
   const framing =
-    entry.boundFreq === 1
+    stats.boundFreq === 1
       ? "A hapax — it occurs exactly once in the whole book."
-      : entry.rank <= 50
-        ? `Among the 50 most frequent forms; the top ${entry.rank} account for ${(entry.cum_pct * 100).toFixed(0)}% of all tokens.`
-        : entry.boundFreq >= 100
+      : stats.rank <= 50
+        ? stats.cum_pct
+          ? `Among the 50 most frequent forms; the top ${stats.rank} account for ${(stats.cum_pct * 100).toFixed(0)}% of all tokens.`
+          : "Among the 50 most frequent forms in this book."
+        : stats.boundFreq >= 100
           ? "A common form you will meet repeatedly."
           : null;
 
   return (
     <Section title="في هذا الكتاب" subtitle="In this corpus">
       <p className="text-sm" dir="ltr">
-        <strong className="tabular-nums">{entry.boundFreq.toLocaleString()}</strong>{" "}
-        occurrence{entry.boundFreq === 1 ? "" : "s"} across{" "}
-        <strong className="tabular-nums">{entry.boundDocFreq.toLocaleString()}</strong> of{" "}
+        <strong className="tabular-nums">{stats.boundFreq.toLocaleString()}</strong>{" "}
+        occurrence{stats.boundFreq === 1 ? "" : "s"} across{" "}
+        <strong className="tabular-nums">{stats.boundDocFreq.toLocaleString()}</strong> of{" "}
         {index.counts.hadith.toLocaleString()} records · rank{" "}
-        <span className="tabular-nums">{entry.rank.toLocaleString()}</span>
+        <span className="tabular-nums">{stats.rank.toLocaleString()}</span>
       </p>
       {framing && (
         <p className="mt-1 text-xs text-(--color-ink-muted)" dir="ltr">
@@ -677,7 +681,7 @@ function InThisCorpus({
           {layers.map((l) => `${l.n} in ${l.name.replace("heading_", "")}`).join(" · ")}
         </p>
       )}
-      <Occurrences entry={entry} index={index} record={record} token={token} />
+      <Occurrences stats={stats} index={index} record={record} token={token} />
     </Section>
   );
 }

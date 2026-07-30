@@ -51,7 +51,14 @@ BUILD = ROOT / "build"
 REPORTS = ROOT / "reports"
 DATA = ROOT.parent / "web" / "public" / "data"
 
-SCHEMA_VERSION = 3
+# Corpus-SPECIFIC fields. These describe this text, not the Arabic language, and
+# holding them inside a lexicon entry is what made that entry corpus-scoped —
+# adding a second corpus would have rewritten every existing one.
+STATS_FIELDS = [
+    "freq", "doc_freq", "rank", "cum_pct", "layers", "boundFreq", "boundDocFreq",
+]
+
+SCHEMA_VERSION = 4
 
 # Roadmap E.2 — shard counts are DERIVED, not fixed.
 #
@@ -368,6 +375,7 @@ def main() -> int:
     classical_n = CLASSICAL_SHARDS
     surface_lookup: dict[str, dict] = {}
     surface_shards: list[dict] = [{} for _ in range(surface_n)]
+    stats_shards: list[dict] = [{} for _ in range(surface_n)]
     classical_shards: list[dict] = [{} for _ in range(classical_n)]
     classical_seen: set[str] = set()
 
@@ -466,7 +474,22 @@ def main() -> int:
                     "sourceMatchId": got.source_match_id,
                     "accuracy": RECOVERY_ACCURACY,
                 }
+        # Split the entry in two. Everything above is a property of the WORD;
+        # the counts below are properties of THIS TEXT. Keeping them in one
+        # record is what made a lexicon entry corpus-scoped, and it is why
+        # adding a second corpus would have rewritten every existing entry.
+        # pandas nulls are floats, and `json.dumps` writes them as the bare
+        # token NaN — which is not valid JSON, parses to a JS NaN, and renders
+        # as the string "NaN" in the panel. Harmless while these fields sat
+        # unrendered inside the entry; visible the moment they were shipped.
+        stats = {}
+        for key in STATS_FIELDS:
+            value = trimmed.pop(key, None)
+            if isinstance(value, float) and value != value:
+                value = None
+            stats[key] = value
         surface_shards[fnv1a(e["search_key"]) % surface_n][mid] = trimmed
+        stats_shards[fnv1a(e["search_key"]) % surface_n][mid] = stats
         surface_lookup[mid] = trimmed
         # Match this form's lemma to its own Lane entry.
         lr = e["lane_root"]
@@ -498,14 +521,17 @@ def main() -> int:
             classical_shards[fnv1a(lr) % classical_n][lr] = entry
 
     # Now that the payloads exist, size them and re-place if the budget says so.
+    flat_stats = {k: v for sh in stats_shards for k, v in sh.items()}
     flat_surface = {k: v for sh in surface_shards for k, v in sh.items()}
     flat_classical = {k: v for sh in classical_shards for k, v in sh.items()}
     surface_n = shard_count(flat_surface, lambda k: k.rsplit("#", 1)[0])
     classical_n = shard_count(flat_classical, lambda k: k)
     surface_shards = [{} for _ in range(surface_n)]
     classical_shards = [{} for _ in range(classical_n)]
+    stats_shards = [{} for _ in range(surface_n)]
     for mid, entry in flat_surface.items():
         surface_shards[fnv1a(mid.rsplit("#", 1)[0]) % surface_n][mid] = entry
+        stats_shards[fnv1a(mid.rsplit("#", 1)[0]) % surface_n][mid] = flat_stats[mid]
     for lr, entry in flat_classical.items():
         classical_shards[fnv1a(lr) % classical_n][lr] = entry
 
@@ -525,6 +551,9 @@ def main() -> int:
 
     sizes["lex/surface-*.json"] = [
         write(DATA / "lex" / f"surface-{i:03d}.json", s) for i, s in enumerate(surface_shards)
+    ]
+    sizes["lex/stats-*.json"] = [
+        write(DATA / "lex" / f"stats-{i:03d}.json", s) for i, s in enumerate(stats_shards)
     ]
     sizes["lex/classical-*.json"] = [
         write(DATA / "lex" / f"classical-{i:03d}.json", s)

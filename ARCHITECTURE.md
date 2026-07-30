@@ -191,7 +191,7 @@ The 1,031 tokens whose witnessed vowelling has no lexicon entry drop toward zero
 A corpus with **no workbook** produces a working reader with glosses absent and
 said to be absent.
 
-### B-4 — Split the store
+### B-4 — Split the store — ✅ SHIPPED
 
 `lexicon/` and `corpora/{id}/stats/` as separate shard sets. Shard counts already
 derive from a byte budget, so this is a re-partition, not a re-design.

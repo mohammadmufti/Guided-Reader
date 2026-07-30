@@ -2,6 +2,7 @@ import type {
   IndexFile,
   PanelEntry,
   ClassicalEntry,
+  CorpusStats,
   LaneRoot,
   LaneEntry,
 } from "@/types/contracts";
@@ -29,6 +30,7 @@ export function fnv1a(text: string): number {
 const pad = (n: number) => String(n).padStart(3, "0");
 
 const surfaceShards = new Map<number, Promise<Record<string, PanelEntry>>>();
+const statsShards = new Map<number, Promise<Record<string, CorpusStats>>>();
 const classicalShards = new Map<number, Promise<Record<string, ClassicalEntry>>>();
 const laneShards = new Map<number, Promise<Record<string, LaneRoot>>>();
 
@@ -41,6 +43,8 @@ function fetchJson<T>(url: string): Promise<T> {
 
 export interface PanelData {
   entry: PanelEntry;
+  /** How the form behaves in THIS corpus. Shipped separately so `entry` can be shared. */
+  stats: CorpusStats | null;
   classical: ClassicalEntry | null;
   /** Every Lane entry under this root, or null when the root has none. */
   lane: LaneRoot | null;
@@ -69,10 +73,24 @@ export async function loadPanel(
     );
     surfaceShards.set(s, shard);
   }
-  const entry = (await shard)[matchId];
-  if (!entry) throw new Error(`${matchId} is not in surface shard ${s}`);
+  // Statistics live in a parallel shard set on the same routing, so this is one
+  // extra request, in flight alongside the first rather than after it. The
+  // split is what lets a lexical entry be identical across corpora.
+  let statsShard = statsShards.get(s);
+  if (!statsShard) {
+    statsShard = fetchJson<Record<string, CorpusStats>>(
+      `${BASE}/lex/stats-${pad(s)}.json?v=${index.buildId}`,
+    );
+    statsShards.set(s, statsShard);
+  }
 
-  if (!entry.lane_root) return { entry, classical: null, lane: null, laneEntry: null };
+  const [forms, statsMap] = await Promise.all([shard, statsShard]);
+  const entry = forms[matchId];
+  if (!entry) throw new Error(`${matchId} is not in surface shard ${s}`);
+  const stats = statsMap[matchId] ?? null;
+
+  if (!entry.lane_root)
+    return { entry, stats, classical: null, lane: null, laneEntry: null };
 
   // Classical summary and Lane entries are separate shard sets — the summary is
   // tiny and read for every rooted word, the entries are large and only worth
@@ -97,5 +115,5 @@ export async function loadPanel(
   const lane = laneMap[entry.lane_root] ?? null;
   const laneEntry =
     (entry.laneEntry && lane?.entries.find((e) => e.nodeid === entry.laneEntry)) || null;
-  return { entry, classical: classicalMap[entry.lane_root] ?? null, lane, laneEntry };
+  return { entry, stats, classical: classicalMap[entry.lane_root] ?? null, lane, laneEntry };
 }
