@@ -628,6 +628,13 @@ class PanelEntry(TypedDict):
         AnalysedMorphology | None,
         Doc("Direct analyser output, used only where the workbook has nothing."),
     ]
+    fromWitness: Annotated[
+        bool,
+        Doc(
+            "Minted from the vocalised witness: a reading the workbook's inventory lacked. "
+            "916 entries. Vowelling witnessed, morphology from the analysers, no gloss."
+        ),
+    ]
     rootDisputed: Annotated[
         bool, Doc("The workbook and the analysers give different roots. Neither is authoritative.")
     ]

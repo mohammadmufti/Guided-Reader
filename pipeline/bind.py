@@ -49,6 +49,8 @@ REPORTS = ROOT / "reports"
 ARABIC = re.compile(r"[\u0621-\u064a]")
 STRIP_EDGE = re.compile(r"^[^\u0621-\u064a]+|[^\u0621-\u064a\u064b-\u0652\u0670]+$")
 
+RE_REVIEW_CANDIDATE = re.compile(r"^\s*(.+?)\s*\(\d+\)\s*$")
+
 HARAKAT = "\u064e\u064f\u0650\u064b\u064c\u064d"  # a u i, and their tanwin
 KASRA, DAMMA, FATHA = "\u0650", "\u064f", "\u064e"
 KASRATAN, DAMMATAN, FATHATAN = "\u064d", "\u064c", "\u064b"
@@ -131,10 +133,98 @@ class Lexicon:
                 "lexiconGuess": _is_lexicon_guess(r.get("voc_source")),
             }
             self.by_key_form.setdefault((key, voc), mid)
-        self.review = set(pd.read_excel(workbook, sheet_name="Review")["surface"].astype(str))
+        review_sheet = pd.read_excel(workbook, sheet_name="Review")
+        self.review = set(review_sheet["surface"].astype(str))
+
+        # The Review sheet lists candidate vocalisations for ambiguous forms,
+        # with frequencies from the REFERENCE corpus used to pick a fallback.
+        #
+        # Those frequencies are NOT a better prior than our own — held out on
+        # 50,538 tokens they score 69.1% against our 70.1%, and where the two
+        # disagree it is a coin flip: 2,465 to 2,479. Replacing our ranking with
+        # theirs, which is what the roadmap proposed, makes the reader worse.
+        #
+        # What the sheet is good for is saying which readings are PLAUSIBLE at
+        # all. Restricting our candidates to its list and then ranking by our
+        # own frequency scores 70.6% on the same population — a real if modest
+        # gain, worth about 34 tokens of the corpus.
+        self.minted: set[str] = set()
+        analyses_path = OUT / "morphology" / "analyses.json"
+        self.analyses: dict = (
+            json.loads(analyses_path.read_text(encoding="utf-8"))
+            if analyses_path.exists()
+            else {}
+        )
+        self.plausible: dict[str, set[str]] = {}
+        for row in review_sheet.to_dict("records"):
+            surface_form = str(row.get("surface") or "")
+            raw = row.get("candidates")
+            if not surface_form or not isinstance(raw, str):
+                continue
+            forms = set()
+            for part in raw.split("|"):
+                m = RE_REVIEW_CANDIDATE.match(part)
+                if m:
+                    forms.add(m.group(1))
+            if forms:
+                self.plausible[surface_form] = forms
+
+    def mint_from_witness(self, key: str, vocalized: str) -> str | None:
+        """
+        Add a reading attested by the witness but absent from the workbook.
+
+        The new entry carries vowelling, lemma, root and part of speech, and no
+        gloss or frequency — the workbook is the only gloss source and it does
+        not know this form. The interface must say so rather than show a blank.
+        """
+        existing = self.by_key_form.get((key, vocalized))
+        if existing:
+            return existing
+        mid = stable_id(key, vocalized)
+        analysis = self.analyses.get(vocalized) or {}
+        self.entry[mid] = {
+            "vocalized": vocalized,
+            "freq": 0,
+            "pos": analysis.get("pos"),
+            "unvocalized": vocalized,
+            "search_key": key,
+            "lexiconGuess": False,
+            "fromWitness": True,
+            "lemma": analysis.get("lemma"),
+            "root": analysis.get("root"),
+        }
+        self.by_key_form[(key, vocalized)] = mid
+        self.by_key.setdefault(key, []).append(mid)
+        self.minted.add(mid)
+        return mid
 
     def candidates(self, key: str) -> list[str]:
         return self.by_key.get(key, [])
+
+    def most_frequent_plausible(self, cands: list[str], raw: str) -> str:
+        """
+        The commonest candidate the reference corpus also attests.
+
+        `cands` is already sorted by frequency in THIS corpus, so this only
+        moves the answer when our most frequent reading is one the reference
+        corpus never records for the form as written.
+
+        The lookup MUST be keyed on the token as it appears in the text. The
+        Review sheet is keyed by undiacritised surface form, and within one
+        search_key several entries can have different undiacritised forms —
+        normalise() folds hamza and ta marbuta, Review does not. Keying on the
+        top candidate instead silently looked up a different word and the rule
+        did nothing.
+        """
+        if not cands:
+            return ""
+        allowed = self.plausible.get(raw)
+        if not allowed:
+            return cands[0]
+        for mid in cands:
+            if self.entry[mid]["vocalized"] in allowed:
+                return mid
+        return cands[0]
 
 
 class BukhariIndex:
@@ -274,6 +364,17 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                     for d in range(size):
                         i = a + d
                         witness = bukhari.forms[row][b + d]
+
+                        # The witness may attest a reading the workbook's
+                        # inventory lacks — طَائِفَةٌ where it has only
+                        # طَائِفَةً and طَائِفَةٍ. Mint the entry rather than
+                        # discard the evidence: 1,031 tokens, 1,019 of them in
+                        # positionally trusted blocks. Without this the token
+                        # falls back to a wrong single option, which is exactly
+                        # how إِنَّمَا الْأَعْمَالِ happened.
+                        if size >= WITNESS_BLOCK:
+                            lex.mint_from_witness(keys[i], witness)
+
                         if tiers[i] == 1 and size >= WITNESS_BLOCK:
                             # Tier 1 means the LEXICON had one option — not that
                             # the option is right. Where a positionally trusted
@@ -387,7 +488,9 @@ def bind_corpus(records: list[dict], lex: Lexicon, bukhari: BukhariIndex) -> tup
                 tiers[i], mids[i] = 3, pick
                 reasons["case-agreement"] += 1
                 continue
-            tiers[i], mids[i] = 4, cands[0]  # candidates are freq-sorted
+            # Tier 4: the most frequent candidate, restricted to readings the
+            # Review sheet considers plausible where it has an opinion.
+            tiers[i], mids[i] = 4, lex.most_frequent_plausible(cands, tokens[i]["raw"])
 
         out = []
         for i, tok in enumerate(tokens):
@@ -548,9 +651,11 @@ def holdout_eval(bound: dict, lex: Lexicon, records: list[dict]) -> list[str]:
                 res[3][1] += hit[0] == truth
             else:
                 res[3][2] += 1
+            # Must exercise the SAME rule the binder uses, or the published
+            # accuracy describes a function nothing calls.
             cands = lex.candidates(keys[i])
             res[4][0] += 1
-            res[4][1] += cands[0] == truth
+            res[4][1] += lex.most_frequent_plausible(cands, rec["tokens"][i]["raw"]) == truth
 
     f, c, na = res[3]
     n4, c4 = res[4]
@@ -653,6 +758,30 @@ def main() -> int:
     print("\n".join(lines))
 
     OUT.mkdir(parents=True, exist_ok=True)
+    # Readings minted from the witness are not in the workbook, so the packager
+    # has no other way to learn about them. A sibling file, because
+    # bindings.json is a flat map of record id to tokens and must stay one.
+    (out / "minted.json").write_text(
+        json.dumps(
+            {
+                mid: {
+                    "match_id": mid,
+                    "search_key": lex.entry[mid]["search_key"],
+                    "vocalized": lex.entry[mid]["vocalized"],
+                    "unvocalized": lex.entry[mid]["unvocalized"],
+                    "pos": lex.entry[mid]["pos"],
+                    "lemma": lex.entry[mid]["lemma"],
+                    "root": lex.entry[mid]["root"],
+                    "fromWitness": True,
+                }
+                for mid in sorted(lex.minted)
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    print(f"minted from the witness       {len(lex.minted):>7,} readings")
+
     (out / "bindings.json").write_text(
         json.dumps(bound, ensure_ascii=False), encoding="utf-8"
     )

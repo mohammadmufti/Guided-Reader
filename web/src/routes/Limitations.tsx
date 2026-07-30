@@ -47,11 +47,11 @@ export function Limitations() {
           </thead>
           <tbody>
             {[
-              ["One entry matched, and its vowelling was witnessed", "49.0%", "not in doubt"],
-              ["Transferred from a vocalised Bukhārī edition", "45.8%", "high"],
+              ["Transferred from a vocalised Bukhārī edition", "49.5%", "high"],
+              ["One entry matched, and its vowelling was witnessed", "45.8%", "not in doubt"],
               ["Inferred from the same phrase elsewhere", "2.1%", "97.2%"],
-              ["One entry matched, but its vowelling was itself a guess", "1.2%", "vowels uncertain"],
-              ["Most frequent reading — a guess", "1.8%", "70.1%"],
+              ["Most frequent reading — a guess", "1.5%", "71.3%"],
+              ["One entry matched, but its vowelling was itself a guess", "1.1%", "vowels uncertain"],
               ["Not in the lexicon at all", "12 tokens", "—"],
             ].map(([a, b, c]) => (
               <tr key={a} className="border-b border-(--color-rule)">
@@ -65,7 +65,7 @@ export function Limitations() {
         <p className="mt-3 text-sm leading-relaxed text-(--color-ink-muted)">
           The two accuracy figures are measured, not estimated, and are pinned
           by the test suite. Roughly{" "}
-          <strong className="text-(--color-ink)">one word in every 56</strong> is
+          <strong className="text-(--color-ink)">one word in every 66</strong> is
           a guess that is probably right and might not be. Those words carry a
           dotted underline.
         </p>

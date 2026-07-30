@@ -597,6 +597,11 @@ export interface PanelEntry {
   isName: boolean;
   /** Direct analyser output, used only where the workbook has nothing. */
   analysed: AnalysedMorphology | null;
+  /**
+   * Minted from the vocalised witness: a reading the workbook's inventory lacked. 916 entries.
+   * Vowelling witnessed, morphology from the analysers, no gloss.
+   */
+  fromWitness: boolean;
   /** The workbook and the analysers give different roots. Neither is authoritative. */
   rootDisputed: boolean;
   /** Set only when morphSuspect is true AND a stem was found. 146 of 409 forms. */

@@ -389,6 +389,25 @@ def main() -> int:
     # The recoverer's evidence is this corpus's own lexicon: every row that has
     # a root and is not itself a clitic.
     by_key: dict[str, list[dict]] = collections.defaultdict(list)
+    # Witness-minted readings join the inventory. They carry vowelling, lemma,
+    # root and part of speech but NO gloss and NO corpus frequency — the
+    # workbook is the only gloss source and it does not know these forms. The
+    # panel says so rather than showing a blank.
+    minted_path = BUILD / args.corpus / "minted.json"
+    minted = json.loads(minted_path.read_text(encoding="utf-8")) if minted_path.exists() else {}
+    if minted:
+        for mid, e in minted.items():
+            lexicon["surface"][mid] = {
+                **{k: None for k in next(iter(lexicon["surface"].values()))},
+                **e,
+                "freq": 0,
+                "doc_freq": 0,
+                "rank": 0,
+                "cum_pct": 0.0,
+                "layers": None,
+            }
+        print(f"  {len(minted):,} readings minted from the witness")
+
     for mid, e in lexicon["surface"].items():
         by_key[str(e["search_key"])].append({**e, "match_id": mid})
     recoverer = Recoverer(by_key)
@@ -421,6 +440,7 @@ def main() -> int:
             }
         # Recorded whenever both have an opinion, so a reader can see that the
         # sources differ rather than being handed one silently.
+        trimmed["fromWitness"] = bool(e.get("fromWitness"))
         trimmed["rootDisputed"] = bool(
             e.get("root")
             and analysed

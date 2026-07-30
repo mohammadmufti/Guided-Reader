@@ -16,11 +16,11 @@ dictionary entry in one of several ways, and the panel always tells you which.
 
 | How the reading was arrived at | Share | Accuracy |
 |---|--:|--:|
-| One entry matched, and its vowelling was witnessed | 49.0% | not in doubt |
-| Transferred from a vocalised Bukhārī edition at the aligned word | 45.8% | high |
+| Transferred from a vocalised Bukhārī edition at the aligned word | 49.5% | high |
+| One entry matched, and its vowelling was witnessed | 45.8% | not in doubt |
 | Inferred from the same phrase elsewhere in the book | 2.1% | **97.2%** |
-| One entry matched, but its vowelling was itself a guess | 1.2% | consonants certain, vowels not |
-| The most frequent reading of that spelling — a guess | 1.8% | **70.1%** |
+| The most frequent reading of that spelling — a guess | 1.5% | **71.3%** |
+| One entry matched, but its vowelling was itself a guess | 1.1% | consonants certain, vowels not |
 | Not in the lexicon at all | 12 tokens | — |
 
 The two accuracy figures are measured, not estimated. Tokens in the second row
@@ -28,12 +28,12 @@ have an independent witness, so hiding it and re-deriving the answer says what
 the lower rows are worth. Those measurements live in the test suite and fail the
 build if they stop being true.
 
-**Roughly one word in every 56 is a guess.** Those carry a dotted underline.
+**Roughly one word in every 66 is a guess.** Those carry a dotted underline.
 
 A note on the fourth row, because it was wrong until recently. Earlier versions
 said that when only one dictionary entry matched a spelling the reading was "not
 in doubt". That is the wrong claim: it means the lexicon offered one option, not
-that the option is correct. 1,551 tokens sit on an entry whose own vowelling was
+that the option is correct. 1,354 tokens sit on an entry whose own vowelling was
 the source data's most frequent guess rather than a witnessed reading — and in
 `إِنَّمَا الْأَعْمَالُ` the single available option was the wrong case. Those
 tokens now say so.

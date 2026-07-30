@@ -45,7 +45,7 @@ CACHE = ROOT / "cache"
 OUT = ROOT / "build" / "morphology"
 
 sys.path.insert(0, str(ROOT))
-from normalise import root_key  # noqa: E402
+from normalise import normalise, root_key  # noqa: E402
 
 
 def build_analyser():
@@ -110,6 +110,35 @@ def main() -> int:
 
     surface = pd.read_excel(path, sheet_name="Surface")
     forms = [str(v) for v in surface["vocalized"]]
+
+    # Also analyse forms the WITNESS attests that the workbook lacks.
+    #
+    # The workbook's inventory is bounded by what this corpus happened to
+    # produce, so it holds طَائِفَةً and طَائِفَةٍ but not طَائِفَةٌ, and
+    # أَصْبَحْتُ but not أَصْبَحْتَ. When the aligner meets the missing reading it
+    # has nowhere to bind it and the token falls back to a wrong single option —
+    # which is the الْأَعْمَالِ failure exactly. 1,031 tokens are in that position.
+    #
+    # Restricted to keys the workbook already knows, so this widens the READINGS
+    # of known words rather than importing Bukhari's isnad vocabulary wholesale.
+    witness = CACHE / "sahih_bukhari_vocalised.csv"
+    if witness.exists():
+        keys = {normalise(f) for f in forms}
+        seen = set(forms)
+        import csv
+
+        with witness.open(encoding="utf-8", newline="") as fh:
+            for row in csv.reader(fh):
+                for cell in row[:1]:
+                    for tok in cell.split():
+                        tok = tok.strip("()[]{}«».,،؛:؟!\"'")
+                        if not tok or tok in seen:
+                            continue
+                        if normalise(tok) in keys:
+                            seen.add(tok)
+                            forms.append(tok)
+        print(f"  workbook forms + witness readings: {len(forms):,}", file=sys.stderr)
+
     if args.limit:
         forms = forms[: args.limit]
 
