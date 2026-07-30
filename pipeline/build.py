@@ -238,6 +238,56 @@ def morph_suspect(entry: dict) -> bool:
     return len(lem) / len(srf) < LEMMA_COVERAGE_FLOOR
 
 
+WEAK_RADICALS = set("وي")
+
+
+def _geminate(root: str) -> bool:
+    return len(root) == 3 and root[1] == root[2]
+
+
+def _hollow(root: str) -> bool:
+    return len(root) == 3 and root[1] in WEAK_RADICALS
+
+
+def make_context_override(disambiguated: dict, surface: dict, counter: dict):
+    """
+    Override the workbook's root from context, in the ONE class where context
+    is measurably better.
+
+    Adjudicated against Lane — does the word actually appear under that root's
+    entry? — the workbook wins disagreements 1,489 to 214 overall, so it keeps
+    general precedence. But where the workbook offers a GEMINATE root and the
+    context analyser offers a HOLLOW one, Lane backs the analyser 18 times out
+    of 18 and the workbook zero. That is the hollow-verb failure: a weak middle
+    radical vanishes in the surface form and a type-level analyser reconstructs
+    a doubled consonant instead. `كُنْتُ` is كون, not كنن.
+
+    Everything else is left alone, and every disagreement is counted so the
+    ratio can be re-checked rather than trusted.
+    """
+
+    def override(record_id: str, index: int, match_id: str | None) -> dict:
+        if not match_id:
+            return {}
+        got = disambiguated.get(f"{record_id}:{index}")
+        if not got or not got.get("root"):
+            return {}
+        entry = surface.get(match_id) or {}
+        workbook = entry.get("root")
+        if not isinstance(workbook, str) or not workbook.strip():
+            return {}
+        a, b = root_key(workbook), root_key(str(got["root"]))
+        if a == b:
+            return {}
+        counter["disagreements"] += 1
+        if _geminate(a) and _hollow(b):
+            counter["applied"] += 1
+            return {"contextRoot": got["root"], "contextLemma": got.get("lemma")}
+        return {}
+
+    return override
+
+
 def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
                 shards: dict) -> dict:
     tree: list[dict] = []
@@ -297,6 +347,20 @@ def main() -> int:
 
     sizes: dict[str, list[tuple[int, int, int]]] = {}
 
+    # Context-level morphology. Loaded here, applied per TOKEN rather than per
+    # form — see disambiguate.py for why it overrides so little.
+    disambiguated: dict = {}
+    dis_path = BUILD / args.corpus / "disambiguated.json"
+    if dis_path.exists():
+        disambiguated = json.loads(dis_path.read_text(encoding="utf-8"))
+    else:
+        print("  (no context disambiguation — run pipeline/disambiguate.py)")
+
+    context_counts = {"disagreements": 0, "applied": 0}
+    context_override = make_context_override(
+        disambiguated, lexicon["surface"], context_counts
+    )
+
     bid = build_id([
         BUILD / args.corpus / "records.json",
         BUILD / args.corpus / "lexicon.json",
@@ -322,12 +386,16 @@ def main() -> int:
                     "matchId": t["matchId"], "binding": t["binding"],
                     "confidence": t["confidence"], "clickable": t["clickable"],
                     "punctuationAfter": t["punctuationAfter"],
+                    **context_override(rec["id"], t["i"], t["matchId"]),
                 }
                 for t in b["tokens"]
             ],
         }
         hadith_sizes.append(write(DATA / "hadith" / f"{rec['id']}.json", payload))
     sizes["hadith/*.json"] = hadith_sizes
+    print(f"  context morphology: {context_counts['applied']:,} roots overridden "
+          f"of {context_counts['disagreements']:,} disagreements "
+          f"(geminate -> hollow only)")
 
     # ---- Lane: the classical apparatus, in full ----------------------------
     #
@@ -449,6 +517,7 @@ def main() -> int:
         # Recorded whenever both have an opinion, so a reader can see that the
         # sources differ rather than being handed one silently.
         trimmed["fromWitness"] = bool(e.get("fromWitness"))
+        trimmed["contextRoot"] = None
         trimmed["rootDisputed"] = bool(
             e.get("root")
             and analysed

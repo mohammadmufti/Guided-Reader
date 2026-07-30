@@ -404,6 +404,15 @@ class Token(TypedDict):
     binding: Binding
     confidence: Confidence
     clickable: Annotated[bool, Doc("False for unbound tokens — they are visually inert.")]
+    contextRoot: Annotated[
+        str | None,
+        Doc(
+            "Root from context disambiguation, overriding the workbook. Set ONLY where the "
+            "workbook gave a geminate and context gives a hollow root — the class where Lane "
+            "backs context 18 of 18. 605 tokens."
+        ),
+    ]
+    contextLemma: str | None
     punctuationAfter: Annotated[str, Doc("Trailing punctuation, kept out of the token proper.")]
 
 

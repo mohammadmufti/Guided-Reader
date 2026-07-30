@@ -362,6 +362,13 @@ export interface Token {
   confidence: Confidence;
   /** False for unbound tokens — they are visually inert. */
   clickable: boolean;
+  /**
+   * Root from context disambiguation, overriding the workbook. Set ONLY where the workbook gave
+   * a geminate and context gives a hollow root — the class where Lane backs context 18 of 18.
+   * 605 tokens.
+   */
+  contextRoot: string | null;
+  contextLemma: string | null;
   /** Trailing punctuation, kept out of the token proper. */
   punctuationAfter: string;
 }

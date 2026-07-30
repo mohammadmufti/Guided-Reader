@@ -92,7 +92,7 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
     <div className="space-y-6" data-panel="ready">
       <Headword entry={entry} />
       <Meaning gloss={entry.gloss} />
-      <RootAndLemma entry={entry} classical={classical} />
+      <RootAndLemma entry={entry} classical={classical} token={token} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       <Divergence entry={entry} />
       <InThisCorpus stats={data.stats} index={index} record={record} token={token} />
@@ -172,18 +172,25 @@ function Meaning({ gloss }: { gloss: Gloss | null }) {
 function RootAndLemma({
   entry,
   classical,
+  token,
 }: {
   entry: PanelEntry;
   classical: ClassicalEntry | null;
+  token: Token;
 }) {
   // Precedence: the workbook, then the analysers run directly, then recovery
   // from the corpus itself. Whichever answers, the panel says which.
   const ana = entry.analysed;
   const rec = entry.recovered;
-  const root = entry.root ?? ana?.root ?? rec?.root ?? null;
+  // Context beats the workbook only where it was measured to: a hollow root
+  // against a geminate one. `كُنْتُ` is كون, not كنن.
+  const root = token.contextRoot ?? entry.root ?? ana?.root ?? rec?.root ?? null;
   const lemma =
-    entry.lemma && !entry.morphSuspect ? entry.lemma : (ana?.lemma ?? rec?.lemma ?? null);
-  const source: "workbook" | "analyser" | "corpus" | null = entry.root
+    token.contextLemma ??
+    (entry.lemma && !entry.morphSuspect ? entry.lemma : (ana?.lemma ?? rec?.lemma ?? null));
+  const source: "context" | "workbook" | "analyser" | "corpus" | null = token.contextRoot
+    ? "context"
+    : entry.root
     ? "workbook"
     : ana?.root
       ? "analyser"
@@ -235,6 +242,15 @@ function RootAndLemma({
         </p>
       )}
 
+      {source === "context" && (
+        <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+          The source data gives a doubled root here, which is the shape a hollow
+          verb is mistaken for when its weak middle radical vanishes from the
+          written form. The root above comes from analysing this word in its
+          sentence instead. Adjudicated against Lane, context is right in every
+          case of this kind that could be decided.
+        </p>
+      )}
       {source === "analyser" && (
         <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
           The source data lost this word&rsquo;s stem and recorded only a prefix.

@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python dependencies
-        run: pip install pandas openpyxl pyyaml brotli pytest qalsadi
+        run: pip install pandas openpyxl pyyaml brotli pytest qalsadi farahidi
 
       # ---------------------------------------------------------------------
       # The source downloads are 70 MB and never change: the OpenITI text, the
@@ -61,6 +61,15 @@ jobs:
         with:
           path: pipeline/build/morphology
           key: morph-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx') }}
+
+      # Context disambiguation over 2,550 records takes about five minutes and
+      # only changes when the records or the script do.
+      - name: Cache context morphology
+        id: context-cache
+        uses: actions/cache@v5
+        with:
+          path: pipeline/build/tajrid/disambiguated.json
+          key: context-${{ hashFiles('pipeline/disambiguate.py', 'pipeline/segment.py') }}
 
       - name: Cache Lane ingest
         id: lane-cache
@@ -104,6 +113,10 @@ jobs:
       # The second corpus is the whole basis of the generalisation claim and is
       # exercised nowhere else. Segmenting it is cheap and it is the thing most
       # likely to rot unnoticed.
+      - name: Disambiguate in context
+        if: steps.context-cache.outputs.cache-hit != 'true'
+        run: python pipeline/disambiguate.py --corpus tajrid
+
       - name: Segment the second corpus
         run: |
           python pipeline/fetch.py   --corpus rawd
