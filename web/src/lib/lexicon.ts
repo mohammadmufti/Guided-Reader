@@ -1,3 +1,5 @@
+import { loadIndex, invalidateIndex } from "@/lib/data";
+
 import type {
   IndexFile,
   PanelEntry,
@@ -60,7 +62,34 @@ export interface PanelData {
  * classical shard keyed by lane_root. Measured cold at 25 ms median / 65 ms
  * p95; once a shard is in memory the lookup is a map read.
  */
-export async function loadPanel(
+/**
+ * A 404 on a shard means the index we routed with is out of date — the counts
+ * changed under us. Drop it, fetch a fresh one, and try again exactly once.
+ * Without this the reader is stuck until a cache expires, with no way to tell
+ * from inside the page what is wrong.
+ */
+async function withFreshIndex<T>(
+  index: IndexFile,
+  run: (index: IndexFile) => Promise<T>,
+): Promise<T> {
+  try {
+    return await run(index);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("404")) throw error;
+    invalidateIndex();
+    surfaceShards.clear();
+    statsShards.clear();
+    classicalShards.clear();
+    laneShards.clear();
+    return run(await loadIndex());
+  }
+}
+
+export async function loadPanel(matchId: string, index: IndexFile): Promise<PanelData> {
+  return withFreshIndex(index, (fresh) => loadPanelOnce(matchId, fresh));
+}
+
+async function loadPanelOnce(
   matchId: string,
   index: IndexFile,
 ): Promise<PanelData> {

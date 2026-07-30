@@ -9,11 +9,33 @@ const BASE = `${import.meta.env.BASE_URL}data`;
 let indexPromise: Promise<IndexFile> | null = null;
 
 export function loadIndex(): Promise<IndexFile> {
-  indexPromise ??= fetch(`${BASE}/index.json`).then((r) => {
+  // `cache: "no-cache"` forces revalidation with the server on every load.
+  //
+  // index.json carries the SHARD COUNTS, and those counts are derived from the
+  // payload size, so they change when the content does — the surface set went
+  // from 64 shards to 32 the moment the statistics moved into their own files.
+  // A browser holding a stale index then computes `hash % 64`, asks for shard
+  // 39, and gets a 404 for half the words in the book.
+  //
+  // `web/public/_headers` already says this file must revalidate, but GitHub
+  // Pages ignores `_headers` and applies its own cache. The header is advice to
+  // hosts that read it; this is the part that does not depend on the host.
+  indexPromise ??= fetch(`${BASE}/index.json`, { cache: "no-cache" }).then((r) => {
     if (!r.ok) throw new Error(`index.json: HTTP ${r.status}`);
     return r.json() as Promise<IndexFile>;
   });
   return indexPromise;
+}
+
+/**
+ * Discard the cached index so the next `loadIndex` refetches it.
+ *
+ * Belt and braces for the failure above: a CDN that ignores `no-cache` would
+ * still serve a stale index, and a stale index cannot be detected from its own
+ * contents — only from a shard that turns out not to exist.
+ */
+export function invalidateIndex(): void {
+  indexPromise = null;
 }
 
 const hadithCache = new Map<string, Promise<HadithFile>>();
