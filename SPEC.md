@@ -637,3 +637,15 @@ indistinguishable from a bug.
 coverage percentage, a byte budget — belongs in a committed test that fails when
 it stops being true. A number produced by a throwaway script is an assertion,
 not a measurement, and it decays silently.
+
+**Where the work stands.** Every phase of this spec, of `REVIEW.md`, of
+`ROADMAP.md` Stage 5 and of `ARCHITECTURE.md` is shipped or measured and
+declined. The open work is [`MULTI-TEXT.md`](MULTI-TEXT.md): serving more than
+one book. Start there, and start at Phase 1 rather than Phase 0 — the reason is
+in that document.
+
+**What a new conversation should read, in order.** `README.md` for the shape of
+the repository; this file §8 for the working agreement; `LIMITATIONS.md` for
+what the data is actually worth; `MULTI-TEXT.md` for what to build next. The
+phase reports in `pipeline/reports/` are history, not instruction.
+

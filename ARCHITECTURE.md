@@ -1,5 +1,9 @@
 # Architecture: a shared lexicon, per-corpus alignment
 
+> **All phases here are shipped.** The next body of work is in
+> [`MULTI-TEXT.md`](MULTI-TEXT.md), which takes the shared lexicon this
+> document built and makes the product corpus-aware.
+
 Addendum to `SPEC.md`. Settles how word identification should be organised once
 there is more than one text. Supersedes the workbook-as-foundation model.
 

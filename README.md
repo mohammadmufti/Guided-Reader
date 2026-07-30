@@ -14,6 +14,7 @@ About one word in 140 is a guess. The app says which ones.
 - [`ADDENDUM-adding-sources.md`](ADDENDUM-adding-sources.md) — adding a corpus
   or a lexicon workbook
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — the shared lexicon and per-corpus alignment
+- [`MULTI-TEXT.md`](MULTI-TEXT.md) — phased plan for serving more than one book
 - [`ROADMAP.md`](ROADMAP.md) — what is not built yet, and why in that order
 - [`DEPLOY.md`](DEPLOY.md) — CI, hosting, and seeing changes live
 
