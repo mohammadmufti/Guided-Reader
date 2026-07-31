@@ -11,12 +11,15 @@ the word.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:5173"
+# Where the app under test lives. CI builds under /<repo>/ and sets this;
+# the default matches a local root build.
+BASE = os.environ.get("E2E_BASE", "http://127.0.0.1:5173").rstrip("/")
 SHOTS = Path(__file__).resolve().parent.parent / "pipeline" / "reports" / "shots"
 results: list[tuple[str, bool, str]] = []
 

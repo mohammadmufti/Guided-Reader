@@ -181,10 +181,15 @@ jobs:
           # NOT `python -m http.server`: it has no SPA fallback, so every
           # deep-link assertion in the gates would fail on a 404 that has
           # nothing to do with the app.
-          python web/serve.py /tmp/dist 5173 &
+          # The base path MUST match the BASE_PATH the build job used — the
+          # first CI runs of the gates failed because the server answered the
+          # subpath-built app's own JS request with index.html.
+          python web/serve.py /tmp/dist 5173 "/${{ github.event.repository.name }}/" &
           sleep 3
       - name: Gates
         working-directory: web
+        env:
+          E2E_BASE: http://127.0.0.1:5173/${{ github.event.repository.name }}
         run: |
           # phase 7 tests a stratified sample of words; derive it from the
           # artifact being tested, deterministically. This replaces a sample
