@@ -586,6 +586,16 @@ class AnalysedMorphology(TypedDict):
     rootAlternatives: Annotated[
         list[str], Doc("Other roots the dictionaries offer for the same lemma.")
     ]
+    rootBasis: Annotated[
+        str | None,
+        Doc(
+            "How the shown root was chosen among the candidates: 'unanimous' "
+            "(one candidate), 'vocalised' (the form's own vowels decided), "
+            "'majority' (more dictionary rows), 'lane' (a real Lane entry "
+            "beat one that is not), or 'unresolved' (nothing decides it; "
+            "the choice is arbitrary and the panel must say so)."
+        ),
+    ]
 
 
 class CorpusStats(TypedDict):

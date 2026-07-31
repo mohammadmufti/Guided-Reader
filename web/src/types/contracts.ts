@@ -535,6 +535,13 @@ export interface AnalysedMorphology {
   root: string | null;
   /** Other roots the dictionaries offer for the same lemma. */
   rootAlternatives: string[];
+  /**
+   * How the shown root was chosen among the candidates: 'unanimous' (one candidate), 'vocalised'
+   * (the form's own vowels decided), 'majority' (more dictionary rows), 'lane' (a real Lane
+   * entry beat one that is not), or 'unresolved' (nothing decides it; the choice is arbitrary
+   * and the panel must say so).
+   */
+  rootBasis: string | null;
 }
 
 /**

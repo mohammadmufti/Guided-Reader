@@ -207,6 +207,52 @@ LEMMA_COVERAGE_FLOOR = 0.30
 RECOVERY_ACCURACY = 98.0
 
 
+_HAMZA_SEATS = str.maketrans({"أ": "ء", "إ": "ء", "آ": "ء", "ؤ": "ء", "ئ": "ء"})
+
+
+def fold_hamza(root: str | None) -> str | None:
+    """
+    One convention for the hamza radical in ROOT display: the radical is ء;
+    أ/إ/آ/ؤ/ئ are the same hamza on different seats, and a bare initial ا in
+    a root field is a hamza that lost its notation (no Arabic root begins
+    with a vowel-carrier). Applies to roots only — lemmas keep orthography.
+    """
+    if not root:
+        return root
+    folded = root.translate(_HAMZA_SEATS)
+    if folded.startswith("ا"):
+        folded = "ء" + folded[1:]
+    return folded
+
+
+_DIN_VOWELS = set("aeiouāēīōūăǎ")
+
+
+def din_plausible(din: str | None) -> bool:
+    """
+    Arabic phonotactics allow no initial consonant cluster and no run of
+    three consonants. A DIN transliteration that violates either was built
+    from a defective vocalisation (أرْضٌ -> ʾrḍun) and would teach a reader
+    a pronunciation that does not exist.
+    """
+    if not din:
+        return True
+    run = 0
+    for i, ch in enumerate(din):
+        if not ch.isalpha() and ch not in "ʾʿ":
+            run = 0
+            continue
+        if ch.lower() in _DIN_VOWELS:
+            run = 0
+            continue
+        run += 1
+        if run >= 2 and i == 1:   # initial CC
+            return False
+        if run >= 3:              # CCC anywhere
+            return False
+    return True
+
+
 def morph_suspect(entry: dict) -> bool:
     """
     Has the morphological analysis kept only a clitic and thrown the stem away?
@@ -282,7 +328,7 @@ def make_context_override(disambiguated: dict, surface: dict, counter: dict):
         counter["disagreements"] += 1
         if _geminate(a) and _hollow(b):
             counter["applied"] += 1
-            return {"contextRoot": got["root"], "contextLemma": got.get("lemma")}
+            return {"contextRoot": fold_hamza(got["root"]), "contextLemma": got.get("lemma")}
         return {}
 
     return override
@@ -511,9 +557,23 @@ def main() -> int:
             trimmed["analysed"] = {
                 "lemma": analysed.get("lemma"),
                 "pos": analysed.get("pos"),
-                "root": analysed.get("root"),
-                "rootAlternatives": analysed.get("rootAlternatives") or [],
+                "root": fold_hamza(analysed.get("root")),
+                "rootAlternatives": [fold_hamza(r) for r in
+                                     (analysed.get("rootAlternatives") or [])],
+                # HOW the root above was chosen among the dictionary's
+                # candidates — 'vocalised', 'majority', 'lane', 'unanimous',
+                # or 'unresolved'. The panel phrases its honesty from this:
+                # a reasoned choice and an arbitrary one must not read alike.
+                "rootBasis": analysed.get("rootBasis"),
             }
+        # One convention for the hamza radical. The dictionaries mix ء/أ/ا for
+        # the same radical (أرض beside ءرض); a student should meet ONE letter.
+        trimmed["root"] = fold_hamza(trimmed.get("root"))
+        # No transliteration beats a wrong one: a lemma the workbook left
+        # unvocalised or mis-vocalised transliterates to an impossible
+        # consonant cluster (أرْضٌ -> ʾrḍun). Suppress it; keep the Arabic.
+        if not din_plausible(trimmed.get("lemma_din")):
+            trimmed["lemma_din"] = None
         # Recorded whenever both have an opinion, so a reader can see that the
         # sources differ rather than being handed one silently.
         trimmed["fromWitness"] = bool(e.get("fromWitness"))
@@ -645,7 +705,12 @@ def main() -> int:
                     "nodeid": e["nodeid"],
                     "headword": e["headword"],
                     "itypes": e.get("itypes") or None,
-                    "senses": e["senses"],
+                    # 144 of 66,248 senses render to empty text or bare
+                    # punctuation (their runs carry only non-text material);
+                    # the panel would draw a bullet with nothing after it.
+                    "senses": [s for s in e["senses"] if "".join(
+                        r.get("v", "") for r in (s.get("runs") or [])
+                        if r.get("t") == "t").strip(" \t\n,.;·")],
                 }
                 for e in entries
             ],
