@@ -32,7 +32,11 @@ def test_reconstruction_is_lossless(records):
     assert not bad, f"{len(bad)} records do not round-trip, first: {bad[:3]}"
 
 
-def test_token_counts_match_the_workbook(records):
+def test_token_counts_match_the_workbook(records, expected):
+    """The workbook describes ONE text. Comparing another corpus's token
+    counts against it is a category error — the fixture key gates this to
+    corpora that declare workbook coverage."""
+    expected("records.workbook_describes_this_corpus")
     counts = {}
     for rec in records["records"]:
         _, toks = tokenise(rec["textRaw"])

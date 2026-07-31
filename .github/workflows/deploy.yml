@@ -155,14 +155,16 @@ jobs:
   # The end-to-end gates: 241 browser assertions across the reader, the word
   # panel and accessibility.
   #
-  # PULL REQUESTS ONLY, deliberately. See SPEC.md §8 — a red build should not
-  # stand between one maintainer and a deploy. The consequence is that a change
-  # pushed straight to `main` is never checked by a browser, so anything worth
-  # checking goes through a pull request.
+  # Runs on EVERY build now, but `deploy` needs only `build` — so on a push to
+  # main a red gate is a report, not a roadblock. This keeps the SPEC.md §8
+  # decision ("a red build should not stand between one maintainer and a
+  # deploy") while closing its side effect, recorded in GAPS.md §8: with the
+  # old `if: pull_request` and every change landing directly on main, the 241
+  # assertions had never once run against a real change. On a pull request the
+  # gate still blocks, as before.
   test:
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

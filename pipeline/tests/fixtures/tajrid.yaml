@@ -1,0 +1,36 @@
+# Expected values for al-Tajrīd al-Ṣarīḥ — the corpus-specific pins.
+#
+# The tests themselves assert invariants that must hold for ANY corpus (no
+# residual markers, reading order consistent, identifiers stable). The numbers
+# below are properties of THIS text, measured from the shipped build, and they
+# live here so that a second corpus supplies its own file instead of failing
+# assertions written for this one.  See GAPS.md §6.
+#
+# A missing key makes the corresponding test SKIP with a message naming the
+# key — pins are earned per corpus, not inherited.
+
+records:
+  total: 2550
+  by_layer:
+    matn: 2254
+    heading_kitab: 92
+    heading_bab: 115
+    zawaid: 88
+    frontmatter: 1
+  # numbersCovered must be exactly 1..display_number_max with no gaps.
+  # The spec expected ~13 gaps; there are none — 1202 shares an opener line
+  # with 1201 and both resolve to that record.
+  display_number_max: 2254
+  # The frequency workbook was built from this text; token-count comparisons
+  # against it are meaningful here and nowhere else.
+  workbook_describes_this_corpus: true
+
+# Floors, not pins — scaled to this text. (Floors on the WORKBOOK — gloss
+# counts, analyser agreement — stay in test code: the workbook is a shared
+# lexicon provider, not a property of the corpus under test.)
+binding:
+  min_roots_indexed: 2000
+  # measured 51.9% of tokens carry a root
+  root_coverage_pct: {min: 45, max: 60}
+disambiguation:
+  min_context_coverage_pct: 95

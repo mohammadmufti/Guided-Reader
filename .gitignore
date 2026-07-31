@@ -8,3 +8,4 @@ pipeline/cache/
 pipeline/build/
 web/public/data/
 web/dist/
+*.tsbuildinfo
