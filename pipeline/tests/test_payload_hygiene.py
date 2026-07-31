@@ -65,3 +65,16 @@ def test_analyser_fallback_carries_its_basis(surface):
                if v.get("analysed") and v["analysed"].get("rootAlternatives")
                and not v["analysed"].get("rootBasis")]
     assert not missing, f"{len(missing)} disputed analyser roots with no basis"
+
+
+def test_no_masked_radical_ever_ships(surface):
+    """r13 masks weak radicals as '#'. Recovery resolves or DROPS; a student
+    must never meet a '#' pretending to be a letter."""
+    bad = []
+    for v in surface.values():
+        for r in [v.get("root"), v.get("contextRoot"),
+                  *((v.get("analysed") or {}).get("rootAlternatives") or []),
+                  (v.get("analysed") or {}).get("root")]:
+            if r and "#" in r:
+                bad.append((v.get("unvocalized"), r))
+    assert not bad, f"masked radicals shipped: {bad[:5]}"

@@ -266,23 +266,35 @@ function RootAndLemma({
       {source === "analyser" && (
         <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
           The source data lost this word&rsquo;s stem and recorded only a prefix.
-          The root and lemma above come from running the morphological analysers
-          directly — qalsadi for the lemma, the arramooz dictionaries for the
-          root.
+          The root and lemma above come from running morphological analysers
+          directly — CAMeL Tools and the qalsadi/arramooz dictionary chain.
+          {ana?.rootBasis === "agree" &&
+            " Both analyser stacks name this root independently."}
+          {ana?.rootBasis === "camel" && (
+            <>
+              {" "}The two stacks disagree; shown is CAMeL&rsquo;s reading —
+              where they differ, Lane&rsquo;s Lexicon sides with CAMeL about
+              2.5 to 1 — and the other stack&rsquo;s root is listed below.
+            </>
+          )}
+          {ana?.rootBasis === "camel-only" &&
+            " Only CAMeL analysed this form; the dictionary chain had no answer."}
+          {ana?.rootBasis?.startsWith("arramooz-") &&
+            " CAMeL had no reading here; the dictionary chain answered alone."}
           {ana?.rootAlternatives.length ? (
             <>
-              {" "}The dictionaries also list{" "}
+              {" "}Also on offer:{" "}
               <span className="arabic" lang="ar" dir="rtl">
                 {ana.rootAlternatives.join("، ")}
               </span>
-              {" "}for this spelling.{" "}
-              {ana.rootBasis === "vocalised" &&
-                "The word's own vowels decided among them."}
-              {ana.rootBasis === "majority" &&
-                "The root shown is the one more dictionary entries give."}
-              {ana.rootBasis === "lane" &&
-                "The root shown is the candidate that exists as an entry in Lane's Lexicon."}
-              {ana.rootBasis === "unresolved" && (
+              .
+              {ana.rootBasis === "arramooz-vocalised" &&
+                " The word's own vowels decided among them."}
+              {ana.rootBasis === "arramooz-majority" &&
+                " The root shown is the one more dictionary entries give."}
+              {ana.rootBasis === "arramooz-lane" &&
+                " The root shown is the candidate that has an entry in Lane."}
+              {ana.rootBasis === "arramooz-unresolved" && (
                 <span className="text-(--color-flag)">
                   {" "}Nothing decides between them — the root shown may be the
                   wrong one.

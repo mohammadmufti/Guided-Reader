@@ -499,6 +499,14 @@ class IndexFile(TypedDict):
             "must revalidate, since it carries this value."
         ),
     ]
+    buildCommit: Annotated[
+        str,
+        Doc(
+            "Short SHA of the commit that built this payload; 'local' for a "
+            "developer build. buildId hashes inputs and cannot distinguish "
+            "two deploys of different code — this can."
+        ),
+    ]
     corpus: CorpusMeta
     navigation: Navigation
     tree: Annotated[list[KitabNode], Doc("Kitab/bab hierarchy for the jump-to browser.")]
@@ -589,11 +597,15 @@ class AnalysedMorphology(TypedDict):
     rootBasis: Annotated[
         str | None,
         Doc(
-            "How the shown root was chosen among the candidates: 'unanimous' "
-            "(one candidate), 'vocalised' (the form's own vowels decided), "
-            "'majority' (more dictionary rows), 'lane' (a real Lane entry "
-            "beat one that is not), or 'unresolved' (nothing decides it; "
-            "the choice is arbitrary and the panel must say so)."
+            "How the shown root was chosen. Two analyser stacks run: CAMeL "
+            "(calima-msa-r13) and qalsadi+arramooz. 'agree' — both name this "
+            "root, the strongest signal. 'camel' — they disagree; CAMeL's is "
+            "shown (Lane sides with it 818:321 where they differ) and the "
+            "other stack's stays in rootAlternatives. 'camel-only' — only "
+            "CAMeL found one. 'arramooz-unanimous/-vocalised/-majority/"
+            "-lane/-unresolved' — only the dictionary chain answered, with "
+            "its own internal basis; '-unresolved' means the choice among "
+            "dictionary rows is arbitrary and the panel must say so."
         ),
     ]
 

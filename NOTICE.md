@@ -20,6 +20,8 @@ The morphological analysis depends on Taha Zerrouki's Arabic NLP stack and on
 | `qalsadi` | GPL | lemma and part of speech |
 | `tashaphyne` | GPL | stemming, inside qalsadi |
 | `arramooz` | GPL | the dictionary supplying roots |
+| `camel-tools` | MIT | morphological analysis (root co-provider) |
+| CALIMA-MSA-r13 | GPL-2 (Aramorph 1.2.1 lineage) | CAMeL's morphology database — © 2002 QAMUS LLC / Trustees of the University of Pennsylvania, distributed by the Linguistic Data Consortium. Used at build time; the database itself is not redistributed here |
 | `pyarabic`, `libqutrub`, `naftawayh`, `alyahmor` | GPL | transitive dependencies |
 
 `pipeline/` imports these directly, and publishing this repository is

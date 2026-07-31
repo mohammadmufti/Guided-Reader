@@ -100,6 +100,143 @@ def compatible(form: str, voc_lemma: str) -> bool:
     return False
 
 
+WEAK_MAP = {"أ": "ء", "إ": "ء", "آ": "ء", "ؤ": "ء", "ئ": "ء", "ء": "ء",
+            "ى": "ي", "ي": "ي", "و": "و"}
+
+
+def build_camel():
+    """
+    CAMeL Tools over calima-msa-r13, as a root provider.
+
+    Adopted 2026-07-30 on the bake-off's evidence (reports/camel-bakeoff.md):
+    it fills 2,391 root gaps the arramooz chain leaves (against 713 the other
+    way), and where the two disagree Lane's Lexicon sides with CAMeL 818:321.
+    Licensing and lineage are on the record in bakeoff_camel.py — same GPL
+    Aramorph posture as arramooz, attribution in NOTICE.md.
+
+    r13 masks weak radicals as '#'. recover() resolves the mask by aligning
+    the root against the analysis's own vocalised lemma (أَتَى + '#ت#' ->
+    hamza and yā recovered as ءتي); a medial bare alif stays ambiguous and
+    the root is DROPPED rather than shipped masked — a student must never
+    meet '#'.
+    """
+    from camel_tools.morphology.analyzer import Analyzer
+    from camel_tools.morphology.database import MorphologyDB
+    from camel_tools.utils.dediac import dediac_ar
+
+    az = Analyzer(MorphologyDB.builtin_db("calima-msa-r13"))
+
+    def recover(root: str, lex: str | None) -> str | None:
+        if "#" not in root:
+            return root
+        skel = [c for c in dediac_ar(lex or "") if c.strip()]
+        # Align the root's KNOWN letters as an ordered subsequence of the
+        # lemma's skeleton; each '#' then takes the lemma letter it spans.
+        # تَكَوَّن + ك#ن: ك and ن anchor at positions 1 and 3, the mask
+        # reads position 2 -> و. A '#' spanning zero or several letters, or
+        # reading a bare medial alif (كان: و or ي, undecidable from the
+        # lemma), stays unresolved here and falls through to the arramooz
+        # resolver; failing that the root is DROPPED, never shipped masked.
+        n, m = len(skel), len(root)
+        pos = -1
+        anchors: list[int | None] = []
+        ok = True
+        for c in root:
+            if c == "#":
+                anchors.append(None)
+                continue
+            try:
+                pos = skel.index(c, pos + 1)
+            except ValueError:
+                ok = False
+                break
+            anchors.append(pos)
+        if not ok:
+            return None
+        out = []
+        for i, c in enumerate(root):
+            if c != "#":
+                out.append(c)
+                continue
+            lo = anchors[i - 1] + 1 if i and anchors[i - 1] is not None else 0
+            hi = next((a for a in anchors[i + 1:] if a is not None), n)
+            span = skel[lo:hi]
+            if len(span) != 1:
+                return None
+            fixed = WEAK_MAP.get(span[0])
+            if not fixed:
+                return None
+            out.append(fixed)
+        return "".join(out)
+
+    def camel(form: str, resolve=None) -> list[str]:
+        """
+        Distinct recovered roots. The diacritic test NARROWS when it can and
+        steps aside when the DB's marking conventions admit nothing — a
+        convention mismatch must not veto a correct root. `resolve(lex,
+        masked)` is a second recovery chance for '#' the lemma alignment
+        cannot fix (medial alif: كان could be كون or كيع-class) — the
+        arramooz rows we already hold usually know the weak letter.
+        """
+        try:
+            analyses = az.analyze(dediac_ar(form))
+        except Exception:
+            return []
+        keep = [a for a in analyses if compatible(form, a.get("diac", ""))] \
+            or analyses
+        # Count analyses per recovered root: when several roots survive, the
+        # one more analyses support leads. NOT sorted() — this project has
+        # already shipped one alphabet-as-tiebreak and will not ship another.
+        support: dict[str, int] = {}
+        for a in keep:
+            r = a.get("root")
+            if not r or r in ("NTWS", "NOAN"):
+                continue
+            r = r.replace(".", "")
+            got = recover(r, a.get("lex"))
+            if got is None and "#" in r:
+                # the surface form often SHOWS the radical the lemma hides:
+                # لِتَكُونَ carries the و of كون even though lex كان does not
+                got = recover(r, form)
+            if got is None and resolve is not None and "#" in r:
+                got = resolve(dediac_ar(a.get("lex") or ""), r)
+            if got:
+                support[got] = support.get(got, 0) + 1
+        return sorted(support, key=lambda r: (-support[r], r))
+
+    return camel
+
+
+def merge_roots(camel_roots: list[str], arr_root: str | None,
+                arr_alts: list[str], arr_basis: str | None):
+    """
+    -> (root, alternatives, basis). Field-level precedence, measured:
+
+      agree        both stacks name the same root — the strongest signal
+      camel        they disagree; CAMeL's is shown (Lane sides with it
+                   818:321 where they differ — reports/camel-bakeoff.md),
+                   the arramooz root is kept visible as an alternative
+      camel-only   only CAMeL has one
+      arramooz-*   only the arramooz chain has one; its own basis is kept
+    """
+    def same(a: str, b: str) -> bool:
+        return root_key(a) == root_key(b)
+
+    if camel_roots and arr_root:
+        hit = next((c for c in camel_roots if same(c, arr_root)), None)
+        if hit:
+            alts = sorted({r for r in camel_roots + arr_alts if not same(r, arr_root)})
+            return arr_root, alts, "agree"
+        return (camel_roots[0],
+                sorted({*camel_roots[1:], arr_root, *arr_alts}),
+                "camel")
+    if camel_roots:
+        return camel_roots[0], camel_roots[1:], "camel-only"
+    if arr_root:
+        return arr_root, arr_alts, f"arramooz-{arr_basis}"
+    return None, [], None
+
+
 def build_analyser():
     import arramooz.arabicdictionary as ad
     import qalsadi.lemmatizer as ql
@@ -174,15 +311,35 @@ def build_analyser():
                 winner, basis = leaders[0], "unresolved"
         return winner, [r for r in all_roots if r != winner], basis
 
+    camel = build_camel()
+
+    def resolve_masked(lex: str, masked: str) -> str | None:
+        """كان + ك#ن: the arramooz rows for the lemma carry the real weak
+        letter (كون). Accept a row's root when it matches the mask —
+        same letters where the mask has letters, a weak letter under '#'."""
+        for _, r in rows_for(lex):
+            if len(r) != len(masked):
+                continue
+            if all(m == "#" and c in "ويء" or m == c
+                   for m, c in zip(masked, r)):
+                return r
+        return None
+
     def analyse(form: str) -> dict | None:
+        camel_roots = camel(form, resolve_masked)
+        lemma = pos = None
+        arr_root, arr_alts, arr_basis = None, [], None
         try:
             got = lemmatiser.lemmatize(form, return_pos=True)
         except Exception:
+            got = None
+        if got and got[0]:
+            lemma, pos = str(got[0]), (str(got[1]) if len(got) > 1 else None)
+            arr_root, arr_alts, arr_basis = choose_root(form, lemma)
+        if not lemma and not camel_roots:
             return None
-        if not got or not got[0]:
-            return None
-        lemma, pos = str(got[0]), (str(got[1]) if len(got) > 1 else None)
-        root, alternatives, basis = choose_root(form, lemma)
+        root, alternatives, basis = merge_roots(
+            camel_roots, arr_root, arr_alts, arr_basis)
         return {
             "lemma": lemma,
             "pos": pos if pos not in ("all", "") else None,

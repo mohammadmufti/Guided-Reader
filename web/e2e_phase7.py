@@ -154,6 +154,7 @@ def main() -> int:
         # sample for one that is still blank everywhere; if none is, the
         # explanation has nothing left to explain and the check is moot.
         explained = None
+        all_rooted = True
         for c in SAMPLE:
             if c["criterion"] != "root_absent":
                 continue
@@ -163,9 +164,10 @@ def main() -> int:
             if "ROOT AND LEMMA" in body.upper() and "do not have one" in body:
                 explained = c
                 break
+            all_rooted = all_rooted and "الجذر" in body
         check("absent root is explained, not left blank",
-              explained is not None,
-              "no sampled form is root-less any more" if explained is None else "")
+              explained is not None or all_rooted,
+              "moot — every sampled form now carries a root" if all_rooted else "")
 
         # pos_agreement = disagree warns plainly
         pd = next(c for c in SAMPLE if c["criterion"] == "pos_disagree")
