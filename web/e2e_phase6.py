@@ -148,15 +148,31 @@ def main() -> int:
               page.locator("article p.arabic-body [aria-pressed=true]").count() == 1)
 
         # ---- keyboard traversal reaches every clickable word ----------------
+        # Reachability is a property of the DOM and the handlers, not of
+        # timing — so wait for the focus to actually move after each press
+        # instead of sleeping a fixed 45ms. Under load (panel shard fetches
+        # re-rendering mid-walk) the fixed sleep intermittently read focus
+        # during a transition and lost one token: 38/39 on the first real CI
+        # run, 39/39 in isolation. Two consecutive stalls means the end of
+        # the line.
         page.keyboard.press("Home")
         page.wait_for_timeout(120)
         seen = set()
+        stalls = 0
         for _ in range(expect_clickable + 8):
             idx = page.evaluate("document.activeElement?.dataset?.token")
             if idx is not None:
                 seen.add(int(idx))
             page.keyboard.press("ArrowLeft")
-            page.wait_for_timeout(45)
+            try:
+                page.wait_for_function(
+                    "prev => document.activeElement?.dataset?.token !== prev",
+                    arg=idx, timeout=700)
+                stalls = 0
+            except Exception:
+                stalls += 1
+                if stalls >= 2:
+                    break
         check("keyboard traversal reaches every clickable word",
               len(seen) == expect_clickable, f"{len(seen)}/{expect_clickable}")
 

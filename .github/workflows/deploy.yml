@@ -186,6 +186,11 @@ jobs:
       - name: Gates
         working-directory: web
         run: |
+          # phase 7 tests a stratified sample of words; derive it from the
+          # artifact being tested, deterministically. This replaces a sample
+          # file that only ever existed on the machine that authored the
+          # gate — the reason the first real CI run of these suites failed.
+          python e2e_sample.py --data /tmp/dist/data
           python e2e_phase5.py
           python e2e_phase6.py
           python e2e_phase7.py
