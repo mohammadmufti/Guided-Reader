@@ -15,7 +15,7 @@ import pytest
 from normalise import root_key
 
 BUILD = Path(__file__).resolve().parent.parent / "build"
-AGREEMENT_FLOOR = 91.0  # measured 92.3% on all 17,939 comparable forms
+AGREEMENT_FLOOR = 85.0  # measured 92.3% on all 17,939 comparable forms
 COVERAGE_FLOOR = 85.0   # measured 87.9% of forms resolve to a root
 
 
@@ -35,9 +35,18 @@ def test_root_coverage(analyses):
 
 def test_agrees_with_the_workbook(analyses, surface):
     """
+    A CATASTROPHE floor, not a conformity target. The workbook's morphology
+    is itself qalsadi-derived, so this number measures distance from the
+    analysed layer's own ancestry — and it is EXPECTED to fall when a better
+    provider corrects the shared mistakes. It did: 92.3% under qalsadi
+    alone, 90.1% after CAMeL's adoption, with Lane siding with the
+    divergence 818:321 (reports/camel-bakeoff.md). The floor below exists
+    only to catch a provider gone haywire; the accuracy question belongs to
+    the gold sample.
+
     Compared on `root_key`, which folds bare hamza. Comparing on `normalise`
-    instead reports 92.9% because ءني and أني are the same root written two
-    ways — a measurement error, not a disagreement.
+    instead over-reports disagreement because ءني and أني are the same root
+    written two ways.
     """
     agree = disagree = 0
     for row in surface:

@@ -13,9 +13,15 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Without this, actions/cache can restore but never SAVE ("token has no
+  # writable scopes") — every build recomputed everything, quietly.
+  actions: write
 
+# Per-ref: a PR's build competes only with newer builds of the SAME PR.
+# One shared group let PR #2's run cancel the deploy of the very merge that
+# resolved it (2026-07-30) — the site sat stale while everything was green.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -34,7 +40,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Python dependencies
-        run: pip install pandas openpyxl pyyaml brotli pytest qalsadi farahidi
+        run: pip install pandas openpyxl pyyaml brotli pytest qalsadi farahidi camel-tools
 
       # ---------------------------------------------------------------------
       # The source downloads are 70 MB and never change: the OpenITI text, the
@@ -77,6 +83,20 @@ jobs:
         with:
           path: pipeline/build/lane
           key: lane-${{ hashFiles('pipeline/lane.py') }}
+
+      # CAMeL's morphology database (44 MB, GPL Aramorph lineage — see
+      # NOTICE.md). Cached; the key names the database, so switching
+      # databases invalidates cleanly.
+      - name: Cache CAMeL database
+        id: camel-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.camel_tools
+          key: camel-data-calima-msa-r13
+
+      - name: Fetch CAMeL database
+        if: steps.camel-cache.outputs.cache-hit != 'true'
+        run: camel_data -i morphology-db-msa-r13
 
       - name: Fetch sources
         run: |

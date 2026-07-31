@@ -485,6 +485,11 @@ export interface IndexFile {
    * carries this value.
    */
   buildId: string;
+  /**
+   * Short SHA of the commit that built this payload; 'local' for a developer build. buildId
+   * hashes inputs and cannot distinguish two deploys of different code — this can.
+   */
+  buildCommit: string;
   corpus: CorpusMeta;
   navigation: Navigation;
   /** Kitab/bab hierarchy for the jump-to browser. */
@@ -536,10 +541,13 @@ export interface AnalysedMorphology {
   /** Other roots the dictionaries offer for the same lemma. */
   rootAlternatives: string[];
   /**
-   * How the shown root was chosen among the candidates: 'unanimous' (one candidate), 'vocalised'
-   * (the form's own vowels decided), 'majority' (more dictionary rows), 'lane' (a real Lane
-   * entry beat one that is not), or 'unresolved' (nothing decides it; the choice is arbitrary
-   * and the panel must say so).
+   * How the shown root was chosen. Two analyser stacks run: CAMeL (calima-msa-r13) and
+   * qalsadi+arramooz. 'agree' — both name this root, the strongest signal. 'camel' — they
+   * disagree; CAMeL's is shown (Lane sides with it 818:321 where they differ) and the other
+   * stack's stays in rootAlternatives. 'camel-only' — only CAMeL found one.
+   * 'arramooz-unanimous/-vocalised/-majority/-lane/-unresolved' — only the dictionary chain
+   * answered, with its own internal basis; '-unresolved' means the choice among dictionary rows
+   * is arbitrary and the panel must say so.
    */
   rootBasis: string | null;
 }

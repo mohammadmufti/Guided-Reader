@@ -35,6 +35,7 @@ import collections
 import gzip
 import hashlib
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -357,6 +358,11 @@ def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
         # fails visibly instead of silently mis-resolving a shard.
         "schemaVersion": SCHEMA_VERSION,
         "buildId": bid,
+        # WHICH COMMIT built this payload. buildId hashes pipeline INPUTS, so
+        # it cannot tell two deploys of different code apart — an afternoon
+        # was lost to exactly that on 2026-07-30. "Is my deploy live?" is now:
+        # curl data/index.json | grep buildCommit.
+        "buildCommit": os.environ.get("GITHUB_SHA", "local")[:12],
         "corpus": corpus,
         "navigation": {
             "orderedIds": [r["id"] for r in records],
