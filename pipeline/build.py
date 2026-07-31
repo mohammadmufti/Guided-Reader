@@ -557,9 +557,25 @@ def main() -> int:
         trimmed["morphSuspect"] = lost
 
         # Precedence: workbook -> direct analysers -> corpus-internal recovery.
+        #
+        # REFINED 2026-07-30, by measurement. The original rule — workbook
+        # beats analyser wherever both speak — was justified when the
+        # analyser was qalsadi alone and Lane sided with the workbook ~7:1
+        # in disputes. Against the CAMeL-era analysed layer that ratio has
+        # INVERTED: 1,922 disputes, Lane 532:419 for the analysers — and in
+        # 528 of them BOTH stacks independently agree against the workbook
+        # (فَجِئْتُ rooted فجء for فـ+جِئْتُ; صَدَقَة rooted صدد; سَكَتَ
+        # rooted سكك). Two convergent engines against one derivative source:
+        # for exactly that both-agree class, the analysers now take
+        # precedence, carried as `rootPreferAnalysed` so the stored fields
+        # stay truthful (entry.root remains the workbook's claim) and the
+        # panel both applies and EXPLAINS the choice. Split verdicts keep
+        # workbook precedence, but `analysed` now ALWAYS ships — it used to
+        # be dropped whenever the workbook had any root, which hid every one
+        # of those 528 corrections from the reader entirely.
         analysed = analyses.get(str(e["vocalized"]))
         trimmed["analysed"] = None
-        if analysed and (lost or not e.get("root")):
+        if analysed:
             trimmed["analysed"] = {
                 "lemma": analysed.get("lemma"),
                 "pos": analysed.get("pos"),
@@ -567,11 +583,18 @@ def main() -> int:
                 "rootAlternatives": [fold_hamza(r) for r in
                                      (analysed.get("rootAlternatives") or [])],
                 # HOW the root above was chosen among the dictionary's
-                # candidates — 'vocalised', 'majority', 'lane', 'unanimous',
-                # or 'unresolved'. The panel phrases its honesty from this:
-                # a reasoned choice and an arbitrary one must not read alike.
+                # candidates — see contracts.py for the vocabulary. The
+                # panel phrases its honesty from this: a reasoned choice
+                # and an arbitrary one must not read alike.
                 "rootBasis": analysed.get("rootBasis"),
             }
+        trimmed["rootPreferAnalysed"] = bool(
+            trimmed["analysed"]
+            and trimmed["analysed"].get("rootBasis") == "agree"
+            and trimmed["analysed"].get("root")
+            and e.get("root")
+            and root_key(str(e["root"])) != root_key(trimmed["analysed"]["root"])
+        )
         # One convention for the hamza radical. The dictionaries mix ء/أ/ا for
         # the same radical (أرض beside ءرض); a student should meet ONE letter.
         trimmed["root"] = fold_hamza(trimmed.get("root"))
