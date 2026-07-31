@@ -14,11 +14,20 @@ import pytest
 import yaml
 
 PIPELINE = Path(__file__).resolve().parent.parent
-CORRECTIONS = PIPELINE / "corrections" / "tajrid.yaml"
 
 
-def test_file_parses_and_every_entry_gives_a_reason():
-    doc = yaml.safe_load(CORRECTIONS.read_text(encoding="utf-8")) or {}
+@pytest.fixture(scope="module")
+def corrections_doc(corpus):
+    """corrections/{corpus}.yaml, parsed. Absent file == empty file: an empty
+    corrections layer is the documented steady state, not a failure."""
+    path = PIPELINE / "corrections" / f"{corpus}.yaml"
+    if not path.exists():
+        return {}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def test_file_parses_and_every_entry_gives_a_reason(corrections_doc):
+    doc = corrections_doc
     for section in ("by_token", "by_form"):
         for entry in doc.get(section) or []:
             assert entry.get("note", "").strip(), f"{section} entry without a note: {entry}"
@@ -29,9 +38,9 @@ def test_file_parses_and_every_entry_gives_a_reason():
                 assert "search_key" in entry
 
 
-def test_corrections_are_applied(bindings):
+def test_corrections_are_applied(bindings, corrections_doc):
     """Every correction in the file must actually appear in the output."""
-    doc = yaml.safe_load(CORRECTIONS.read_text(encoding="utf-8")) or {}
+    doc = corrections_doc
     for entry in doc.get("by_token") or []:
         rec = bindings.get(str(entry["record"]))
         assert rec, f"record {entry['record']} not in the build"

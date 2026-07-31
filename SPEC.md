@@ -615,18 +615,23 @@ Accessibility unchanged.
 
 Decided deliberately; do not change it without saying why.
 
-**Validation happens on pull requests, not on pushes to `main`.** The `test` job
-in `.github/workflows/deploy.yml` is gated on `github.event_name ==
-'pull_request'`, so a push to `main` builds and deploys without running the
-gates. That is intentional: a red build should not stand between an author and a
-deploy on a project with one maintainer.
+**Validation blocks on pull requests and reports on pushes.** The `test` job
+in `.github/workflows/deploy.yml` now runs on every build, but `deploy`
+depends only on `build` — so on a push to `main` a red browser gate is a
+visible report, not a roadblock. On a pull request it blocks, as before.
 
-The consequence has to be stated plainly, because it is easy to forget: **a
-change pushed straight to `main` is never tested by CI.** If a change is worth
-checking, open a pull request. The four end-to-end suites and the pipeline gates
-run there, on the built artifact, in a clean Linux environment — which is not
-the same thing as having been checked on the author's machine or in an
-assistant's sandbox.
+*Why this changed* (the original rule said not to change it without saying
+why): the old `if: pull_request` gate, combined with the fact that every
+change so far has landed directly on `main`, meant the 241 browser assertions
+had **never once run against a real change** — GAPS.md §8 called the browser
+half "decorative", and it was. The original intent — a red build should not
+stand between one maintainer and a deploy — is preserved: deploys still never
+wait on the browser gates. What changed is only that the gates now *run*, so
+a regression on `main` is at least seen the same day rather than never.
+
+The residual consequence, stated plainly: **a push to `main` deploys before
+the browser gates finish.** If a change must be proven before it is live,
+open a pull request.
 
 **Deliver changed files, not archives.** When handing work over, list the
 destination path for every file and give the exact `git` command. A fix that

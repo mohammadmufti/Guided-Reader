@@ -23,7 +23,7 @@ WEAK = set("وي")
 
 
 @pytest.fixture(scope="module")
-def context():
+def context(disambiguated):
     """
     Every test here takes this fixture, including the two that read the payload
     rather than this file. That is deliberate: without it, a build that ran
@@ -31,18 +31,20 @@ def context():
     tests failed while a third skipped — three tests disagreeing about whether
     the provider was present. They should agree, and they should skip together
     on a corpus that has no context analysis at all.
+
+    The path itself now comes from conftest's `disambiguated`, which derives
+    it from --corpus rather than naming tajrid.
     """
-    path = BUILD / "tajrid" / "disambiguated.json"
-    if not path.exists():
-        pytest.skip("no context analysis — run pipeline/disambiguate.py before build.py")
-    return json.loads(path.read_text(encoding="utf-8"))
+    return disambiguated
 
 
-def test_coverage_in_context(context, bindings):
-    """99.5% measured. Context beats the 87.9% the type-level chain manages."""
+def test_coverage_in_context(context, bindings, expected):
+    """99.5% measured on tajrid. Context beats the 87.9% the type-level chain
+    manages. The floor is the corpus's own — fixtures/{corpus}.yaml."""
+    floor = expected("disambiguation.min_context_coverage_pct")
     tokens = sum(len(r["tokens"]) for r in bindings.values())
     share = 100 * len(context) / tokens
-    assert share > 95, f"only {share:.1f}% of tokens analysed in context"
+    assert share > floor, f"only {share:.1f}% of tokens analysed in context"
 
 
 def test_overrides_are_only_geminate_to_hollow(context):

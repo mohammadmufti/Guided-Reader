@@ -28,27 +28,25 @@ def _residuals(doc):
     return hits
 
 
-def test_tajrid_record_counts(records):
+def test_record_counts(records, expected):
+    """The pins live in fixtures/{corpus}.yaml — see conftest."""
     by_layer = {}
     for r in records["records"]:
         by_layer[r["layer"]] = by_layer.get(r["layer"], 0) + 1
-    assert len(records["records"]) == 2_550
-    assert by_layer["matn"] == 2_254
-    assert by_layer["heading_kitab"] == 92
-    assert by_layer["heading_bab"] == 115
-    assert by_layer["zawaid"] == 88
-    assert by_layer["frontmatter"] == 1
+    assert len(records["records"]) == expected("records.total")
+    assert by_layer == expected("records.by_layer")
 
 
-def test_every_display_number_resolves(records):
+def test_every_display_number_resolves(records, expected):
     """
-    The spec expected ~13 gaps. There are none: 1202 shares an opener line with
-    1201 and both resolve to that record.
+    Invariant: every display number in the covered range resolves to a real
+    record, with no gaps. The range itself is the corpus's pin.
     """
+    top = expected("records.display_number_max")
     numbers = sorted(n for r in records["records"] for n in r["numbersCovered"])
-    assert numbers == list(range(1, 2_255))
+    assert numbers == list(range(1, top + 1))
     idx = records["navigation"]["numberIndex"]
-    assert len(idx) == 2_254
+    assert len(idx) == top
     ids = {r["id"] for r in records["records"]}
     assert all(v in ids for v in idx.values())
 
@@ -69,7 +67,14 @@ def test_second_corpus_still_segments(rawd_records):
     """
     al-Rawd al-Mictar tags entries with `### $DIC_TOP$`, not `### |`. Configured
     with the wrong pattern it produced 86 records with markers left in the text;
-    with the right one, 3,255 and none.
+    with the right one, 3,255 and none. The count is pinned in
+    fixtures/rawd.yaml — its own file, because it is its own corpus.
     """
-    assert len(rawd_records["records"]) == 3_255
+    import yaml
+    from pathlib import Path
+
+    pins = yaml.safe_load(
+        (Path(__file__).parent / "fixtures" / "rawd.yaml").read_text(encoding="utf-8")
+    )
+    assert len(rawd_records["records"]) == pins["records"]["total"]
     assert not _residuals(rawd_records), _residuals(rawd_records)[:5]

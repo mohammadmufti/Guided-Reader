@@ -99,7 +99,16 @@ Nothing here is wrong yet. It will be at ten books, and the fix — per-corpus
 caches keyed on that corpus's inputs, and incremental lexicon updates — is much
 cheaper to design now than to retrofit.
 
-## 6. The tests are Tajrīd-shaped
+## 6. The tests are Tajrīd-shaped — *pipeline half addressed*
+
+> **Status:** the pipeline suite is split. `--corpus` selects the text under
+> test; corpus pins live in `pipeline/tests/fixtures/{corpus}.yaml`; a missing
+> pin skips with a message naming the key. Verified: 61/61 pass on tajrīd
+> (unchanged), and on rawḍ the invariants run (43 pass) while the pins skip
+> cleanly — which immediately caught one tajrīd assumption hiding in
+> `test_tokenise.py`. The **browser suites remain tajrīd-shaped**; that is the
+> remaining half of this item, due when the client becomes corpus-aware
+> (MULTI-TEXT Phase 0.2).
 
 61 pipeline tests and 243 browser assertions, and a large share are bound to this
 one text: `hadith 38, word 48`; `عن X بن` must be majrūr; `إنما الأعمال` must be
@@ -120,7 +129,12 @@ to `build.py` silently failed because an anchor string did not exist, and one
 introduced an ordering bug that only surfaced at runtime. A file that is hard to
 edit correctly is a file that will accumulate quiet defects.
 
-## 8. Validation is configured but not used
+## 8. Validation is configured but not used — *addressed*
+
+> **Status:** the browser gates now run on every build, push included; `deploy`
+> waits only on `build`, so the SPEC §8 principle — no red gate between one
+> maintainer and a deploy — still holds. See the amended SPEC §8 for the
+> reasoning on record.
 
 `SPEC.md` §8 records that browser gates run on pull requests. **Every change so
 far has gone straight to `main`**, so those 243 assertions have never run against

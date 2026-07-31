@@ -1,0 +1,7 @@
+# Expected values for al-Rawḍ al-Miʿṭār. The corpus stops at segmentation —
+# it has never produced a payload — so this file carries only what CI
+# exercises. Configured with the wrong entry pattern it produced 86 records
+# with markers left in the text; with the right one, 3,255 and none.
+
+records:
+  total: 3255
