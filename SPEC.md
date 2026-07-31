@@ -654,7 +654,8 @@ assessment of where the project falls short of what it is for, and it argues
 for a different first move than `MULTI-TEXT.md` does.
 
 **What a new conversation should read, in order.** `README.md` for the shape of
-the repository; this file §8 for the working agreement; `LIMITATIONS.md` for
+the repository; `PIPELINE.md` for what each program does and when it runs;
+this file §8 for the working agreement; `LIMITATIONS.md` for
 what the data is actually worth; `MULTI-TEXT.md` for what to build next. The
 phase reports in `pipeline/reports/` are history, not instruction.
 

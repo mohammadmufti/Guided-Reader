@@ -11,6 +11,7 @@ It is built for a student who can read Arabic but cannot yet read *this*.
 About one word in 140 is a guess. The app says which ones.
 
 - [`SPEC.md`](SPEC.md) — the build spec, corrected against the measured data
+- [`PIPELINE.md`](PIPELINE.md) — every program, what it does, when it runs
 - [`ADDENDUM-adding-sources.md`](ADDENDUM-adding-sources.md) — adding a corpus
   or a lexicon workbook
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — the shared lexicon and per-corpus alignment

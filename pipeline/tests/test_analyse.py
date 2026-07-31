@@ -131,9 +131,14 @@ def test_the_khattab_class_is_closed():
         "مصر": "مصر",       # was صرر — genuine homograph, vowels decide
         "غدا": "غدو",       # was غدد
         "الغد": "غدو",
+        # the precedence-refinement class: workbook geminate inventions the
+        # stacks agree against (Lane 532:419 — see build.py)
+        "فجئت": "جيء",
+        "صدقة": "صدق",
+        "فسكت": "سكت",
     }
     for form, want in expected.items():
-        got = by_norm.get(form)
+        got = by_norm.get(normalise(form))
         assert got and got.get("root"), f"{form}: no analysis"
         assert root_key(got["root"]) == root_key(want), \
             f"{form}: {got['root']} (basis {got.get('rootBasis')}), wanted {want}"

@@ -641,6 +641,14 @@ export interface PanelEntry {
   fromWitness: boolean;
   /** The workbook and the analysers give different roots. Neither is authoritative. */
   rootDisputed: boolean;
+  /**
+   * True when BOTH analyser stacks independently agree on a root that contradicts the workbook's
+   * — the panel shows the agreed root and names the workbook's beside it. Measured basis: 1,922
+   * workbook-analyser disputes; Lane sides with the analysers 532:419; 528 are this both-agree
+   * class (فجئت, صدقة, سكت). entry.root itself stays the workbook's claim — display precedence,
+   * not data rewriting.
+   */
+  rootPreferAnalysed: boolean;
   /** Set only when morphSuspect is true AND a stem was found. 146 of 409 forms. */
   recovered: RecoveredMorphology | null;
   /**

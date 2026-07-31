@@ -192,23 +192,38 @@ function RootAndLemma({
 }) {
   // Precedence: the workbook, then the analysers run directly, then recovery
   // from the corpus itself. Whichever answers, the panel says which.
+  //
+  // One measured exception (2026-07-30): where BOTH analyser stacks agree on
+  // a root that contradicts the workbook, the agreed root is shown — Lane
+  // sides with the analysers 532:419 in workbook disputes, and two
+  // convergent engines beat one derivative source. entry.root remains the
+  // workbook's claim; `rootPreferAnalysed` carries the choice.
   const ana = entry.analysed;
   const rec = entry.recovered;
   // Context beats the workbook only where it was measured to: a hollow root
   // against a geminate one. `كُنْتُ` is كون, not كنن.
-  const root = token.contextRoot ?? entry.root ?? ana?.root ?? rec?.root ?? null;
+  const root =
+    token.contextRoot ??
+    (entry.rootPreferAnalysed ? ana?.root ?? null : null) ??
+    entry.root ??
+    ana?.root ??
+    rec?.root ??
+    null;
   const lemma =
     token.contextLemma ??
     (entry.lemma && !entry.morphSuspect ? entry.lemma : (ana?.lemma ?? rec?.lemma ?? null));
-  const source: "context" | "workbook" | "analyser" | "corpus" | null = token.contextRoot
-    ? "context"
-    : entry.root
-    ? "workbook"
-    : ana?.root
-      ? "analyser"
-      : rec?.root
-        ? "corpus"
-        : null;
+  const source: "context" | "analysers-agree" | "workbook" | "analyser" | "corpus" | null =
+    token.contextRoot
+      ? "context"
+      : entry.rootPreferAnalysed && ana?.root
+        ? "analysers-agree"
+        : entry.root
+          ? "workbook"
+          : ana?.root
+            ? "analyser"
+            : rec?.root
+              ? "corpus"
+              : null;
 
   return (
     <Section title="الجذر واللفظ" subtitle="Root and lemma">
@@ -305,12 +320,30 @@ function RootAndLemma({
         </p>
       )}
 
-      {entry.rootDisputed && (
+      {source === "analysers-agree" && entry.root && (
+        <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+          The source data roots this word{" "}
+          <span className="arabic" lang="ar" dir="rtl">{entry.root}</span>, but
+          both analyser stacks — CAMeL Tools and the qalsadi/arramooz chain —
+          independently give the root shown above. In disputes like this,
+          Lane&rsquo;s Lexicon sides with the analysers slightly more often
+          than not (532 to 419, measured at adoption), and two convergent
+          engines outweigh one derived source.
+        </p>
+      )}
+
+      {entry.rootDisputed && source === "workbook" && (
         <p className="mt-2 text-[0.7rem] leading-relaxed text-(--color-flag)" dir="ltr">
-          The source data and the morphological dictionaries give different roots
-          for this word. The one shown is the source data&rsquo;s. Neither is
-          authoritative — they differ on about 8% of forms, and the dictionaries
-          are sometimes the correct one.
+          The source data and the analysers give different roots for this word
+          {ana?.root ? (
+            <>
+              {" "}— the analysers read it as{" "}
+              <span className="arabic" lang="ar" dir="rtl">{ana.root}</span>
+            </>
+          ) : null}
+          . The one shown is the source data&rsquo;s. Neither is authoritative:
+          they differ on about 10% of comparable forms, and where they do,
+          Lane&rsquo;s Lexicon splits nearly evenly between them.
         </p>
       )}
 
