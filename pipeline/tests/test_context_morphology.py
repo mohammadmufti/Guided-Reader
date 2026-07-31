@@ -24,9 +24,17 @@ WEAK = set("وي")
 
 @pytest.fixture(scope="module")
 def context():
+    """
+    Every test here takes this fixture, including the two that read the payload
+    rather than this file. That is deliberate: without it, a build that ran
+    disambiguate.py AFTER build.py left the payload with no overrides, and two
+    tests failed while a third skipped — three tests disagreeing about whether
+    the provider was present. They should agree, and they should skip together
+    on a corpus that has no context analysis at all.
+    """
     path = BUILD / "tajrid" / "disambiguated.json"
     if not path.exists():
-        pytest.skip("run pipeline/disambiguate.py first")
+        pytest.skip("no context analysis — run pipeline/disambiguate.py before build.py")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -37,7 +45,7 @@ def test_coverage_in_context(context, bindings):
     assert share > 95, f"only {share:.1f}% of tokens analysed in context"
 
 
-def test_overrides_are_only_geminate_to_hollow():
+def test_overrides_are_only_geminate_to_hollow(context):
     """
     The licence is narrow on purpose. If an override appears that is not this
     shape, the rule has been widened without the measurement being redone.
@@ -64,7 +72,7 @@ def test_overrides_are_only_geminate_to_hollow():
     assert seen > 0, "no overrides found — has the rule stopped firing?"
 
 
-def test_the_hollow_verbs_are_mostly_right():
+def test_the_hollow_verbs_are_mostly_right(context):
     """
     The words that motivated all of this. كُنْتُ is from ك-و-ن; a doubled ن is
     the shape you get by reconstructing a vanished weak radical wrongly.

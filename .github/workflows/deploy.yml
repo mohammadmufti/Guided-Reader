@@ -103,6 +103,13 @@ jobs:
       - name: Run the pipeline
         run: |
           python pipeline/segment.py --corpus tajrid
+          # MUST come after segment (it reads records.json) and before build
+          # (which applies the context overrides). Ordering it after build
+          # produced a payload with no contextRoot at all, silently — the
+          # tests caught it, the build did not.
+          if [ ! -f pipeline/build/tajrid/disambiguated.json ]; then
+            python pipeline/disambiguate.py --corpus tajrid
+          fi
           python pipeline/lexicon.py --corpus tajrid
           python pipeline/bind.py    --corpus tajrid
           # GitHub Pages compresses on the fly and ignores .br/.gz siblings,
@@ -113,10 +120,6 @@ jobs:
       # The second corpus is the whole basis of the generalisation claim and is
       # exercised nowhere else. Segmenting it is cheap and it is the thing most
       # likely to rot unnoticed.
-      - name: Disambiguate in context
-        if: steps.context-cache.outputs.cache-hit != 'true'
-        run: python pipeline/disambiguate.py --corpus tajrid
-
       - name: Segment the second corpus
         run: |
           python pipeline/fetch.py   --corpus rawd

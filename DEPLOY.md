@@ -81,6 +81,45 @@ GitHub Pages compresses on the fly and ignores the siblings, so drop them
 there. **On Cloudflare Pages or Netlify, remove the flag** — they do serve
 precompressed files, and brotli-11 beats their on-the-fly compression.
 
+## A hazard worth knowing: shard counts live in index.json
+
+Shard counts are derived from payload size, so they CHANGE when content changes
+— the surface set went from 64 shards to 32 the moment the statistics moved into
+their own files. The client reads those counts from `index.json` and routes with
+`hash % count`.
+
+So a stale `index.json` is not a cosmetic problem: it makes the client ask for
+shards that do not exist, and roughly half the words in the book 404.
+
+`web/public/_headers` says `index.json` must revalidate — but **GitHub Pages
+ignores `_headers`**. The client therefore fetches it with `cache: "no-cache"`,
+which does not depend on the host, and retries once against a freshly fetched
+index if a shard 404s. Both are needed: the first prevents the problem, the
+second recovers from it on a CDN that ignores the first.
+
+If you ever see `stats-0NN.json: HTTP 404` after a deploy, that is this, and a
+hard refresh clears it.
+
+## Pipeline step order is load-bearing
+
+`build.py` consumes the output of `analyse.py` and `disambiguate.py`. Both are
+OPTIONAL — the build prints a warning and carries on without them — which makes
+mis-ordering them a silent correctness bug rather than a crash.
+
+It happened: `disambiguate.py` was placed after `build.py` in CI, so the payload
+was written before the context roots existed and shipped with none. Nothing
+failed at build time. The pipeline tests caught it, which is the only reason it
+was noticed.
+
+The order inside `Run the pipeline` is therefore fixed:
+
+```
+segment  ->  disambiguate  ->  lexicon  ->  bind  ->  build
+             (needs records.json)          (both consumed by build)
+```
+
+`analyse.py` and `lane.py` may run any time before `build.py`.
+
 ## Host notes
 
 **GitHub Pages** — simplest, free, no account beyond GitHub.
