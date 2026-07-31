@@ -91,7 +91,7 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
     // mid-paint and reported sections as missing when they were not.
     <div className="space-y-6" data-panel="ready">
       <Headword entry={entry} />
-      <Meaning gloss={entry.gloss} />
+      <Meaning gloss={entry.gloss} isName={entry.isName} />
       <RootAndLemma entry={entry} classical={classical} token={token} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       <Divergence entry={entry} />
@@ -126,11 +126,23 @@ function Headword({ entry }: { entry: PanelEntry }) {
 
 /* ------------------------------------------------------------- 2. meaning */
 
-function Meaning({ gloss }: { gloss: Gloss | null }) {
+function Meaning({ gloss, isName }: { gloss: Gloss | null; isName: boolean }) {
   if (!gloss || gloss.senses.length === 0) return null;
   const chain = [...gloss.before, ...gloss.after];
+  // A name is a person; the dictionary sense belongs to the common word that
+  // shares its spelling. Presenting "suitors" as the MEANING of al-Khaṭṭāb
+  // taught an error — reframed, it teaches the homograph, which is useful.
   return (
-    <Section title="المعنى" subtitle="Meaning">
+    <Section
+      title="المعنى"
+      subtitle={isName ? "As a common word" : "Meaning"}
+    >
+      {isName && (
+        <p className="mb-1.5 text-[0.7rem] text-(--color-ink-muted)" dir="ltr">
+          This is a proper noun — a name. The common word spelled the same way
+          means:
+        </p>
+      )}
       <ul className="flex flex-wrap gap-x-2 gap-y-1" dir="ltr">
         {gloss.senses.map((s, i) => (
           <li key={s} className="text-base">
@@ -256,15 +268,26 @@ function RootAndLemma({
           The source data lost this word&rsquo;s stem and recorded only a prefix.
           The root and lemma above come from running the morphological analysers
           directly — qalsadi for the lemma, the arramooz dictionaries for the
-          root. Where both the source data and the analysers have an opinion they
-          agree on 92.3% of forms.
+          root.
           {ana?.rootAlternatives.length ? (
             <>
-              {" "}The dictionaries also offer{" "}
+              {" "}The dictionaries also list{" "}
               <span className="arabic" lang="ar" dir="rtl">
                 {ana.rootAlternatives.join("، ")}
               </span>
-              .
+              {" "}for this spelling.{" "}
+              {ana.rootBasis === "vocalised" &&
+                "The word's own vowels decided among them."}
+              {ana.rootBasis === "majority" &&
+                "The root shown is the one more dictionary entries give."}
+              {ana.rootBasis === "lane" &&
+                "The root shown is the candidate that exists as an entry in Lane's Lexicon."}
+              {ana.rootBasis === "unresolved" && (
+                <span className="text-(--color-flag)">
+                  {" "}Nothing decides between them — the root shown may be the
+                  wrong one.
+                </span>
+              )}
             </>
           ) : null}
         </p>

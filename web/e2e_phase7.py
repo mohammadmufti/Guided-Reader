@@ -126,7 +126,10 @@ def main() -> int:
                 continue
             body = page.locator("aside").inner_text()
             low = body.lower()
-            if "lane's lexicon" in low:
+            # Detect the CLASSICAL SECTION by its Arabic title — unique to it.
+            # Matching on "lane's lexicon" broke when the analyser-provenance
+            # copy legitimately mentioned Lane for a word with no entry.
+            if "المعنى الكلاسيكي" in body:
                 found_lane = True
                 check("Lane entry names whose entry it is",
                       "own entry" in low or "under this root" in low, body[:80])

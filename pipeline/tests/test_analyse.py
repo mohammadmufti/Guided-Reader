@@ -89,3 +89,43 @@ def test_both_dictionary_tables_are_queried(analyses):
     assert root_key(verb["root"] or "") == root_key("بيع")  # only in the verbs table
     noun = next(v for v in analyses.values() if v.get("lemma") == "صلاة")
     assert root_key(noun["root"] or "") == root_key("صلو")  # only in the nouns table
+
+
+def test_the_khattab_class_is_closed():
+    """
+    الخطاب shipped with root خصب because the primary was chosen by ARABIC
+    ALPHABET among the dictionary's candidate rows (sorted(roots)[0]). These
+    forms pin the fix: vocalisation decides, majority next, Lane next, and
+    an unresolved tie says so instead of pretending.
+    """
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "build" / "morphology" / "analyses.json"
+    if not path.exists():
+        import pytest
+        pytest.skip("run pipeline/analyse.py first")
+    d = json.loads(path.read_text(encoding="utf-8"))
+
+    from normalise import normalise, root_key
+
+    # Keys are the workbook's vocalised forms; combining-mark ORDER in a
+    # source-code literal need not match the workbook's byte-for-byte even
+    # when they render identically. Look up through the normaliser instead.
+    by_norm: dict[str, dict] = {}
+    for k, v in d.items():
+        if v:
+            by_norm.setdefault(normalise(k), v)
+
+    expected = {
+        "الخطاب": "خطب",   # was خصب — an arramooz bad row won by alphabet
+        "مصر": "مصر",       # was صرر — genuine homograph, vowels decide
+        "غدا": "غدو",       # was غدد
+        "الغد": "غدو",
+    }
+    for form, want in expected.items():
+        got = by_norm.get(form)
+        assert got and got.get("root"), f"{form}: no analysis"
+        assert root_key(got["root"]) == root_key(want), \
+            f"{form}: {got['root']} (basis {got.get('rootBasis')}), wanted {want}"
+        assert got.get("rootBasis"), f"{form}: choice carries no basis"

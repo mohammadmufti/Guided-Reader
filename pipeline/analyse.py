@@ -49,28 +49,125 @@ from normalise import normalise, root_key  # noqa: E402
 
 
 def build_analyser():
+    import re
+
     import arramooz.arabicdictionary as ad
     import qalsadi.lemmatizer as ql
 
     lemmatiser = ql.Lemmatizer()
-    # Verbs and nouns are separate tables. Query both, union the roots.
+    # Verbs and nouns are separate tables. Query both, union the ROWS —
+    # keeping each row's vocalised lemma, because that is what disambiguates
+    # homographs (مُصِرٌّ is صرر; مِصْرٌ is مصر).
     dictionaries = [ad.ArabicDictionary(t) for t in ("verbs", "nouns")]
-    root_cache: dict[str, list[str]] = {}
+    rows_cache: dict[str, list[tuple[str, str]]] = {}
 
-    def roots_for(lemma: str) -> list[str]:
-        if lemma in root_cache:
-            return root_cache[lemma]
-        found: set[str] = set()
+    def rows_for(lemma: str) -> list[tuple[str, str]]:
+        """(vocalised_lemma, root) pairs, deterministic order."""
+        if lemma in rows_cache:
+            return rows_cache[lemma]
+        found: set[tuple[str, str]] = set()
         for d in dictionaries:
             try:
                 for row in d.lookup(lemma) or []:
-                    value = dict(row).get("root")
-                    if value:
-                        found.add(str(value))
+                    r = dict(row)
+                    if r.get("root"):
+                        found.add((str(r.get("vocalized") or ""), str(r["root"])))
             except Exception:
                 continue
-        root_cache[lemma] = sorted(found)
-        return root_cache[lemma]
+        rows_cache[lemma] = sorted(found)
+        return rows_cache[lemma]
+
+    # Lane, as adjudicator: which candidate roots exist as entries at all.
+    # (Headword-level matching was tried and adds nothing over existence for
+    # this purpose: the fake candidates — خصب for خطاب — are real roots too;
+    # what kills them is losing the vocalisation and majority rounds. Lane
+    # existence only breaks the residual ties.)
+    lane_roots: set[str] = set()
+    lane_path = OUT.parent / "lane" / "entries.json"
+    if lane_path.exists():
+        lane_roots = {root_key(k) for k in json.loads(
+            lane_path.read_text(encoding="utf-8"))}
+
+    MARKS = "\u064B-\u0652\u0670"
+    _groups = re.compile(rf"([^\s{MARKS}])([{MARKS}]*)")
+
+    def letters_marks(s: str) -> list[tuple[str, str]]:
+        return _groups.findall(s)
+
+    def compatible(form: str, voc_lemma: str) -> bool:
+        """
+        Does the form's own vocalisation admit this dictionary row?
+
+        The lemma's letter skeleton must appear contiguously inside the
+        form's (prefixes like وَ/الْ and suffixes sit outside it), and on the
+        shared letters every mark BOTH sides wrote must agree — a mark only
+        one side wrote is not evidence either way, since neither source
+        vocalises exhaustively. Shadda is compared strictly; the final shared
+        letter's short vowels are ignored, because there the lemma carries a
+        citation case and the form carries a contextual one.
+        """
+        gf, gl = letters_marks(form), letters_marks(voc_lemma)
+        if not gf or not gl:
+            return True
+        skel_f = [g[0] for g in gf]
+        skel_l = [g[0] for g in gl]
+        n, m = len(skel_f), len(skel_l)
+        for off in range(n - m + 1):
+            if skel_f[off:off + m] != skel_l:
+                continue
+            ok = True
+            for j in range(m):
+                mf = set(gf[off + j][1])
+                ml = set(gl[j][1])
+                last = j == m - 1
+                if ("\u0651" in mf) != ("\u0651" in ml):  # shadda differs
+                    ok = False
+                    break
+                if last:
+                    continue  # citation vs contextual case ending
+                shared = (mf - {"\u0651"}) and (ml - {"\u0651"})
+                if shared and (mf - {"\u0651"}) != (ml - {"\u0651"}):
+                    ok = False
+                    break
+            if ok:
+                return True
+        return False
+
+    def choose_root(form: str, lemma: str):
+        """
+        -> (root, alternatives, basis). The old code took sorted(roots)[0] —
+        the ARABIC ALPHABET as tiebreak — which is how خطاب shipped as خصب
+        and مصر as صرر. Rounds, each narrowing the last:
+
+          vocalised  rows whose vocalised lemma the form's own marks admit
+          majority   the root more dictionary rows vote for
+          lane       a candidate that is a real Lane entry beats one that isn't
+          unresolved deterministic, and SAID to be arbitrary
+        """
+        rows = rows_for(lemma)
+        if not rows:
+            return None, [], None
+        all_roots = sorted({r for _, r in rows})
+        if len(all_roots) == 1:
+            return all_roots[0], [], "unanimous"
+
+        pool = [(v, r) for v, r in rows if compatible(form, v)] or rows
+        basis = "vocalised" if len(pool) < len(rows) else None
+        tally: dict[str, int] = {}
+        for _, r in pool:
+            tally[r] = tally.get(r, 0) + 1
+        best = max(tally.values())
+        leaders = sorted(r for r, c in tally.items() if c == best)
+        if len(leaders) == 1:
+            winner = leaders[0]
+            basis = basis or "majority"
+        else:
+            in_lane = [r for r in leaders if root_key(r) in lane_roots]
+            if len(in_lane) == 1:
+                winner, basis = in_lane[0], "lane"
+            else:
+                winner, basis = leaders[0], "unresolved"
+        return winner, [r for r in all_roots if r != winner], basis
 
     def analyse(form: str) -> dict | None:
         try:
@@ -80,14 +177,13 @@ def build_analyser():
         if not got or not got[0]:
             return None
         lemma, pos = str(got[0]), (str(got[1]) if len(got) > 1 else None)
-        roots = roots_for(lemma)
+        root, alternatives, basis = choose_root(form, lemma)
         return {
             "lemma": lemma,
             "pos": pos if pos not in ("all", "") else None,
-            # One root when the dictionaries agree; the alternatives are kept so
-            # a disagreement is visible rather than resolved by coin toss.
-            "root": roots[0] if roots else None,
-            "rootAlternatives": roots[1:] if len(roots) > 1 else [],
+            "root": root,
+            "rootAlternatives": alternatives,
+            "rootBasis": basis,
         }
 
     return analyse
