@@ -48,9 +48,59 @@ sys.path.insert(0, str(ROOT))
 from normalise import normalise, root_key  # noqa: E402
 
 
-def build_analyser():
-    import re
+import re  # noqa: E402
 
+MARKS = "\u064B-\u0652\u0670"
+_GROUPS = re.compile(rf"([^\s{MARKS}])([{MARKS}]*)")
+
+
+def letters_marks(s: str) -> list[tuple[str, str]]:
+    return _GROUPS.findall(s)
+
+
+def compatible(form: str, voc_lemma: str) -> bool:
+    """
+    Does the form's own vocalisation admit this candidate reading?
+
+    The candidate's letter skeleton must appear contiguously inside the
+    form's (prefixes like \u0648\u064e/\u0627\u0644\u0652 and suffixes sit outside it), and on the
+    shared letters every mark BOTH sides wrote must agree — a mark only one
+    side wrote is not evidence either way, since neither source vocalises
+    exhaustively. Shadda is compared strictly; the final shared letter's
+    short vowels are ignored, because there the candidate carries a citation
+    case and the form a contextual one.
+
+    Module-level because the CAMeL bake-off harness applies the SAME test to
+    a different candidate source; one implementation, one behaviour.
+    """
+    gf, gl = letters_marks(form), letters_marks(voc_lemma)
+    if not gf or not gl:
+        return True
+    skel_f = [g[0] for g in gf]
+    skel_l = [g[0] for g in gl]
+    n, m = len(skel_f), len(skel_l)
+    for off in range(n - m + 1):
+        if skel_f[off:off + m] != skel_l:
+            continue
+        ok = True
+        for j in range(m):
+            mf = set(gf[off + j][1])
+            ml = set(gl[j][1])
+            if ("\u0651" in mf) != ("\u0651" in ml):  # shadda differs
+                ok = False
+                break
+            if j == m - 1:
+                continue  # citation vs contextual case ending
+            shared = (mf - {"\u0651"}) and (ml - {"\u0651"})
+            if shared and (mf - {"\u0651"}) != (ml - {"\u0651"}):
+                ok = False
+                break
+        if ok:
+            return True
+    return False
+
+
+def build_analyser():
     import arramooz.arabicdictionary as ad
     import qalsadi.lemmatizer as ql
 
@@ -87,51 +137,6 @@ def build_analyser():
     if lane_path.exists():
         lane_roots = {root_key(k) for k in json.loads(
             lane_path.read_text(encoding="utf-8"))}
-
-    MARKS = "\u064B-\u0652\u0670"
-    _groups = re.compile(rf"([^\s{MARKS}])([{MARKS}]*)")
-
-    def letters_marks(s: str) -> list[tuple[str, str]]:
-        return _groups.findall(s)
-
-    def compatible(form: str, voc_lemma: str) -> bool:
-        """
-        Does the form's own vocalisation admit this dictionary row?
-
-        The lemma's letter skeleton must appear contiguously inside the
-        form's (prefixes like وَ/الْ and suffixes sit outside it), and on the
-        shared letters every mark BOTH sides wrote must agree — a mark only
-        one side wrote is not evidence either way, since neither source
-        vocalises exhaustively. Shadda is compared strictly; the final shared
-        letter's short vowels are ignored, because there the lemma carries a
-        citation case and the form carries a contextual one.
-        """
-        gf, gl = letters_marks(form), letters_marks(voc_lemma)
-        if not gf or not gl:
-            return True
-        skel_f = [g[0] for g in gf]
-        skel_l = [g[0] for g in gl]
-        n, m = len(skel_f), len(skel_l)
-        for off in range(n - m + 1):
-            if skel_f[off:off + m] != skel_l:
-                continue
-            ok = True
-            for j in range(m):
-                mf = set(gf[off + j][1])
-                ml = set(gl[j][1])
-                last = j == m - 1
-                if ("\u0651" in mf) != ("\u0651" in ml):  # shadda differs
-                    ok = False
-                    break
-                if last:
-                    continue  # citation vs contextual case ending
-                shared = (mf - {"\u0651"}) and (ml - {"\u0651"})
-                if shared and (mf - {"\u0651"}) != (ml - {"\u0651"}):
-                    ok = False
-                    break
-            if ok:
-                return True
-        return False
 
     def choose_root(form: str, lemma: str):
         """
