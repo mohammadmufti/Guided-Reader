@@ -221,6 +221,58 @@ def main() -> int:
                 check(f"panel is a bottom sheet at {label}px",
                       aside is not None and aside["y"] + aside["height"] >= vh - 2,
                       f"bottom at {aside['y'] + aside['height']:.0f} of {vh}")
+                # The sheet must never own the phone: at 68vh, reading and
+                # word-tapping were mutually exclusive (reader-reported).
+                check(f"sheet is at most half the screen at {label}px",
+                      aside["height"] <= vh * 0.52,
+                      f"{aside['height']:.0f}px of {vh}")
+                # And the page must still scroll UNDER an open sheet — the
+                # article grows blank space at its foot while a word is open,
+                # so every line can rise above the sheet.
+                before = page.evaluate("window.scrollY")
+                page.mouse.wheel(0, 800)
+                page.wait_for_timeout(200)
+                scrolled = page.evaluate("window.scrollY") - before
+                check(f"page scrolls with the sheet open at {label}px",
+                      scrolled > 100, f"moved {scrolled:.0f}px")
+                # A word that started under the sheet is now reachable: take
+                # the LAST clickable word of the MAIN record (zawa'id panes
+                # live inside <section>; the main pane does not), scroll it
+                # to a fixed height well above the sheet, verify, click.
+                got = page.evaluate(
+                    """() => {
+                      const els = [...document.querySelectorAll(
+                        'article p.arabic-body [data-token]')]
+                        .filter(e => !e.closest('section'));
+                      const el = els[els.length - 1];
+                      if (!el) return null;
+                      const y = el.getBoundingClientRect().top + window.scrollY;
+                      window.scrollTo(0, y - 160);
+                      return el.dataset.token;
+                    }"""
+                )
+                page.wait_for_timeout(250)
+                box = page.locator(f'[data-token="{got}"]').last.bounding_box() if got else None
+                clear = box is not None and box["y"] + box["height"] < aside["y"]
+                check(f"the last word can rise clear of the sheet at {label}px",
+                      clear,
+                      f"word bottom {box['y'] + box['height']:.0f}, sheet top {aside['y']:.0f}" if box else "token not found")
+                if clear:
+                    page.evaluate(
+                        """tok => {
+                          const els = [...document.querySelectorAll(
+                            `[data-token="${tok}"]`)].filter(e => !e.closest('section'));
+                          els[els.length - 1].click();
+                        }""", got)
+                    page.wait_for_timeout(400)
+                    # [data-token] qualifier: the toolbar toggles carry
+                    # aria-pressed too, and one precedes the words in the DOM
+                    sel = page.evaluate(
+                        "document.querySelector('[data-token][aria-pressed=true]')"
+                        "?.dataset?.token"
+                    )
+                    check(f"a word buried under the sheet can be selected at {label}px",
+                          sel == got, f"selected token {sel}, wanted {got}")
             else:
                 art = page.locator("article").bounding_box()
                 check("panel is a right column at 1440px",

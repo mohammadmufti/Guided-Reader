@@ -278,7 +278,17 @@ function PageView({
       : null;
   return (
     <div className="grid gap-10 lg:grid-cols-[21rem_minmax(0,1fr)]">
-      <article className="lg:order-2">
+      {/* While the sheet is open on a phone, the article grows matching blank
+          space at its foot — otherwise the text behind the sheet is
+          unreachable and a short hadith leaves nothing to grab, so reading
+          and word-tapping become mutually exclusive (reader-reported).
+          55dvh = the 50dvh sheet plus room for the last line to sit clear
+          above it. Desktop is untouched: the panel is a side column there. */}
+      <article
+        className={
+          "lg:order-2" + (activeToken !== null ? " max-lg:pb-[55dvh]" : "")
+        }
+      >
         <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-(--color-rule) pb-3">
           {/* Stable hook: tests should not depend on styling classes. */}
           <span data-hadith-number className="text-3xl tabular-nums">
@@ -340,7 +350,10 @@ function PageView({
         className={
           "lg:order-1 lg:static lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
           "lg:bg-(--color-raised) lg:p-5 lg:shadow-sm " +
-          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[68vh] " +
+          // Half the screen, no more: at 68vh the sheet owned the phone and the
+          // text became a sliver. dvh, not vh, so the browser chrome
+          // collapsing does not push the sheet over the cap.
+          "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[50dvh] " +
           "max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-t-xl " +
           "max-lg:border-t max-lg:border-(--color-rule) max-lg:bg-(--color-raised) " +
           "max-lg:p-5 max-lg:shadow-2xl " +
