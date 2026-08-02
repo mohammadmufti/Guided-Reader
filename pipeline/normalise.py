@@ -27,6 +27,13 @@ DIACRITICS = str.maketrans(
     "\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0653\u0654\u0655\u0670\u0640",
 )
 
+
+def dediac(text: str) -> str:
+    """Strip diacritics ONLY — every letter stays itself. The exact tier for
+    Lane headword matching: unlike normalise(), ة does not fold to ه, so
+    هِجْرَة (emigration) cannot collide with هَجَرَهُ (he forsook him)."""
+    return str(text).translate(DIACRITICS)
+
 LETTERS = str.maketrans(
     {
         "\u0623": "\u0627",  # أ  alef with hamza above  -> alef

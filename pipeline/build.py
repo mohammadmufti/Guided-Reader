@@ -44,7 +44,7 @@ import brotli
 
 from gloss import parse_gloss
 from morphology import Recoverer
-from normalise import normalise, root_key
+from normalise import dediac, normalise, root_key
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -206,6 +206,27 @@ LEMMA_COVERAGE_FLOOR = 0.30
 # the workbook already records. Stated in the panel, because a reader is
 # entitled to know how a root they are being shown was arrived at.
 RECOVERY_ACCURACY = 98.0
+
+
+_VOC_MARKS = "\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670"
+
+
+def voc_key(text: str) -> str:
+    """
+    The TOP matching tier for Lane headwords: letters plus their own short
+    vowels, order-normalised, with the final letter's case marks dropped
+    (a headword carries a citation ending, a lemma carries its own). This is
+    what tells هِجْرَةٌ (hijrah, emigration) from هُجْرَةٌ (hujrah) — twins
+    at the diacritic-stripped tier, distinct words to a reader.
+    """
+    import re
+    groups = re.findall(rf"([^\s{_VOC_MARKS}])([{_VOC_MARKS}]*)", str(text))
+    out = []
+    for i, (letter, marks) in enumerate(groups):
+        if i == len(groups) - 1:
+            marks = "".join(m for m in marks if m == "\u0651")  # keep shadda
+        out.append(letter + "".join(sorted(marks)))
+    return "".join(out)
 
 
 _HAMZA_SEATS = str.maketrans({"أ": "ء", "إ": "ء", "آ": "ء", "ؤ": "ء", "ئ": "ء"})
@@ -474,17 +495,27 @@ def main() -> int:
     else:
         print("  (no Lane build found — run pipeline/lane.py; falling back to workbook samples)")
 
-    # Index every Lane entry by root and normalised headword, so a lemma can be
-    # matched without guessing.
+    # Index every Lane entry by root and headword — in TWO tiers, because the
+    # fully-folded key collides where it must not: normalise() maps tāʾ
+    # marbūṭa and hāʾ to the same letter, so هِجْرَة (emigration) and
+    # هَجَرَهُ (he forsook HIM — verb + object pronoun) both key to هجره,
+    # and "his emigration" was captioned with the forsaking verb as "this
+    # word's own entry" (reader-found, hadith 1 word 26). The exact tier
+    # strips diacritics only, keeping ة distinct; the folded tier remains as
+    # fallback for genuine orthographic variance.
     lane_by_root: dict[str, list[dict]] = {}
-    headword_index: dict[tuple[str, str], str] = {}
+    hw_voc: dict[tuple[str, str], str] = {}
+    hw_exact: dict[tuple[str, str], str] = {}
+    hw_folded: dict[tuple[str, str], str] = {}
     for root, payload in lane.items():
         entries = payload.get("entries", [])
         lane_by_root[root] = entries
         for e in entries:
             for form in [e.get("headword")] + (e.get("forms") or []):
                 if form:
-                    headword_index.setdefault((root, normalise(form)), e["nodeid"])
+                    hw_voc.setdefault((root, voc_key(str(form))), e["nodeid"])
+                    hw_exact.setdefault((root, dediac(str(form))), e["nodeid"])
+                    hw_folded.setdefault((root, normalise(form)), e["nodeid"])
 
     # ---- lexicon shards ----------------------------------------------------
     review = set(lexicon["review"])
@@ -653,12 +684,19 @@ def main() -> int:
         lr = e["lane_root"]
         trimmed["laneEntry"] = None
         if lr and lr in lane_by_root:
-            for candidate in (e.get("lemma"), e.get("vocalized")):
-                if candidate:
-                    node = headword_index.get((lr, normalise(str(candidate))))
-                    if node:
-                        trimmed["laneEntry"] = node
-                        break
+            # exact tier (ة preserved) for BOTH candidates before either
+            # falls back to the folded tier — a folded hit on the lemma must
+            # not shadow an exact hit on the vocalised form
+            for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
+                               (hw_folded, normalise)):
+                for candidate in (e.get("lemma"), e.get("vocalized")):
+                    if candidate:
+                        node = index.get((lr, key(str(candidate))))
+                        if node:
+                            trimmed["laneEntry"] = node
+                            break
+                if trimmed["laneEntry"]:
+                    break
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
             entry = {f: e[f] for f in CLASSICAL_FIELDS}
