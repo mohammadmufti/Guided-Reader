@@ -111,3 +111,48 @@ def test_analysed_always_ships(surface):
     every both-stacks-agree correction from the reader entirely."""
     shipped = sum(1 for v in surface.values() if v.get("analysed"))
     assert shipped > 20_000, f"analysed on only {shipped:,} entries — packaging regressed"
+
+
+def test_lane_entry_matches_the_lemma_it_claims(surface):
+    """
+    'This word's own entry' must BE the word's own entry. normalise() folds
+    ة to ه, so هِجْرَة (emigration) collided with هَجَرَهُ (he forsook him)
+    and ~3,900 nouns were captioned with verbs' entries (reader-found,
+    hadith 1 word 26). Matching is now tiered — vocalised, then diacritic-
+    stripped, then folded — and this asserts the top tier is never shadowed:
+    wherever the lemma's vocalised key matches SOME headword under the root,
+    the assignment must be a headword with that same key.
+    """
+    import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from build import voc_key
+
+    lane_path = Path(__file__).resolve().parent.parent / "build" / "lane" / "entries.json"
+    if not lane_path.exists():
+        pytest.skip("lane not built")
+    lane = json.loads(lane_path.read_text(encoding="utf-8"))
+    keys_by_node, nodes_by_key = {}, {}
+    for root, doc in lane.items():
+        for e in doc["entries"]:
+            for form in [e.get("headword")] + (e.get("forms") or []):
+                if form:
+                    k = (root, voc_key(str(form)))
+                    keys_by_node.setdefault(e["nodeid"], set()).add(k)
+                    nodes_by_key.setdefault(k, set()).add(e["nodeid"])
+
+    bad = []
+    for v in surface.values():
+        node, lr, lemma = v.get("laneEntry"), v.get("lane_root"), v.get("lemma")
+        if not (node and lr and lemma):
+            continue
+        k = (lr, voc_key(str(lemma)))
+        if k in nodes_by_key and k not in keys_by_node.get(node, set()):
+            bad.append((lemma, node))
+    assert not bad, f"{len(bad)} vocalised matches shadowed: {bad[:5]}"
+
+    hij = next(v for v in surface.values() if v.get("unvocalized") == "هجرته")
+    hw = next(e["headword"] for e in lane["هجر"]["entries"]
+              if e["nodeid"] == hij["laneEntry"])
+    assert hw == "هِجْرَةٌ", f"هجرته points at {hw}, not هِجْرَةٌ"
