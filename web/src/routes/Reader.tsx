@@ -4,6 +4,7 @@ import type { IndexFile } from "@/types/contracts";
 import { loadIndex, loadPage, neighbours, type Page } from "@/lib/data";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useSettings } from "@/hooks/useSettings";
+import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { NavControls } from "@/components/NavControls";
 import { JumpTo } from "@/components/JumpTo";
 import { BookBrowser } from "@/components/BookBrowser";
@@ -276,6 +277,14 @@ function PageView({
     selection !== null && (selection.recordId ?? main.id) === recordId
       ? selection.index
       : null;
+
+  // Pull-down-to-dismiss for the phone sheet. No-op on desktop, where the
+  // aside is a static column and the hook never arms.
+  const sheet = useDragDismiss({
+    active: activeToken !== null,
+    onDismiss: () => onSelect(null, null),
+  });
+
   return (
     <div className="grid gap-10 lg:grid-cols-[21rem_minmax(0,1fr)]">
       {/* While the sheet is open on a phone, the article grows matching blank
@@ -346,7 +355,15 @@ function PageView({
       </article>
 
       <aside
+        ref={sheet.ref}
         aria-label="تفاصيل الكلمة"
+        // Follows the finger while dragging; springs back (or settles) with a
+        // short ease when released. Both are inert on desktop, where offset is
+        // always 0 and the transform never moves anything.
+        style={{
+          transform: sheet.offset ? `translateY(${sheet.offset}px)` : undefined,
+          transition: sheet.dragging ? "none" : "transform 0.25s ease-out",
+        }}
         className={
           "lg:order-1 lg:static lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
           "lg:bg-(--color-raised) lg:p-5 lg:shadow-sm " +
@@ -366,16 +383,28 @@ function PageView({
             with `sticky`, give it a 40px hit target, and mark it with an X
             rather than a word so it reads as "close" at a glance. */}
         {activeToken !== null && (
-          <div className="sticky -top-5 z-10 -mx-5 -mt-5 mb-2 flex items-center justify-between border-b border-(--color-rule) bg-(--color-raised) px-3 py-2 lg:hidden">
-            <span className="ps-2 text-xs text-(--color-ink-muted)" lang="ar">
-              تفاصيل الكلمة
-            </span>
-            <button
-              type="button"
-              onClick={() => onSelect(null, null)}
-              aria-label="إغلاق تفاصيل الكلمة"
-              className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-(--color-rule)"
-            >
+          <div className="sticky -top-5 z-10 -mx-5 -mt-5 mb-2 border-b border-(--color-rule) bg-(--color-raised) lg:hidden">
+            {/* The grabber. It signals that the sheet pulls down — the gesture
+                itself (see useDragDismiss) is claimed from anywhere in the
+                sheet whenever a downward drag starts at the top of the scroll,
+                not only from this pill. The X stays as the explicit, keyboard-
+                and screen-reader-reachable way out. */}
+            <div className="flex justify-center pt-2 pb-1">
+              <span
+                aria-hidden="true"
+                className="h-1 w-9 rounded-full bg-(--color-ink-muted)/40"
+              />
+            </div>
+            <div className="flex items-center justify-between px-3 pb-2">
+              <span className="ps-2 text-xs text-(--color-ink-muted)" lang="ar">
+                تفاصيل الكلمة
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelect(null, null)}
+                aria-label="إغلاق تفاصيل الكلمة"
+                className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-(--color-rule)"
+              >
               <svg
                 width="18"
                 height="18"
@@ -388,7 +417,8 @@ function PageView({
               >
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
-            </button>
+              </button>
+            </div>
           </div>
         )}
         <WordPanel
