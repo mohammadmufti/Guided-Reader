@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { HadithFile, Token } from "@/types/contracts";
 import { stripHarakat } from "@/hooks/useSettings";
 
@@ -36,6 +36,36 @@ export function ReadingPane({ record, selected, onSelect, harakat, muted }: Prop
   const paneRef = useRef<HTMLParagraphElement>(null);
 
   const clickable = record.tokens.filter((t) => t.clickable).map((t) => t.i);
+
+  // Which words sit inside a Qur'anic quotation. Verses are wrapped in `{ … }`
+  // in the source (the Shamela/OpenITI convention). The tokeniser only ever
+  // puts Arabic letters and diacritics in a token, so a brace is never inside
+  // `surface`/`raw` — it rides in `leading` or a token's `punctuationAfter`.
+  // Walking the record's text in order and tracking brace depth therefore says,
+  // for each word, whether it falls between an opening and a closing brace.
+  // Braces are balanced and well-nested within every record, so a per-record
+  // walk is sufficient — no verse straddles two panes.
+  //
+  // The vocalisation itself is untouched: `token.surface` still carries the
+  // vowels, which is what search, the lexicon and the word panel are built on.
+  // This only tells the pane to paint a Qur'anic word in bare rasm rather than
+  // with the system's inferred vowels when harakat are on.
+  const inAyah = useMemo(() => {
+    const flags: boolean[] = new Array(record.tokens.length).fill(false);
+    let depth = 0;
+    const scan = (s: string) => {
+      for (const ch of s) {
+        if (ch === "{") depth++;
+        else if (ch === "}") depth = Math.max(0, depth - 1);
+      }
+    };
+    scan(record.leading);
+    record.tokens.forEach((t, idx) => {
+      flags[idx] = depth > 0; // state on entering this word's letters
+      scan(t.punctuationAfter); // raw carries no braces; only this can
+    });
+    return flags;
+  }, [record.leading, record.tokens]);
 
   /** Move to the next or previous CLICKABLE word, skipping inert ones. */
   const step = useCallback(
@@ -113,6 +143,7 @@ export function ReadingPane({ record, selected, onSelect, harakat, muted }: Prop
           tabbable={token.i === (selected ?? firstClickable(record))}
           onSelect={onSelect}
           harakat={harakat}
+          inAyah={inAyah[token.i] ?? false}
         />
       ))}
     </p>
@@ -129,14 +160,20 @@ function TokenSpan({
   tabbable,
   onSelect,
   harakat,
+  inAyah,
 }: {
   token: Token;
   selected: boolean;
   tabbable: boolean;
   onSelect: (i: number | null) => void;
   harakat: boolean;
+  /** Word sits inside a Qur'anic `{ … }` quotation; never show inferred vowels. */
+  inAyah: boolean;
 }) {
-  const shown = harakat ? token.surface : stripHarakat(token.surface);
+  // Harakat are hidden when the reader has them off, and always for Qur'anic
+  // words: the system's vowels are inferred MSA readings, not the mushaf, so a
+  // verse is shown in bare rasm rather than vocalised with a guess.
+  const shown = harakat && !inAyah ? token.surface : stripHarakat(token.surface);
   if (!token.clickable) {
     return (
       <>
