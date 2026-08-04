@@ -18,6 +18,43 @@ export type Binding = "aligned" | "unique" | "heuristic" | "unbound";
 
 export type Confidence = "high" | "medium" | "low" | "none";
 
+/** One row in the "about this book" sources list. */
+export interface AboutSource {
+  /** Short name: 'Primary text', 'Classical apparatus'. */
+  label: string;
+  /** A sentence on what it is and how it is used. */
+  detail: string | null;
+  /** Where it lives, when it lives anywhere public. */
+  url: string | null;
+}
+
+export interface AboutAudioFile {
+  /** Display label: 'File 1'. */
+  label: string;
+  /** The recording's URL. */
+  url: string;
+}
+
+export interface CorpusAudio {
+  /** One line of context shown above the links. */
+  note: string | null;
+  /** The recordings, in reading order. */
+  files: AboutAudioFile[];
+}
+
+/**
+ * The ⓘ popup's content, verbatim from corpora/{id}.yaml — the component holds no book
+ * knowledge; every corpus supplies its own.
+ */
+export interface CorpusAbout {
+  /** Paragraphs describing the book. */
+  description: string[];
+  /** Where the text and apparatus come from. */
+  sources: AboutSource[];
+  /** Recitation links; playback is planned, links ship now. */
+  audio: CorpusAudio | null;
+}
+
 /**
  * Where an editorial cross-reference points. Corpus-specific, so it lives in
  * `corpora/{id}.yaml`: al-Tajrid cites Sahih al-Bukhari, another text would cite something
@@ -51,6 +88,8 @@ export interface CorpusMeta {
   edition: string | null;
   /** How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing. */
   referenceLink: ReferenceLink | null;
+  /** Content for the 'about this book' popup; None until a corpus writes one. */
+  about: CorpusAbout | null;
 }
 
 /** The book (kitab) a record sits in. */

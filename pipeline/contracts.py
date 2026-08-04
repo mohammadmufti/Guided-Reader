@@ -79,6 +79,36 @@ class ReferenceLink(TypedDict):
     url: str
 
 
+class AboutSource(TypedDict):
+    """One row in the "about this book" sources list."""
+
+    label: Annotated[str, Doc("Short name: 'Primary text', 'Classical apparatus'.")]
+    detail: Annotated[str | None, Doc("A sentence on what it is and how it is used.")]
+    url: Annotated[str | None, Doc("Where it lives, when it lives anywhere public.")]
+
+
+class AboutAudioFile(TypedDict):
+    label: Annotated[str, Doc("Display label: 'File 1'.")]
+    url: Annotated[str, Doc("The recording's URL.")]
+
+
+class CorpusAudio(TypedDict):
+    note: Annotated[str | None, Doc("One line of context shown above the links.")]
+    files: Annotated[list[AboutAudioFile], Doc("The recordings, in reading order.")]
+
+
+class CorpusAbout(TypedDict):
+    """The ⓘ popup's content, verbatim from corpora/{id}.yaml — the component
+    holds no book knowledge; every corpus supplies its own."""
+
+    description: Annotated[list[str], Doc("Paragraphs describing the book.")]
+    sources: Annotated[list[AboutSource], Doc("Where the text and apparatus come from.")]
+    audio: Annotated[
+        CorpusAudio | None,
+        Doc("Recitation links; playback is planned, links ship now."),
+    ]
+
+
 class CorpusMeta(TypedDict):
     """Provenance for the whole corpus. Rendered in the UI's colophon."""
 
@@ -94,6 +124,10 @@ class CorpusMeta(TypedDict):
     referenceLink: Annotated[
         ReferenceLink | None,
         Doc("How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing."),
+    ]
+    about: Annotated[
+        CorpusAbout | None,
+        Doc("Content for the 'about this book' popup; None until a corpus writes one."),
     ]
 
 
@@ -781,6 +815,10 @@ class ClassicalEntry(TypedDict):
 
 # Emitted to TypeScript, in dependency order.
 EXPORTED: list[type] = [
+    AboutSource,
+    AboutAudioFile,
+    CorpusAudio,
+    CorpusAbout,
     ReferenceLink,
     CorpusMeta,
     KitabRef,

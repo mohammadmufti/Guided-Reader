@@ -6,6 +6,7 @@ import { useKeyboard } from "@/hooks/useKeyboard";
 import { useSettings } from "@/hooks/useSettings";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { NavControls } from "@/components/NavControls";
+import AboutBook from "@/components/AboutBook";
 import { JumpTo } from "@/components/JumpTo";
 import { BookBrowser } from "@/components/BookBrowser";
 import { ReadingControls } from "@/components/ReadingControls";
@@ -141,13 +142,17 @@ export function Reader() {
       )}
 
       <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-(--color-rule) pb-4">
-        <div>
-          <Link to="/hadith/1" className="arabic block text-xl leading-tight" lang="ar">
-            {index.corpus.titleAr}
-          </Link>
-          <p className="mt-1 text-xs text-(--color-ink-muted)" dir="ltr" lang="en">
-            {index.corpus.titleEn} · {index.counts.hadith.toLocaleString()} hadith
-          </p>
+        <div className="flex items-start gap-3">
+          <div>
+            <Link to="/hadith/1" className="arabic block text-xl leading-tight" lang="ar">
+              {index.corpus.titleAr}
+            </Link>
+            <p className="mt-1 text-xs text-(--color-ink-muted)" dir="ltr" lang="en">
+              {index.corpus.titleEn} · {index.counts.hadith.toLocaleString()} hadith
+            </p>
+          </div>
+          {/* ⓘ — the "about this book" popup; content is per-corpus data */}
+          <AboutBook corpus={index.corpus} />
         </div>
         <div className="flex flex-wrap items-start gap-3">
           <ReadingControls
