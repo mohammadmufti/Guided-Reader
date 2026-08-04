@@ -148,3 +148,54 @@ lexicon:
     Review: {key: surface}      # keyed by UNVOCALIZED form, not search_key
     Unvocalized: {key: unvocalized}
   normalisation: din_search_key   # see pipeline/normalise.py
+
+# ---------------------------------------------------------------------------
+# The "about this book" panel — the ⓘ next to the title. Everything the
+# reader popup shows lives HERE, per corpus, so a second text supplies its
+# own file and the component stays empty of book knowledge.
+about:
+  description:
+    - >-
+      Al-Tajrīd al-Ṣarīḥ li-Aḥādīth al-Jāmiʿ al-Ṣaḥīḥ — al-Zabīdī's
+      (d. 893 AH) abridgement of Ṣaḥīḥ al-Bukhārī: the isnāds are stripped
+      to the first narrator and repeated narrations consolidated, leaving
+      2,254 numbered hadith with al-Dāghistānī's zawāʾid additions.
+    - >-
+      Every word is tappable. Vocalisation, roots, and glosses are assembled
+      from the sources below, each with its own measured reliability — the
+      panel's provenance line says where each fact came from, and the
+      Limitations page says how often each source is wrong.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of the Shamela edition (Muʾassasat
+        al-Risāla Nāshirūn, Damascus, 1430/2009), fetched and checksummed
+        at build time.
+      url: https://raw.githubusercontent.com/OpenITI/0900AH/master/data/0893IbnAhmadZaynDinSharji/0893IbnAhmadZaynDinSharji.TajridSarih/0893IbnAhmadZaynDinSharji.TajridSarih.Shamela0096283-ara1
+    - label: "Vocalisation reference"
+      detail: >-
+        A fully-diacritised Ṣaḥīḥ al-Bukhārī, used only to transfer harakāt
+        onto matching words by alignment; no Bukhārī text is redistributed
+        here.
+      url: https://github.com/abdelrahmaan/Hadith-Data-Sets
+    - label: "Frequency & gloss workbook"
+      detail: >-
+        A hand-built lexicon of this text's 22,464 word forms — glosses,
+        roots, frequencies — compiled for this project.
+    - label: "Classical apparatus"
+      detail: >-
+        Lane's Arabic-English Lexicon (1863–1893), public domain, keyed by
+        root.
+      url: https://raw.githubusercontent.com/laneslexicon/LexiconDatabase/master/lexicon.sqlite.zip
+  audio:
+    note: >-
+      Recorded recitation of the text — linked now, in-app playback planned.
+    files:
+      - label: "File 1"
+        url: https://www.youtube.com/watch?v=-SpgCJztazo
+      - label: "File 2"
+        url: https://www.youtube.com/watch?v=2EwYDHFoRAU
+      - label: "File 3"
+        url: https://www.youtube.com/watch?v=tKXENLvIExE
+      - label: "File 4"
+        url: https://www.youtube.com/watch?v=6uKJjT9tgkU
