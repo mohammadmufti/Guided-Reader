@@ -36,11 +36,13 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
 
 import brotli
+import yaml
 
 from gloss import parse_gloss
 from morphology import Recoverer
@@ -440,6 +442,43 @@ def main() -> int:
         BUILD / args.corpus / "bindings.json",
     ])
 
+    # ---- audio -------------------------------------------------------------
+    # The BUILD decides which records have recitation, so the play button's
+    # presence is data, not a client-side probe. Two sources, local winning:
+    #
+    #   1. The corpus config's `recitation` block — base URL + filename
+    #      pattern + covered number ranges. The files themselves are GitHub
+    #      RELEASE ASSETS (300+ MB; committing them would bloat git history
+    #      forever and walk into Pages' 1 GB site cap), so availability is
+    #      declared, not scanned. A wrong range here means a 404 behind a
+    #      button — extend the ranges only when the assets are uploaded.
+    #   2. Local files in web/public/audio, matched by trailing number —
+    #      these OVERRIDE the declared URLs so a dev machine can test with
+    #      dummies, and remain the path for a future small self-hosted set.
+    #
+    # The stamped value is `audioUrl`: absolute (http…) for release assets,
+    # a bare filename for local files; the client tells them apart by scheme.
+    audio_by_number: dict[int, str] = {}
+    recit = (yaml.safe_load(
+        (ROOT / "corpora" / f"{args.corpus}.yaml").read_text(encoding="utf-8"))
+        or {}).get("recitation")
+    if recit:
+        for lo, hi in recit.get("numbers", []):
+            for n in range(int(lo), int(hi) + 1):
+                audio_by_number[n] = recit["baseUrl"] + recit["pattern"].format(n=n)
+        print(f"  audio: {len(audio_by_number)} recitation URLs declared "
+              f"({recit['baseUrl'].split('/')[2]})")
+    audio_dir = ROOT.parent / "web" / "public" / "audio"
+    if audio_dir.is_dir():
+        local = 0
+        for f in sorted(audio_dir.glob("*.mp3")):
+            m = re.search(r"(\d+)\.mp3$", f.name)
+            if m:
+                audio_by_number[int(m.group(1))] = f.name
+                local += 1
+        if local:
+            print(f"  audio: {local} local files override the declared URLs")
+
     # ---- hadith files ------------------------------------------------------
     by_id = {r["id"]: r for r in records["records"]}
     hadith_sizes = []
@@ -453,6 +492,9 @@ def main() -> int:
             "zawaidNote": rec["zawaidNote"],
             "bukhariRefs": rec["bukhariRefs"],
             "prev": rec["prev"], "next": rec["next"],
+            "audioUrl": next(
+                (audio_by_number[n] for n in rec["numbersCovered"]
+                 if n in audio_by_number), None),
             "tokens": [
                 {
                     "i": t["i"], "surface": t["surface"], "raw": t["raw"],

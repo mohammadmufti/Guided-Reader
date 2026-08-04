@@ -155,6 +155,12 @@ export interface Navigation {
   orderedIds: string[];
   /** Display number (as string) -> record ID. Gaps are simply absent. */
   numberIndex: Record<string, string>;
+  /**
+   * This record's recitation: an absolute URL (release-hosted asset) or a bare filename under
+   * the app's /audio/ (local file, which overrides the declared URL at build time). Null when no
+   * recording exists, and the play button renders nothing.
+   */
+  audioUrl: string | null;
 }
 
 /** `records.json` — the whole segmented corpus. Output of Phase 1. */
@@ -433,6 +439,12 @@ export interface HadithFile {
   tokens: Token[];
   prev: string | null;
   next: string | null;
+  /**
+   * This record's recitation: an absolute URL (release-hosted asset) or a bare filename under
+   * the app's /audio/ (local file, which overrides the declared URL at build time). Null when no
+   * recording exists, and the play button renders nothing.
+   */
+  audioUrl: string | null;
 }
 
 /** A chapter in the browsable tree. */

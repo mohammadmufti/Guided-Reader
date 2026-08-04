@@ -195,6 +195,15 @@ class Navigation(TypedDict):
     numberIndex: Annotated[
         dict[str, str], Doc("Display number (as string) -> record ID. Gaps are simply absent.")
     ]
+    audioUrl: Annotated[
+        str | None,
+        Doc(
+            "This record's recitation: an absolute URL (release-hosted asset) "
+            "or a bare filename under the app's /audio/ (local file, which "
+            "overrides the declared URL at build time). Null when no "
+            "recording exists, and the play button renders nothing."
+        ),
+    ]
 
 
 class RecordsFile(TypedDict):
@@ -474,6 +483,15 @@ class HadithFile(TypedDict):
     tokens: list[Token]
     prev: str | None
     next: str | None
+    audioUrl: Annotated[
+        str | None,
+        Doc(
+            "This record's recitation: an absolute URL (release-hosted asset) "
+            "or a bare filename under the app's /audio/ (local file, which "
+            "overrides the declared URL at build time). Null when no "
+            "recording exists, and the play button renders nothing."
+        ),
+    ]
 
 
 # --------------------------------------------------------------------------
