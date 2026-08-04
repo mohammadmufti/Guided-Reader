@@ -7,6 +7,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
 import { NavControls } from "@/components/NavControls";
 import AboutBook from "@/components/AboutBook";
+import AudioButton from "@/components/AudioButton";
 import { JumpTo } from "@/components/JumpTo";
 import { BookBrowser } from "@/components/BookBrowser";
 import { ReadingControls } from "@/components/ReadingControls";
@@ -308,6 +309,9 @@ function PageView({
           <span data-hadith-number className="text-3xl tabular-nums">
             {main.number}
           </span>
+          {/* recitation, when this hadith has a recording — header row only,
+              never inside the matn */}
+          <AudioButton url={main.audioUrl} />
           {main.kitab && (
             <span className="arabic text-sm" lang="ar">
               {main.kitab.titleAr}

@@ -199,3 +199,17 @@ about:
         url: https://www.youtube.com/watch?v=tKXENLvIExE
       - label: "File 4"
         url: https://www.youtube.com/watch?v=6uKJjT9tgkU
+
+# ---------------------------------------------------------------------------
+# Recitation audio. The files are 300+ MB and live as GitHub RELEASE ASSETS,
+# not in git — the repo stays code-sized and Pages' 1 GB site cap is never
+# approached. The build expands this block into a per-record audioUrl; a
+# hadith outside the ranges ships null and renders no button. Files placed
+# locally in web/public/audio (matched by trailing number) OVERRIDE these
+# URLs, so a dev machine can test with dummies.
+recitation:
+  baseUrl: https://github.com/mohammadmufti/Guided-Reader/releases/download/audio-tajrid-v1/
+  pattern: "al-tajrid_as-sari_hamed_ad-darahim_ar_{n:04d}.mp3"
+  # inclusive ranges of hadith numbers with recordings; extend as more land
+  numbers:
+    - [1, 325]
