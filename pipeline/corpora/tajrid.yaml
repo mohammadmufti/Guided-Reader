@@ -118,11 +118,37 @@ segmentation:
   # The workbook's pipeline emitted an extra empty record after each kitab
   # heading; carrying that index lets its `first_record` and `kwic` columns
   # resolve against our records.
-  workbook_index_phantoms: true
+  curated_index_phantoms: true
 
 # Measured against the supplied workbook. The segmenter reports its delta
 # against these; a corpus without a workbook simply omits the block.
 expected:
+  # Lexicon figures, measured 2026-07-26 (SPEC.md §3.3/§3.4). These were module
+  # constants in lexicon.py until Phase 1, which meant a second corpus was
+  # checked against al-Tajrid's numbers and failed for the wrong reason.
+  lexicon:
+    coverage:
+      gloss_msa:             [98.2, 21028]
+      root:                  [51.9, 18894]
+      classical_keywords:    [50.8, 18226]
+      curated_sense:         [11.8, 2539]
+      morph_exact_with_case: [67.7, 17361]
+      pos_agreement_agree:   [70.4, 17752]
+      voc_source_aligned:    [90.0, 16969]
+    ambiguity:
+      distinct_keys: 18593
+      ambiguous_keys: 2631
+      ambiguous_token_pct: 49.7
+      most_frequent_ceiling_pct: 85.9
+    divergence:
+      not_applicable: 47.6
+      aligned: 16.8
+      curated: 11.8
+      developed_sense: 9.0
+      no_msa_gloss: 8.2
+      divergent: 5.6
+      no_classical_entry: 1.1
+
   layer_tokens:
     matn: 119077
     zawaid: 6063
@@ -213,3 +239,12 @@ recitation:
   # inclusive ranges of hadith numbers with recordings; extend as more land
   numbers:
     - [1, 325]
+
+# ---------------------------------------------------------------------------
+# Binding gates. Per corpus, not global: a witness-only text cannot reach this
+# threshold, and lowering a shared constant to admit one would weaken the
+# guarantee this text actually meets.
+gates:
+  min_witnessed_matn: 90.0    # Tier 1+2 on matn
+  naive_ceiling_pct: 85.9     # for comparison: always take the most frequent
+  min_retrieval_median: 0.85  # below this, suspect the wrong parent edition

@@ -45,6 +45,7 @@ ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "build"
 
 sys.path.insert(0, str(ROOT))
+from corpus import inline_strip_patterns, load_config
 from tokenise import tokenise  # noqa: E402
 
 WEAK = set("وي")
@@ -81,13 +82,14 @@ def main() -> int:
     if args.limit:
         records = records[: args.limit]
 
+    strip = inline_strip_patterns(load_config(args.corpus))
     disambiguator = Disambiguator()
     out: dict[str, dict] = {}
     total = analysed = 0
     started = time.time()
 
     for n, record in enumerate(records, 1):
-        _, tokens = tokenise(record["textRaw"])
+        _, tokens = tokenise(record["textRaw"], strip)
         if not tokens:
             continue
         try:

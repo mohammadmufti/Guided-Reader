@@ -1,0 +1,201 @@
+# Corpus configuration — Muwatta' Malik
+#
+# DRAFT for Phase 3. This will not bind until Phase 1 lands: `bind.py` and
+# `lexicon.py` still read al-Tajrid's workbook regardless of --corpus, so
+# running them against this corpus today silently binds the Muwatta' against
+# al-Tajrid's lexicon. Segment only until that is fixed.
+#
+# RECENSION WARNING. OpenITI carries nine Muwatta' versions and they are not
+# nine digitisations of one text — they are different riwayat with different
+# hadith selections and orderings:
+#
+#     Shamela0001699   Yahya al-Laythi (the standard recension)  148,370 tok
+#     Shamela0008140   Yahya al-Laythi, different edition        158,481 tok
+#     ShamAY0033921    riwayat Ibn al-Qasim                       33,757 tok
+#     ShamAY0033922    riwayat Ibn Ziyad                           5,878 tok
+#     ShamAY0033923    riwayat Suwayd b. Sa'id al-Hadathani       87,723 tok
+#     Shamela0016050   riwayat Muhammad b. al-Hasan al-Shaybani   64,449 tok
+#     Shamela0028107   with apparatus                            245,646 tok
+#     Shia000901Vols   multi-volume edition                      219,281 tok
+#
+# The vocalisation reference below is the Yahya al-Laythi recension, so the
+# source MUST be one too. Measured retrieval coverage against it, using the
+# project's own normalise() and IDF retrieval:
+#
+#     Shamela0001699   median 0.962   <- chosen
+#     JK000466         median 0.912
+#     Shamela0008140   median 0.731
+#     Shamela0016050   median 0.617   (Shaybani — a genuinely different text)
+#     Shamela0028107   median 0.500
+#     Shia000901Vols   median 0.429
+#
+# 0.962 matches what al-Tajrid scores against Bukhari (0.96). The low scorers
+# are not noisier scans; they are other books. If a future corpus's retrieval
+# median comes in low, suspect the recension before suspecting the pipeline.
+
+id: muwatta
+
+display:
+  titleAr: "موطأ الإمام مالك"
+  titleEn: "al-Muwaṭṭaʾ"
+  authorAr: "مالك بن أنس الأصبحي المدني"
+  author: "Mālik b. Anas al-Aṣbaḥī al-Madanī"
+  authorDied: "179 AH"
+  edition: "unknown — verify against the OpenITI header before shipping"
+  # Measured at Phase 3: 61 kitab, 702 bab, 1,891 hadith, 146,009 tokens.
+  recension: "riwayat Yahya b. Yahya al-Laythi (matches the witness)"
+  subject: "الحديث والموطآت"
+  # Public domain: the author died in 179 AH.
+  rights: "public-domain"
+  # Phase 0 (A2) made this configurable. It is what the UI prints beside a
+  # cross-reference number; al-Tajrid says "بخاري", this text cites nothing.
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # NOTE THE EXTENSION. al-Tajrid's URI is bare, al-Rawd carries `.mARkdown`,
+    # this one carries `.completed`. Do not copy either sibling's comment about
+    # "the bare URI IS the file" forward — it is true only of al-Tajrid.
+    uri: https://raw.githubusercontent.com/OpenITI/0200AH/master/data/0179MalikIbnAnas/0179MalikIbnAnas.Muwatta/0179MalikIbnAnas.Muwatta.Shamela0001699-ara1.completed
+    filename: muwatta.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # Same repo and same shape as the Bukhari witness already in use: single
+    # column, header row literally "Maliks Muwatta", one hadith per row.
+    # 1,594 rows, 98.7% of tokens carry at least one mark (0.869 marks/letter).
+    # Spaces in the path MUST be percent-encoded, as the Bukhari URI is.
+    uri: https://raw.githubusercontent.com/abdelrahmaan/Hadith-Data-Sets/master/All%20Hadith%20Books/Maliks%20Muwatta.csv
+    filename: muwatta_vocalised.csv
+    encoding: utf-8
+    notes: |
+      Repo is unlicensed (no LICENSE file). Used here only as an alignment
+      reference to transfer vocalisation; no text from it is redistributed in
+      the app's output payload. Same treatment as the Bukhari witness.
+
+  # NO `lexicon` BLOCK — deliberately.
+  #
+  # No frequency workbook exists for this text. Under Phase 1 that is a legal
+  # configuration: Tier 1 is unavailable, and Tiers 3 and 4 with it, because
+  # all three need lexicon candidates. The corpus binds on Tier 2 (witness) and
+  # Tier 5 (unbound) alone. `bind.py` must report that in words rather than
+  # printing 0% and letting it look like a failure.
+
+# Gloss donors. NOT a source of candidate readings -- see `Lexicon.enrich_from`.
+# These workbooks fill in what a word MEANS for readings this corpus already
+# arrived at from its own witness. Measured at Phase 5: 89.0% of bound matn
+# tokens are readings al-Tajrid's workbook already glosses, because both texts
+# are hadith Arabic and `match_id` is derived from the form rather than from
+# frequency.
+# MEASURED at Phase 5, after enrichment: 6,211 of 12,878 minted readings gain a
+# gloss, covering 73.0% of matn tokens (89.0% of bound ones). 9.1% of matn is
+# clickable but has nothing to say; 17.9% is unbound and shown bare. Tiering is
+# byte-identical with and without donors, which is the property that makes this
+# safe: enrichment cannot move a binding.
+# Superseded by build/glossary/glossary.json, which `bind.py` reads
+# automatically. Kept only as a fallback for a checkout where the glossary has
+# not been exported yet; remove once `glossary.py` is part of the normal run.
+lexicon_donors:
+  - tajrid
+
+# ---------------------------------------------------------------------------
+# Segmentation.
+#
+# First corpus to use TWO structural levels. al-Tajrid has one (`### |`), and
+# al-Rawd has one. Here `### |` is a kitab and `### ||` is a bab — 61 and 702
+# of them respectively in this version.
+segmentation:
+  # TWO capture groups: level marker, then title. With `section_levels` below
+  # this tells the segmenter the hierarchy instead of making it guess from the
+  # heading's wording — which cannot work here, because a kitab heading reads
+  # `1 - كتاب وقوت الصلاة` and matches the numbered-opener rule.
+  section: '^###\s*(\|+)\s*(.*)$'
+  section_levels:
+    "|": top
+    "||": sub
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  # DRAFTED WRONG, corrected against the file. This text DOES number, twice
+  # over: kitab headings read `### | 1 - كتاب وقوت الصلاة`, and each hadith is
+  # opened by a bare `# 1 - ` on a line of its own with the text following on
+  # the NEXT body line. al-Tajrid puts the number and the text on one line.
+  opener: '^(\d+)\s*-\s*(.*)$'
+  # The number sits on a BODY line here, not on the section line. Default is
+  # `section`, which is al-Tajrid's grammar.
+  opener_on: paragraph
+  # The edition restarts hadith numbering at 1 in every kitab — 61 restarts,
+  # maximum 255 — so the printed number cannot address a hadith on its own.
+  # A running displayNumber is assigned over the whole text; the edition's own
+  # number survives as editionNumber and is shown in the heading.
+  numbering: continuous
+  #
+  # CHECKED AGAINST AN EXTERNAL WITNESS (sunnah.com), and the answer is that
+  # the continuous number is an ADDRESS, not a citation.
+  #
+  #   sunnah.com/malik lists 61 books; we segment 61 kitab, same order,
+  #   same titles. That part agrees exactly.
+  #
+  #   sunnah.com's "Arabic reference" is itself a running count across the
+  #   whole work: Book 4 Hadith 1 is Arabic reference 223. Ours makes it 217
+  #   -- a drift of 6 by the fourth book.
+  #
+  #   The drift is NOT missing hadith. Our per-kitab numbering is gapless
+  #   against this file: book 1 = 1..30, book 2 = 1..115, book 3 = 1..70,
+  #   book 4 = 1..3, no gaps. sunnah.com's Arabic reference gives book 1
+  #   thirty-TWO hadith. It is numbering a different printed edition.
+  #
+  # So `displayNumber` must never be presented as "the hadith number": it
+  # matches no printed edition and no external reference, and a reader who
+  # cited it would be citing us. It is a stable in-app address. What gets
+  # SHOWN is `editionNumber` together with its kitab -- "Book 3, Hadith 70" --
+  # which is the form every external reference uses and which does resolve.
+  # No editorial cross-reference apparatus. Phase 0 (A3) means declaring
+  # nothing here strips nothing — previously `(بخاري: N)` was removed from
+  # every corpus whether or not it made sense.
+  editorial_reference: null
+  heading_top_prefixes: ["كتاب"]
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+# ---------------------------------------------------------------------------
+# Gates. Per-corpus rather than global, because a witness-only corpus cannot
+# reach al-Tajrid's 90% and lowering the global constant would quietly weaken
+# al-Tajrid's own guarantee.
+gates:
+  # Tier 1+2 on matn. Set from the Phase 4 measurement, not guessed — this
+  # placeholder must be replaced with the observed figure and a note saying so.
+  # MEASURED at Phase 4, witness-only (no workbook):
+  #   Tier 2 (witnessed at position, high) 24.2% of matn
+  #   Tier 1 (minted, unopposed, MEDIUM)   40.8%
+  #   Tier 3 / 4 (inferred)                 6.9% / 10.2%
+  #   Tier 5 (unbound, shown bare)         17.9%
+  # Tier 1+2 = 65.0%, against al-Tajrid's 97.2%. Set deliberately BELOW the
+  # measurement so the gate catches regression rather than merely restating
+  # today's number, and nowhere near al-Tajrid's 90% — which this corpus
+  # cannot reach and should not be judged against.
+  # Re-measured after `seed_from_witness`: reading the witness as a TYPE
+  # lexicon rather than only as aligned rows took Tier 1+2 from 65.0% to 73.0%
+  # and unbound from 17.9% to 6.8%. Threshold left below the measurement so it
+  # catches regression rather than restating today's figure.
+  min_witnessed_matn: 68.0
+  # Retrieval health. Below this the recension is probably wrong.
+  # MEASURED at Phase 3 against the real segmentation: median 0.963,
+  # 86.2% of 1,891 matn records matched at >= 0.35. 0.85 leaves room for
+  # edition noise while still failing loudly on a wrong recension
+  # (al-Shaybani's scores 0.617 against this same witness).
+  min_retrieval_median: 0.85

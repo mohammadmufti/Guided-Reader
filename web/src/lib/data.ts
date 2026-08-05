@@ -1,6 +1,49 @@
 import type { IndexFile, HadithFile, Layer } from "@/types/contracts";
 
-const BASE = `${import.meta.env.BASE_URL}data`;
+const ROOT = `${import.meta.env.BASE_URL}data`;
+
+/**
+ * Which book is being read.
+ *
+ * The payload used to live at one path and `index.json` simply WAS al-Tajrid.
+ * It is now `data/corpora/{id}/`, with `data/corpora.json` listing what this
+ * deployment serves. The current corpus is module state rather than a React
+ * context because `loadRecord` and friends are plain functions called from
+ * outside the component tree; the URL remains the source of truth and calls
+ * `setCorpus` on navigation.
+ */
+let currentCorpus = "tajrid";
+export const corpusBase = () => `${ROOT}/corpora/${currentCorpus}`;
+/** Payload root, above any corpus: the shared lexicon lives here. */
+export const dataRoot = () => ROOT;
+const BASE = corpusBase;
+
+export function getCorpus(): string {
+  return currentCorpus;
+}
+
+export interface CorpusSummary {
+  id: string;
+  titleAr: string | null;
+  titleEn: string | null;
+  author: string | null;
+  records: number;
+  unit: string;
+  hasGlosses: boolean;
+}
+
+let registryPromise: Promise<CorpusSummary[]> | null = null;
+
+/** The only file fetched before we know which book we are showing. */
+export function loadCorpora(): Promise<CorpusSummary[]> {
+  registryPromise ??= fetch(`${ROOT}/corpora.json`, { cache: "no-cache" })
+    .then((r) => {
+      if (!r.ok) throw new Error(`corpora.json: HTTP ${r.status}`);
+      return r.json();
+    })
+    .then((d) => d.corpora as CorpusSummary[]);
+  return registryPromise;
+}
 
 /**
  * The index is loaded once and held. Everything else is versioned by its
@@ -20,7 +63,7 @@ export function loadIndex(): Promise<IndexFile> {
   // `web/public/_headers` already says this file must revalidate, but GitHub
   // Pages ignores `_headers` and applies its own cache. The header is advice to
   // hosts that read it; this is the part that does not depend on the host.
-  indexPromise ??= fetch(`${BASE}/index.json`, { cache: "no-cache" }).then((r) => {
+  indexPromise ??= fetch(`${BASE()}/index.json`, { cache: "no-cache" }).then((r) => {
     if (!r.ok) throw new Error(`index.json: HTTP ${r.status}`);
     return r.json() as Promise<IndexFile>;
   });
@@ -40,10 +83,25 @@ export function invalidateIndex(): void {
 
 const hadithCache = new Map<string, Promise<HadithFile>>();
 
+export function setCorpus(id: string): void {
+  if (id === currentCorpus) return;
+  currentCorpus = id;
+  // Everything cached belongs to the previous book. Records and the index are
+  // per-corpus; keeping them would silently show one book's hadith under
+  // another's navigation.
+  indexPromise = null;
+  hadithCache.clear();
+  // Deliberately NOT clearing the shared surface shards: they are the same
+  // bytes for every corpus, and dropping them would make switching books cost
+  // a re-download of the lexicon it already has.
+}
+
+
+
 export function loadRecord(id: string, buildId: string): Promise<HadithFile> {
   let p = hadithCache.get(id);
   if (!p) {
-    p = fetch(`${BASE}/hadith/${id}.json?v=${buildId}`).then((r) => {
+    p = fetch(`${BASE()}/hadith/${id}.json?v=${buildId}`).then((r) => {
       if (!r.ok) throw new Error(`${id}: HTTP ${r.status}`);
       return r.json() as Promise<HadithFile>;
     });

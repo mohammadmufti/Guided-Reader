@@ -307,9 +307,11 @@ Full definitions live in `pipeline/contracts.py`. The load-bearing points:
 - **`RecordType`** is `hadith | kitab | bab | frontmatter`. Revision 1's fifth
   value `zawaid_note` is removed — see §3.2.
 - **`Layer`** is `matn | zawaid | heading_bab | heading_kitab | frontmatter`.
-- Records carry `seq` (our clean sequence), `workbookIndex` (the foreign
+- Records carry `seq` (our clean sequence), `curatedIndex` (the foreign
   convention, for resolving `first_record` and `kwic`), `numbersCovered`,
-  `tokens`, `zawaidNote`, and `bukhariRefs`.
+  `tokens`, `zawaidNote`, and `crossRefs`.
+  (Renamed from `workbookIndex` and `bukhariRefs` at schemaVersion 6: both
+  named one text's apparatus in a schema every text shares.)
 - Tokens carry `binding` (`unique | aligned | heuristic | unbound`) and
   `confidence` (`high | medium | low | none`). These are not decoration; they
   decide whether a word is clickable and whether its panel carries a caveat.

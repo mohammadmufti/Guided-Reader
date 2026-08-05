@@ -53,8 +53,16 @@ exactly, which only works if the bodies — not the notes — are the records.
 Layer = Literal["matn", "zawaid", "heading_bab", "heading_kitab", "frontmatter"]
 """Which textual layer a record belongs to. Mirrors the workbook's own names."""
 
-Binding = Literal["aligned", "unique", "heuristic", "unbound"]
-"""How a token was bound to the lexicon. Tiers 1-5 of Phase 3."""
+Binding = Literal["source", "aligned", "unique", "heuristic", "unbound"]
+"""How a token was bound to the lexicon. Tiers 0-5 of Phase 3.
+
+`source` is Tier 0: the corpus file itself carried a full vowelling,
+including a final short vowel, and it outranks both the aligned witness
+and the workbook. Every corpus configured today is bare, so no token
+currently carries it -- but a text taken from Shamela or a hadith dataset
+rather than from OpenITI will, and discarding that would mean inferring an
+answer the file already gave.
+"""
 
 Confidence = Literal["high", "medium", "low", "none"]
 """How much to trust the binding. Drives UI caveats, never hidden."""
@@ -123,7 +131,7 @@ class CorpusMeta(TypedDict):
     edition: Annotated[str | None, Doc("Print edition the source encodes, if stated.")]
     referenceLink: Annotated[
         ReferenceLink | None,
-        Doc("How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing."),
+        Doc("How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing."),
     ]
     about: Annotated[
         CorpusAbout | None,
@@ -165,7 +173,15 @@ class CorpusRecord(TypedDict):
     pages: Annotated[list[str], Doc("Page markers falling inside this record, in order.")]
     textRaw: Annotated[str, Doc("Extracted text with all structural markers stripped.")]
     seq: Annotated[int, Doc("1-based position in reading order. The suffix of `id`.")]
-    workbookIndex: Annotated[
+    # Reconciliation to an externally curated inventory's own record
+    # numbering. al-Tajrid has one -- its workbook counts phantom records that
+    # we do not emit, so `first_record` and `kwic` only resolve against this
+    # index rather than against `seq`. No later corpus has such an inventory,
+    # declares `curated_index_phantoms`, or carries this field.
+    #
+    # Named for the concept and not for the spreadsheet: a workbook is one way
+    # to be curated, and the schema should outlive that particular one.
+    curatedIndex: Annotated[
         int,
         Doc(
             "Index of this record in the WORKBOOK's record sequence, which runs 1..2640 "
@@ -177,7 +193,7 @@ class CorpusRecord(TypedDict):
     zawaidNote: Annotated[
         str | None, Doc("The al-Daghistani addition note, for zawaid records only. Null elsewhere.")
     ]
-    bukhariRefs: Annotated[
+    crossRefs: Annotated[
         list[int],
         Doc(
             "Bukhari hadith numbers from the editorial `(بخاري: N)` reference. Empty when "
@@ -479,7 +495,7 @@ class HadithFile(TypedDict):
         ),
     ]
     zawaidNote: str | None
-    bukhariRefs: list[int]
+    crossRefs: list[int]
     tokens: list[Token]
     prev: str | None
     next: str | None
@@ -524,7 +540,15 @@ class ShardConfig(TypedDict):
     `shard_count` in build.py. Read them from here; never hard-code them.
     """
 
-    surface: Annotated[int, Doc("Route by hash(search_key) % this.")]
+    surface: Annotated[int, Doc(
+        "Route STATISTICS by hash(search_key) % this. Per corpus."
+    )]
+    sharedSurface: Annotated[int | None, Doc(
+        "Route lexical ENTRIES by hash(search_key) % this, under data/lexicon/. "
+        "Shared across every corpus, because match_id is derived from the form "
+        "and an entry is identical wherever it occurs. Null until share.py has "
+        "run, in which case entries live under the corpus at `surface`."
+    )]
     classical: Annotated[int, Doc("Route by hash(lane_root) % this.")]
     lane: Annotated[int, Doc("Route by hash(lane_root) % this.")]
     hash: Annotated[str, Doc("Hash name. 'fnv1a-32' — 32-bit FNV-1a over UTF-8 bytes.")]

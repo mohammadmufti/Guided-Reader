@@ -30,9 +30,12 @@ Not done, and each is a phase below:
   second text beside it.
 - The client has **no concept of a current corpus** — `data.ts` hard-codes the
   single path.
-- Routes are `/hadith/:number`. **The noun is hadith-specific**: a geographical
+- ~~Routes are `/hadith/:number`.~~ DONE: routes are `/:corpus/read/:number`,
+  with `/hadith/:number` redirecting to al-Tajrīd so existing links survive.
+  The original note, still worth keeping: a geographical
   dictionary has entries, not numbered hadith.
-- CI builds one corpus.
+- ~~CI builds one corpus.~~ DONE: CI builds al-Tajrīd and the Muwaṭṭaʾ end to
+  end and segments al-Rawḍ, then runs `share.py` to deduplicate the lexicon.
 - `rawd` stops at segmentation and has never produced a payload.
 
 ---

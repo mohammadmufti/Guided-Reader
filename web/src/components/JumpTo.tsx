@@ -1,5 +1,5 @@
 import { useState, forwardRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
 import { numberedList } from "@/lib/data";
 
@@ -19,6 +19,10 @@ export const JumpTo = forwardRef<HTMLInputElement, Props>(function JumpTo({ inde
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  // Component body, NOT inside submit(): a hook called from an event
+  // handler breaks the rules of hooks, and the navigation silently never
+  // happens. TypeScript cannot see it; the phase-5 gate caught it.
+  const { corpus = "tajrid" } = useParams();
   const numbers = numberedList(index);
   const max = numbers[numbers.length - 1] ?? 0;
 
@@ -40,7 +44,7 @@ export const JumpTo = forwardRef<HTMLInputElement, Props>(function JumpTo({ inde
     }
     setError(null);
     setValue("");
-    navigate(`/hadith/${n}`);
+    navigate(`/${corpus}/read/${n}`);
   }
 
   return (

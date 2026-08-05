@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 /**
  * DIRECTION DECISION — read this before changing an arrow.
@@ -46,6 +46,9 @@ function Step({
   arrow: string;
   side: "prev" | "next";
 }) {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
   const shared =
     "inline-flex items-center gap-2 rounded-md border border-(--color-rule) px-3 py-2 text-sm";
   if (to === null) {
@@ -62,7 +65,7 @@ function Step({
   }
   return (
     <Link
-      to={`/hadith/${to}`}
+      to={`/${corpus}/read/${to}`}
       className={`${shared} transition-colors hover:bg-(--color-rule)/40`}
       aria-label={`${labelEn} — ${labelAr} (${to})`}
       rel={side === "next" ? "next" : "prev"}

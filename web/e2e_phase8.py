@@ -109,7 +109,7 @@ def main() -> int:
             page = browser.new_page(
                 viewport={"width": 1440, "height": 1100}, color_scheme=scheme
             )
-            page.goto(f"{BASE}/hadith/38?w=48", wait_until="networkidle")
+            page.goto(f"{BASE}/tajrid/read/38?w=48", wait_until="networkidle")
             page.wait_for_selector('aside [data-panel="ready"]')
             page.wait_for_timeout(400)
             # Put a real hover on a word so the hover pair can be measured.
@@ -139,7 +139,7 @@ def main() -> int:
         page = browser.new_page(
             viewport={"width": 1440, "height": 1000}, reduced_motion="reduce"
         )
-        page.goto(f"{BASE}/hadith/1", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1", wait_until="networkidle")
         page.wait_for_selector(".arabic-body [data-token]")
         durations = page.evaluate(
             """() => [...document.querySelectorAll('*')]
@@ -152,7 +152,7 @@ def main() -> int:
 
         # ---- keyboard-only walkthrough ---------------------------------------
         page = browser.new_page(viewport={"width": 1440, "height": 1100})
-        page.goto(f"{BASE}/hadith/1", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1", wait_until="networkidle")
         page.wait_for_selector(".arabic-body [data-token]")
         page.wait_for_timeout(300)
 
@@ -208,7 +208,7 @@ def main() -> int:
         # ---- three viewport widths -------------------------------------------
         for width, label in ((360, "360"), (768, "768"), (1440, "1440")):
             page = browser.new_page(viewport={"width": width, "height": 900})
-            page.goto(f"{BASE}/hadith/38?w=48", wait_until="networkidle")
+            page.goto(f"{BASE}/tajrid/read/38?w=48", wait_until="networkidle")
             page.wait_for_selector('aside [data-panel="ready"]')
             page.wait_for_timeout(500)
             overflow = page.evaluate(

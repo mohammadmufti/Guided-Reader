@@ -50,7 +50,7 @@ def main() -> int:
         page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
 
         # ---- empty state -----------------------------------------------------
-        page.goto(f"{BASE}/hadith/1", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1", wait_until="networkidle")
         page.wait_for_selector("aside")
         empty = page.locator("aside").inner_text()
         check("empty state invites action", "Select any word" in empty, empty[:60])
@@ -64,7 +64,7 @@ def main() -> int:
         seen_divergence: set[str] = set()
         for case in SAMPLE:
             tag = f"{case['criterion']} (hadith {case['number']}, word {case['i']})"
-            page.goto(f"{BASE}/hadith/{case['number']}?w={case['i']}",
+            page.goto(f"{BASE}/tajrid/read/{case['number']}?w={case['i']}",
                       wait_until="networkidle")
             try:
                 page.wait_for_selector('aside [data-panel="ready"], aside section', timeout=8000)
@@ -103,7 +103,7 @@ def main() -> int:
         # ---- specific promises ----------------------------------------------
         # curated: literal and technical shown side by side
         curated = next(c for c in SAMPLE if c["criterion"] == "div:curated")
-        page.goto(f"{BASE}/hadith/{curated['number']}?w={curated['i']}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{curated['number']}?w={curated['i']}", wait_until="networkidle")
         page.wait_for_selector('aside [data-panel="ready"]')
         t = page.locator("aside").inner_text()
         # inner_text() returns RENDERED text, and these labels carry
@@ -119,7 +119,7 @@ def main() -> int:
         for case in SAMPLE:
             if case["criterion"] in ("unbound", "no_gloss"):
                 continue  # no lexicon entry, so no panel to wait on
-            page.goto(f"{BASE}/hadith/{case['number']}?w={case['i']}", wait_until="networkidle")
+            page.goto(f"{BASE}/tajrid/read/{case['number']}?w={case['i']}", wait_until="networkidle")
             try:
                 page.wait_for_selector('aside [data-panel="ready"]', timeout=8000)
             except Exception:
@@ -142,7 +142,7 @@ def main() -> int:
 
         # not_applicable renders nothing rather than an empty divergence box
         na = next(c for c in SAMPLE if c["criterion"] == "div:not_applicable")
-        page.goto(f"{BASE}/hadith/{na['number']}?w={na['i']}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{na['number']}?w={na['i']}", wait_until="networkidle")
         page.wait_for_selector('aside [data-panel="ready"]')
         na_text = page.locator("aside").inner_text()
         check("not_applicable shows no divergence section",
@@ -158,7 +158,7 @@ def main() -> int:
         for c in SAMPLE:
             if c["criterion"] != "root_absent":
                 continue
-            page.goto(f"{BASE}/hadith/{c['number']}?w={c['i']}", wait_until="networkidle")
+            page.goto(f"{BASE}/tajrid/read/{c['number']}?w={c['i']}", wait_until="networkidle")
             page.wait_for_selector('aside [data-panel="ready"]')
             body = page.locator("aside").inner_text()
             if "ROOT AND LEMMA" in body.upper() and "do not have one" in body:
@@ -171,7 +171,7 @@ def main() -> int:
 
         # pos_agreement = disagree warns plainly
         pd = next(c for c in SAMPLE if c["criterion"] == "pos_disagree")
-        page.goto(f"{BASE}/hadith/{pd['number']}?w={pd['i']}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{pd['number']}?w={pd['i']}", wait_until="networkidle")
         page.wait_for_selector('aside [data-panel="ready"]')
         check("analyser disagreement warns that the root may be wrong",
               "may be wrong" in page.locator("aside").inner_text())
@@ -185,7 +185,7 @@ def main() -> int:
         check("no console or page errors during the walkthrough", not errors, str(errors[:3]))
 
         # screenshots
-        page.goto(f"{BASE}/hadith/{curated['number']}?w={curated['i']}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{curated['number']}?w={curated['i']}", wait_until="networkidle")
         page.wait_for_selector('aside [data-panel="ready"]')
         page.wait_for_timeout(400)
         page.screenshot(path=str(SHOTS / "phase7-curated.png"))

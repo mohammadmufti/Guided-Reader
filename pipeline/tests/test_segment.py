@@ -6,6 +6,8 @@ exercised nowhere else. `segment.py` contains no Arabic string and no
 corpus-specific regex; if that stops being true, this is what says so.
 """
 
+import pytest
+
 import re
 
 RESIDUALS = {
@@ -78,3 +80,83 @@ def test_second_corpus_still_segments(rawd_records):
     )
     assert len(rawd_records["records"]) == pins["records"]["total"]
     assert not _residuals(rawd_records), _residuals(rawd_records)[:5]
+
+
+# --- Muwatta': structural hierarchy and body-line openers -------------------
+#
+# Added at Phase 3. Both properties below were assumptions inside segment.py
+# until this corpus was configured: that heading level must be guessed from a
+# heading's wording, and that a numbered opener lives on the section line.
+
+
+def _muwatta():
+    import collections as _c, json
+    from conftest import BUILD
+    path = BUILD / "muwatta" / "records.json"
+    if not path.exists():
+        pytest.skip("muwatta records not present — run the pipeline first")
+    return json.loads(path.read_text(encoding="utf-8"))["records"]
+
+
+def test_muwatta_structural_levels_match_the_file():
+    """61 `### |` and 702 `### ||` in the source. Lexical inference collapsed
+    both into bab, because a kitab heading reads `1 - كتاب ...` and does not
+    start with its own keyword."""
+    recs = _muwatta()
+    import collections
+    layers = collections.Counter(r["layer"] for r in recs)
+    assert layers["heading_kitab"] == 61
+    assert layers["heading_bab"] == 702
+
+
+def test_muwatta_openers_split_hadith_not_babs():
+    """Reading the opener only on section lines produced exactly one matn
+    record per bab (703) instead of one per hadith."""
+    recs = _muwatta()
+    matn = [r for r in recs if r["layer"] == "matn"]
+    assert len(matn) > 1500
+    numbered = [r for r in matn if r.get("number")]
+    assert len(numbered) / len(matn) > 0.95
+
+
+def test_muwatta_edition_numbering_is_gapless_per_kitab():
+    """The invariant we can actually check without a network.
+
+    An external witness (sunnah.com) numbers this work continuously and
+    disagrees with us by 6 units at book 4 -- because it numbers a different
+    printed edition, giving book 1 thirty-two hadith where this file gives
+    thirty. A disagreement with sunnah.com is therefore not a bug.
+
+    What we CAN assert is fidelity to this file: no printed number may be
+    MISSING, because a gap means the opener parser dropped a hadith.
+
+    We deliberately do NOT assert uniqueness. Measured: this edition repeats a
+    number four times -- 13 and 48 in Kitab al-Hajj (13 three times over),
+    49 in Kitab al-Jihad, and two in Kitab al-Buyu'. The printed number is
+    therefore not a key even within one kitab, which is the strongest argument
+    for carrying a separate synthetic address: `editionNumber` cannot address
+    a record, and `displayNumber` must.
+    """
+    recs = _muwatta()
+    cur, per = None, {}
+    for r in recs:
+        if r["layer"] == "heading_kitab":
+            cur = r["id"]; per[cur] = []
+        elif r["layer"] == "matn" and cur:
+            if r.get("editionNumber"):
+                per[cur].append(r["editionNumber"])
+    checked = 0
+    for kid, nums in per.items():
+        if not nums:
+            continue
+        checked += 1
+        missing = sorted(set(range(1, max(nums) + 1)) - set(nums))
+        assert not missing, f"gap in {kid}: missing {missing[:10]}"
+    assert checked >= 55
+
+
+def test_muwatta_display_numbers_are_a_dense_sequence():
+    """displayNumber addresses a record; it must be 1..n with no holes."""
+    recs = _muwatta()
+    seq = [r["displayNumber"] for r in recs if r["layer"] == "matn"]
+    assert seq == list(range(1, len(seq) + 1))

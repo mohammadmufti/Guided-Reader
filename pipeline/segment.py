@@ -64,9 +64,12 @@ class Rules:
     bullet: re.Pattern[str] | None
     aside_marker: str | None
     heading_top_prefixes: tuple[str, ...]
+    section_levels: dict[str, str] | None
+    opener_on: str
+    numbering: str
     editorial_ref: re.Pattern[str] | None
     layers: dict[str, str]
-    emit_workbook_index: bool
+    emit_curated_index: bool
 
     @classmethod
     def from_config(cls, cfg: dict) -> "Rules":
@@ -91,13 +94,16 @@ class Rules:
             bullet=rx("aside_bullet"),
             aside_marker=seg.get("aside_marker"),
             heading_top_prefixes=tuple(seg.get("heading_top_prefixes", [])),
+            section_levels=seg.get("section_levels"),
+            opener_on=seg.get("opener_on", "section"),
+            numbering=seg.get("numbering", "edition"),
             editorial_ref=rx("editorial_reference"),
             layers={
                 "body": "matn", "aside": "zawaid", "top": "heading_kitab",
                 "sub": "heading_bab", "front": "frontmatter",
                 **(seg.get("layer_names") or {}),
             },
-            emit_workbook_index=bool(seg.get("workbook_index_phantoms", False)),
+            emit_curated_index=bool(seg.get("curated_index_phantoms", False)),
         )
 
 
@@ -207,7 +213,7 @@ class Segmenter:
             "textRaw": text,
             "numbersCovered": [number] if number is not None else [],
             "zawaidNote": None,
-            "bukhariRefs": [],
+            "crossRefs": [],
         }
         self.pending_pages = []
 
@@ -248,7 +254,21 @@ class Segmenter:
 
             sec = self.rules.section.match(line)
             if sec:
-                self.handle_section(sec.group(1), lineno)
+                # Two capture groups plus `section_levels` means the file states
+                # its own hierarchy: group 1 is the level marker, group 2 the
+                # title. One group means the level must be inferred lexically
+                # from `heading_top_prefixes`, which is all al-Tajrid's single
+                # `### |` level allows. Structural beats lexical wherever the
+                # file offers it -- the Muwatta' writes `### | N - كتاب ...`,
+                # whose title matches the numbered-opener rule and would
+                # otherwise be read as a hadith.
+                if self.rules.section_levels and sec.lastindex and sec.lastindex >= 2:
+                    self.handle_section(
+                        sec.group(2), lineno,
+                        level=self.rules.section_levels.get(sec.group(1).strip()),
+                    )
+                else:
+                    self.handle_section(sec.group(1), lineno)
                 continue
 
             para = self.rules.paragraph.match(line)
@@ -263,7 +283,7 @@ class Segmenter:
                 self.warnings.append(f"line {lineno}: unprefixed text {clean[:60]!r}")
                 self.add_text(clean)
 
-    def handle_section(self, payload: str, lineno: int) -> None:
+    def handle_section(self, payload: str, lineno: int, level: str | None = None) -> None:
         clean, pages = strip_markers(payload, self.rules)
 
         # A page-marker line carries no other content — it is not a record.
@@ -279,6 +299,14 @@ class Segmenter:
                 self.warnings.append(f"line {lineno}: zawa'id note with no preceding bullet body")
             self.close()
             self.add_pages(pages)
+            return
+
+        # A declared structural level is authoritative: this line is a
+        # heading, whatever its text happens to look like.
+        if level is not None:
+            self.emit_heading(clean, level)
+            self.add_pages(pages)
+            self.close()
             return
 
         opener = self.rules.opener.match(clean)
@@ -304,9 +332,16 @@ class Segmenter:
             self.add_pages(pages)
             return
 
-        # Everything else is a heading. One structural level in the file means
+        # Everything else is a heading. With one structural level in the file
         # the level has to be inferred lexically.
-        if self.rules.heading_top_prefixes and clean.startswith(self.rules.heading_top_prefixes):
+        is_top = bool(self.rules.heading_top_prefixes
+                      and clean.startswith(self.rules.heading_top_prefixes))
+        self.emit_heading(clean, "top" if is_top else "sub")
+        self.add_pages(pages)
+        self.close()
+
+    def emit_heading(self, clean: str, level: str | None) -> None:
+        if level == "top":
             self.kitab_idx += 1
             self.bab_idx = 0
             self.kitab = {"index": self.kitab_idx, "titleAr": clean}
@@ -316,14 +351,35 @@ class Segmenter:
             self.bab_idx += 1
             self.bab = {"index": self.bab_idx, "titleAr": clean}
             self.open(rtype="bab", layer=self.rules.layers["sub"], number=None, text=clean)
-        self.add_pages(pages)
-        self.close()
 
     def handle_paragraph(self, payload: str) -> None:
         clean, pages = strip_markers(payload, self.rules)
         self.add_pages(pages)
         if not clean:
             return
+
+        # WHERE the numbered opener lives is part of the line grammar, not a
+        # constant. al-Tajrid numbers on the section line (`### | 1 - ...`);
+        # the Muwatta' numbers on a body line of its own (`# 1 - `) with the
+        # text following on the next one. Assuming the former silently produced
+        # one record per bab instead of one per hadith -- 703 records for a
+        # text with about 1,600.
+        if self.rules.opener_on in ("paragraph", "both"):
+            opener = self.rules.opener.match(clean)
+            if opener:
+                numbers = [int(opener.group(1))]
+                rest = opener.group(2)
+                while True:
+                    nxt = self.rules.opener.match(rest)
+                    if not nxt:
+                        break
+                    numbers.append(int(nxt.group(1)))
+                    rest = nxt.group(2)
+                self.open(rtype="hadith", layer=self.rules.layers["body"],
+                          number=numbers[0], text=rest)
+                assert self.current is not None
+                self.current["numbersCovered"] = numbers
+                return
 
         bullet = self.rules.bullet.match(clean) if self.rules.bullet else None
         if bullet:
@@ -341,12 +397,41 @@ class Segmenter:
             if self.rules.editorial_ref is not None:
                 for m in self.rules.editorial_ref.finditer(rec["textRaw"]):
                     refs += [int(n) for n in re.findall(r"\d+", m.group(1))]
-            rec["bukhariRefs"] = refs
+            rec["crossRefs"] = refs
 
         for i, rec in enumerate(self.records, 1):
             rec["id"] = f"{rec['layer']}-{i:05d}"
             rec["seq"] = i
             rec["tokens"] = count_tokens(rec["textRaw"], self.rules)
+
+        # ---- display numbering ------------------------------------------
+        #
+        # al-Tajrid numbers its hadith continuously, 1-2254, so `number` is
+        # both what the edition prints and what a reader can be sent to.
+        # The Muwatta' restarts at 1 in every kitab: 61 restarts and a maximum
+        # of 255, which makes `number` alone ambiguous as an address -- there
+        # are sixty-odd hadith 1.
+        #
+        # `numbering: continuous` assigns a running `displayNumber` over the
+        # body layer in reading order and KEEPS the edition's own number in
+        # `editionNumber`, so a citation can still be resolved against the
+        # printed text. It is never invented where the edition already numbers
+        # unambiguously; al-Tajrid declares nothing and gets `displayNumber ==
+        # number`.
+        body = self.rules.layers["body"]
+        continuous = self.rules.numbering == "continuous"
+        n = 0
+        for rec in self.records:
+            if rec["layer"] != body:
+                rec["displayNumber"] = None
+                rec["editionNumber"] = None
+                continue
+            rec["editionNumber"] = rec["number"]
+            if continuous:
+                n += 1
+                rec["displayNumber"] = n
+            else:
+                rec["displayNumber"] = rec["number"]
 
         # Workbook index mapping.
         #
@@ -361,7 +446,7 @@ class Segmenter:
         wi = 0
         for i, rec in enumerate(self.records):
             wi += 1
-            rec["workbookIndex"] = wi
+            rec["curatedIndex"] = wi
             if rec["layer"] == self.rules.layers["top"]:
                 nxt = self.records[i + 1]["layer"] if i + 1 < len(self.records) else None
                 if nxt != self.rules.layers["sub"]:
@@ -410,8 +495,9 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         str(n): r["id"] for r in seg.records for n in r["numbersCovered"]
     }
     public_keys = (
-        "id", "number", "type", "layer", "kitab", "bab", "pages", "textRaw", "prev", "next",
-        "seq", "workbookIndex", "tokens", "numbersCovered", "zawaidNote", "bukhariRefs",
+        "id", "number", "displayNumber", "editionNumber", "type", "layer", "kitab",
+        "bab", "pages", "textRaw", "prev", "next",
+        "seq", "curatedIndex", "tokens", "numbersCovered", "zawaidNote", "crossRefs",
     )
     doc = {
         "corpus": corpus,
@@ -504,7 +590,7 @@ def write_report(doc: dict, seg: "Segmenter", stats: dict, corpus: str) -> Path:
         if r["bab"]:
             a(f"*Bab {r['bab']['index']}: {r['bab']['titleAr']}*  ")
         a(f"*Pages: {', '.join(r['pages']) or '—'}*  ")
-        a(f"*Bukhari: {', '.join(map(str, r['bukhariRefs'])) or '—'}*\n")
+        a(f"*Bukhari: {', '.join(map(str, r['crossRefs'])) or '—'}*\n")
         a(f"> {r['textRaw']}\n")
         if r["zawaidNote"]:
             a(f"**Zawa'id note:** {r['zawaidNote']}\n")
@@ -522,7 +608,7 @@ def main() -> int:
     args = ap.parse_args()
 
     cfg = yaml.safe_load((ROOT / "corpora" / f"{args.corpus}.yaml").read_text(encoding="utf-8"))
-    source = CACHE / cfg["sources"]["text"]["filename"]
+    source = CACHE / cfg["id"] / cfg["sources"]["text"]["filename"]
     rules = Rules.from_config(cfg)
     doc, seg = build(cfg, source, rules)
 
@@ -560,8 +646,8 @@ def main() -> int:
           f"{[r['numbersCovered'] for r in merged]}")
     print(f"unnumbered matn    {sum(1 for r in recs if r['layer']=='matn' and r['number'] is None)}")
     print(f"zawa'id notes      {sum(1 for r in recs if r['zawaidNote']):>8,}")
-    print(f"Bukhari refs       {sum(1 for r in recs if r['bukhariRefs']):>8,} records, "
-          f"{len({n for r in recs for n in r['bukhariRefs']}):,} distinct Bukhari numbers")
+    print(f"Bukhari refs       {sum(1 for r in recs if r['crossRefs']):>8,} records, "
+          f"{len({n for r in recs for n in r['crossRefs']}):,} distinct Bukhari numbers")
 
     hits = check_residuals(doc, rules)
     bad = {k: v for k, v in hits.items() if v}
@@ -591,8 +677,8 @@ def main() -> int:
         "n_numbered": len(numbers), "residuals": hits, "merged": merged,
         "unnumbered": sum(1 for r in recs if r["layer"] == "matn" and r["number"] is None),
         "n_zawaid": sum(1 for r in recs if r["zawaidNote"]),
-        "n_bukh": sum(1 for r in recs if r["bukhariRefs"]),
-        "n_bukh_distinct": len({n for r in recs for n in r["bukhariRefs"]}),
+        "n_bukh": sum(1 for r in recs if r["crossRefs"]),
+        "n_bukh_distinct": len({n for r in recs for n in r["crossRefs"]}),
         "samples": [("Shortest record", shortest["id"]), ("Longest record", longest["id"])]
         + ([("Aside / addition", with_note["id"])] if with_note else []),
     }

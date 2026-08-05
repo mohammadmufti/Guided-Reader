@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
 import { loadIndex } from "@/lib/data";
 import { search, searchByRoot, knownRoot, type Hit, type Mode } from "@/lib/search";
@@ -18,6 +18,9 @@ type State =
  * vowelling — expecting them to type it would defeat the purpose.
  */
 export function Search() {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const mode: Mode = params.get("mode") === "root" ? "root" : "form";
@@ -63,7 +66,7 @@ export function Search() {
           البحث في النص
         </h1>
         <Link
-          to="/hadith/1"
+          to={`/${corpus}/read/1`}
           className="rounded-md border border-(--color-rule) px-3 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
           lang="ar"
         >

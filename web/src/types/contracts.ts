@@ -14,7 +14,7 @@ export type RecordType = "hadith" | "kitab" | "bab" | "frontmatter";
 
 export type Layer = "matn" | "zawaid" | "heading_bab" | "heading_kitab" | "frontmatter";
 
-export type Binding = "aligned" | "unique" | "heuristic" | "unbound";
+export type Binding = "source" | "aligned" | "unique" | "heuristic" | "unbound";
 
 export type Confidence = "high" | "medium" | "low" | "none";
 
@@ -86,7 +86,7 @@ export interface CorpusMeta {
   sourceSha256: string;
   /** Print edition the source encodes, if stated. */
   edition: string | null;
-  /** How to turn a `bukhariRefs` number into a URL. Null if the corpus cites nothing. */
+  /** How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing. */
   referenceLink: ReferenceLink | null;
   /** Content for the 'about this book' popup; None until a corpus writes one. */
   about: CorpusAbout | null;
@@ -133,7 +133,7 @@ export interface CorpusRecord {
    * pipeline emits an extra empty record after most kitab headings. Use this, not `seq`, to
    * resolve the Surface sheet's `first_record` and `kwic`.
    */
-  workbookIndex: number;
+  curatedIndex: number;
   /** Token count under the workbook's tokenisation. See count_tokens(). */
   tokens: number;
   /** The al-Daghistani addition note, for zawaid records only. Null elsewhere. */
@@ -142,7 +142,7 @@ export interface CorpusRecord {
    * Bukhari hadith numbers from the editorial `(بخاري: N)` reference. Empty when the record
    * carries none. 2,207 of 2,254 hadith have one.
    */
-  bukhariRefs: number[];
+  crossRefs: number[];
   /** Previous record ID in reading order. Null at the head. */
   prev: string | null;
   /** Next record ID in reading order. Null at the tail. */
@@ -435,7 +435,7 @@ export interface HadithFile {
    */
   leading: string;
   zawaidNote: string | null;
-  bukhariRefs: number[];
+  crossRefs: number[];
   tokens: Token[];
   prev: string | null;
   next: string | null;
@@ -508,8 +508,15 @@ export interface LaneRoot {
  * them from here; never hard-code them.
  */
 export interface ShardConfig {
-  /** Route by hash(search_key) % this. */
+  /** Route STATISTICS by hash(search_key) % this. Per corpus. */
   surface: number;
+  /**
+   * Route lexical ENTRIES by hash(search_key) % this, under data/lexicon/. Shared across every
+   * corpus, because match_id is derived from the form and an entry is identical wherever it
+   * occurs. Null until share.py has run, in which case entries live under the corpus at
+   * `surface`.
+   */
+  sharedSurface: number | null;
   /** Route by hash(lane_root) % this. */
   classical: number;
   /** Route by hash(lane_root) % this. */
