@@ -490,12 +490,44 @@ class Segmenter:
             rec["next"] = self.records[i + 1]["id"] if i + 1 < len(self.records) else None
 
 
+def read_source(source: Path) -> tuple[dict, str]:
+    """
+    (header metadata, body) for a corpus source, mARkdown or JSON.
+
+    Most texts come from OpenITI as mARkdown. Some exist only as a hadith
+    array — Shah Wali Allah's Forty is in no OpenITI repository at all, and the
+    only machine-readable copy is the sunnah.com scrape. Rather than teach the
+    segmenter a second grammar, that array is rendered INTO the grammar it
+    already reads: one `### |` heading and one `#` body line per hadith. Every
+    rule, layer and counter downstream then behaves identically, and the
+    corpus config describes a mARkdown text because that is what it now is.
+    """
+    if source.suffix.lower() != ".json":
+        raw = source.read_text(encoding="utf-8")
+        if HEADER_END not in raw:
+            raise SystemExit(f"{source.name}: no {HEADER_END} — not an OpenITI mARkdown file")
+        header, body = raw.split(HEADER_END, 1)
+        return parse_header(header), body
+
+    doc = json.loads(source.read_text(encoding="utf-8"))
+    items = doc["hadiths"] if isinstance(doc, dict) else doc
+    meta_src = (doc.get("metadata") or {}) if isinstance(doc, dict) else {}
+    lines: list[str] = []
+    for h in sorted(items, key=lambda x: int(x["idInBook"])):
+        text = str(h.get("arabic") or "").strip()
+        if not text:
+            continue
+        lines.append(f"### | الحديث {int(h['idInBook'])}")
+        lines.append(f"# {text}")
+    meta = {}
+    ar = meta_src.get("arabic") or {}
+    if ar.get("title"):
+        meta["020.BookTITLE"] = ar["title"]
+    return meta, "\n".join(lines)
+
+
 def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
-    raw = source.read_text(encoding="utf-8")
-    if HEADER_END not in raw:
-        raise SystemExit(f"{source.name}: no {HEADER_END} — not an OpenITI mARkdown file")
-    header, body = raw.split(HEADER_END, 1)
-    meta = parse_header(header)
+    meta, body = read_source(source)
 
     seg = Segmenter(cfg, rules)
     seg.feed(join_continuations(body.split("\n"), rules))
@@ -521,6 +553,7 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         # as one page per book with no per-hadith anchor, so the link that
         # actually resolves is to the kitab.
         "chapterLink": (cfg.get("segmentation") or {}).get("chapter_link"),
+        "recordLink": (cfg.get("segmentation") or {}).get("record_link"),
         # The "about this book" popup, verbatim from the corpus file — the
         # component holds no book knowledge; a second text writes its own.
         "about": cfg.get("about"),

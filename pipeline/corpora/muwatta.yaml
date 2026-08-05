@@ -212,3 +212,47 @@ gates:
   # edition noise while still failing loudly on a wrong recension
   # (al-Shaybani's scores 0.617 against this same witness).
   min_retrieval_median: 0.85
+
+# ---------------------------------------------------------------------------
+about:
+  description:
+    - >-
+      Al-Muwaṭṭaʾ — Mālik b. Anas's (d. 179 AH) collection of hadith and the
+      settled practice of Madina, and the earliest surviving book of its kind.
+      This is the recension of Yaḥyā b. Yaḥyā al-Laythī, the one most widely
+      read; OpenITI carries nine Muwaṭṭaʾ versions and they are different
+      books, not different scans.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its own:
+      its vocalisation is transferred from a fully vowelled edition, and its
+      glosses are shared from al-Tajrīd, where the same word in the same
+      reading carries the same entry. Roughly a fifth of the words are
+      vowelled but unglossed, and the panel says so rather than showing a
+      blank.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of a Shamela edition of the Laythī
+        recension, fetched and checksummed at build time. Chosen over the
+        other eight by measurement: it aligns to the vowelled witness at a
+        median word overlap of 0.96, where al-Shaybānī's recension scores
+        0.62 against the same witness because it is a different book.
+      url: https://raw.githubusercontent.com/OpenITI/0200AH/master/data/0179MalikIbnAnas/0179MalikIbnAnas.Muwatta/0179MalikIbnAnas.Muwatta.Shamela0001699-ara1.completed
+    - label: "Vocalisation"
+      detail: >-
+        A fully vowelled Laythī text, 98.7% of whose words carry harakāt.
+        Used only to transfer vocalisation onto the words of the primary text;
+        none of it is redistributed here.
+      url: https://github.com/abdelrahmaan/Hadith-Data-Sets
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which
+        is keyed by the written form rather than by the book it was written
+        for. Both are hadith Arabic, so most of the running text is covered.
+    - label: "Numbering"
+      detail: >-
+        The edition restarts hadith numbering in every kitāb, so the number
+        shown is a running count across the whole work and matches no printed
+        copy. Where the edition prints its own number it appears beside it as
+        "ed. N"; that number, with its kitāb, is what a citation should quote.
+        The kitāb title links to the same book on sunnah.com.

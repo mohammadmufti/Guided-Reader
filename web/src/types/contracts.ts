@@ -89,6 +89,13 @@ export interface CorpusMeta {
   /** How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing. */
   referenceLink: ReferenceLink | null;
   /**
+   * How to turn THIS RECORD'S OWN number into a URL. Distinct from `referenceLink`, which
+   * resolves a number the text cites, and from `chapterLink`, which resolves the kitab. A
+   * forty-hadith collection cites nothing and has no kitab: its hadith N simply IS hadith N on
+   * sunnah.com. Null where the corpus has no such correspondence.
+   */
+  recordLink: ReferenceLink | null;
+  /**
    * How to turn a KITAB INDEX into a URL, for a corpus whose external reference is per chapter
    * rather than per hadith. sunnah.com gives the Muwatta' a page per book but no per-hadith
    * anchor of the kind Bukhari has, so the honest link is to the chapter the hadith is in. Null

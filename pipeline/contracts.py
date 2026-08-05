@@ -133,6 +133,16 @@ class CorpusMeta(TypedDict):
         ReferenceLink | None,
         Doc("How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing."),
     ]
+    recordLink: Annotated[
+        ReferenceLink | None,
+        Doc(
+            "How to turn THIS RECORD'S OWN number into a URL. Distinct from "
+            "`referenceLink`, which resolves a number the text cites, and from "
+            "`chapterLink`, which resolves the kitab. A forty-hadith collection "
+            "cites nothing and has no kitab: its hadith N simply IS hadith N on "
+            "sunnah.com. Null where the corpus has no such correspondence."
+        ),
+    ]
     chapterLink: Annotated[
         ReferenceLink | None,
         Doc(

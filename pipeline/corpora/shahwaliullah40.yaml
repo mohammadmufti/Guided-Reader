@@ -1,0 +1,114 @@
+# Corpus configuration — al-Arbaʿūn li-Shāh Walī Allāh al-Dihlawī
+#
+# THE FIRST CORPUS WHOSE SOURCE ARRIVES VOWELLED. 99.6% of its tokens carry
+# harakāt, against 0% for every other text here and 0 of 179 sampled OpenITI
+# texts. Tier 0 — the source's own vowelling, which outranks both the aligned
+# witness and the workbook — was built for this and until now had never fired.
+#
+# It is also the first corpus with no OpenITI text at all. Shāh Walī Allāh is
+# in the corpus as `1176ShahWaliAllahDihlawi` with six works; his Forty is not
+# among them, and neither is al-Musawwā. The only machine-readable copy is the
+# sunnah.com scrape, so that is the source rather than the witness, and
+# `segment.py` renders the hadith array into the mARkdown grammar it already
+# reads. Nothing downstream knows the difference.
+#
+# 233 tokens across 40 hadith: these are short, aphoristic traditions —
+# `لَیْسَ الْخَبَرُ کَالْمُعَایَنَةِ` is the whole of hadith 1.
+
+id: shahwaliullah40
+
+display:
+  titleAr: "أربعون ولي الله الدهلوي"
+  titleEn: "al-Arbaʿūn li-Shāh Walī Allāh"
+  authorAr: "الشاه ولي الله الدهلوي"
+  author: "Shāh Walī Allāh al-Dihlawī"
+  authorDied: "1176 AH"
+  edition: "sunnah.com text; no printed edition identified"
+  subject: "الحديث والأربعينيات"
+  rights: "public-domain"
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # Source AND witness in one: it is already vowelled, so there is nothing to
+    # transfer onto it. Declaring it as `vocalisation_reference` as well would
+    # align the text against itself and report a meaningless 100%.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/forties/shahwaliullah40.json
+    filename: shahwaliullah40.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used here as the
+      primary text because no other machine-readable copy exists — Shāh Walī
+      Allāh's Forty is absent from OpenITI.
+
+  # NO `vocalisation_reference`: the source is 99.6% vowelled already.
+  # NO `lexicon`: there is no workbook, and meaning comes from the shared
+  # glossary as it does for every corpus after al-Tajrīd.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  # `segment.py` renders the JSON into these shapes; see `read_source`.
+  section: '^###\s*(\|+)\s*(.*)$'
+  section_levels:
+    "|": sub
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip: []
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: null
+  editorial_reference: null
+  heading_top_prefixes: []
+  numbering: continuous
+  # Its hadith N is sunnah.com's shahwaliullah40:N — the same scrape, in the
+  # same order, so the correspondence is exact.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/shahwaliullah40:{n}"
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 77.3% witnessed on matn, of which
+  # Tier 0 alone is 75.1% — the source's own harakat, needing no inference at
+  # all. 20.2% unbound: short aphoristic hadith use words al-Tajrid's lexicon
+  # never saw, so there is nothing to bind them to.
+  min_witnessed_matn: 72.0
+
+about:
+  description:
+    - >-
+      Forty hadith collected by Shāh Walī Allāh al-Dihlawī (d. 1176 AH), the
+      Delhi scholar whose Ḥujjat Allāh al-Bāligha reshaped how the tradition
+      was argued about in South Asia. They are short — often a single clause —
+      and chosen for what each one settles rather than for how much it says.
+    - >-
+      Every word is tappable. Unusually, this text arrives already vowelled,
+      so its harakāt are the source's own rather than transferred from
+      elsewhere; the panel marks those readings as coming from the text
+      itself. Glosses are shared from al-Tajrīd, where the same word in the
+      same reading carries the same entry.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        A vowelled text of the forty, scraped from sunnah.com. Used as the
+        primary text because no other machine-readable copy exists: Shāh Walī
+        Allāh's Forty is in no OpenITI repository, unlike every other text
+        here. Fetched and checksummed at build time.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Vocalisation"
+      detail: >-
+        None transferred. 99.6% of the words carry harakāt in the source, so
+        the vowelling shown is the edition's own and nothing was inferred for
+        it — the only text here of which that is true.
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which
+        is keyed by the written form rather than by the book it was written
+        for. Words shared with al-Tajrīd inherit its scholarship; words that
+        are not are vowelled but unglossed, and say so.
