@@ -285,3 +285,36 @@ def test_derived_lexicon_keeps_every_enriched_field():
     fn = src[src.index("def derive_lexicon"):]
     fn = fn[:fn.index("\nTIER_NAMES")]
     assert "GLOSSARY_FIELDS" in fn
+
+
+def test_every_corpus_can_describe_itself():
+    """The info panel is data, not code.
+
+    `AboutBook` renders whatever `about` the corpus declares, so a corpus
+    without one silently has no info button — which is how the Muwatta' shipped
+    for a while. Every corpus that reaches a reader must be able to say what it
+    is and where its text came from.
+    """
+    for cid in CORPORA:
+        cfg = corpus.load_config(cid)
+        if cid in ("lane", "rawd"):
+            continue          # reference data and a segmentation-only corpus
+        about = cfg.get("about")
+        assert about, f"{cid} has no `about` block"
+        assert about.get("description"), f"{cid} describes nothing"
+        assert len(about.get("sources") or []) >= 2, f"{cid} names too few sources"
+
+
+def test_a_vowelled_source_is_evidence_on_its_own():
+    """Tier 0 must be reachable without a workbook or a witness.
+
+    The guard that refuses an evidence-less corpus was written before any
+    source carried harakat, and refused Shah Wali Allah's Forty — 99.6%
+    vowelled — on the grounds that it declared neither. It now measures the
+    source instead of reading the config.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    assert "its source\\n" in src or "carries no harakat" in src
+    cfg = corpus.load_config("shahwaliullah40")
+    sources = cfg.get("sources") or {}
+    assert "lexicon" not in sources and "vocalisation_reference" not in sources

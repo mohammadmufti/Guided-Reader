@@ -43,7 +43,7 @@ from corpus import ConfigError, inline_strip_patterns, load_config, source_path
 from glossary import CARRY as GLOSSARY_FIELDS
 from tiers import (TIERS, BY_N as TIER_BY_N, GLOSSES, available, explain,
                    resources_for)
-from vocalisation import FULL, PARTIAL, agrees, classify, is_consistent
+from vocalisation import FULL, NONE, PARTIAL, agrees, classify, is_consistent
 from lexicon import stable_id
 from normalise import dediac, normalise
 from tokenise import tokenise
@@ -1171,11 +1171,26 @@ def main() -> int:
         workbook = source_path(cfg, "lexicon", required=False)
         witness_file = source_path(cfg, "vocalisation_reference", required=False)
         if workbook is None and witness_file is None:
-            raise ConfigError(
-                f"corpus {args.corpus!r} declares neither `sources.lexicon` nor "
-                f"`sources.vocalisation_reference`. There is nothing to bind "
-                f"against; segmentation is as far as this corpus can go."
+            # A third kind of evidence: the source may be vowelled itself.
+            # Measured, not declared — a corpus cannot be trusted to know
+            # whether its own file carries harakat, and this guard was written
+            # before any source did. Shah Wali Allah's Forty is 99.6% vowelled
+            # and needs neither a workbook nor a witness; refusing it here
+            # would have made Tier 0 unreachable by construction.
+            vowelled = sum(
+                1 for rec in records[:400]
+                for tok in re.findall(r"[\u0621-\u0652\u0670]+", rec["textRaw"])
+                if classify(tok) != NONE
             )
+            if not vowelled:
+                raise ConfigError(
+                    f"corpus {args.corpus!r} declares neither `sources.lexicon` "
+                    f"nor `sources.vocalisation_reference`, and its source "
+                    f"carries no harakat. There is nothing to bind against; "
+                    f"segmentation is as far as this corpus can go."
+                )
+            print(f"NOTE: no workbook and no witness, but the source is "
+                  f"vowelled — binding on Tier 0.\n")
     except ConfigError as e:
         print(f"\n{e}\n", file=sys.stderr)
         return 1
@@ -1263,7 +1278,11 @@ def main() -> int:
         (stats.get("sourceVocalisation") or {}).get(FULL)
         or (stats.get("sourceVocalisation") or {}).get(PARTIAL)))
     lines = report(stats, cfg.get("gates"), res)
-    lines += holdout_eval(bound, lex, records)
+    # The hold-out measures Tiers 3 and 4 by hiding the Tier 2 witness and
+    # re-deriving the answer. With no witness there is nothing to hide and
+    # nothing to measure — the corpus reached its readings another way.
+    if stats["tally"].get(2):
+        lines += holdout_eval(bound, lex, records)
     lines += ambiguous_review_crosscheck(bound, records, lex)
     print("\n".join(lines))
 

@@ -17,7 +17,7 @@ id: nawawi40
 
 display:
   titleAr: "الأربعون النووية"
-  titleEn: "al-Arbaʿūn al-Nawawiyya — Nawawī's Forty"
+  titleEn: "al-Arbaʿūn al-Nawawiyya"
   authorAr: "يحيى بن شرف النووي"
   author: "Yaḥyā b. Sharaf al-Nawawī"
   authorDied: "676 AH"
@@ -81,6 +81,14 @@ segmentation:
   # Spelled out, not numbered — see the note at the top of this file.
   opener: null
   editorial_reference: null
+  # This text cites nothing, but IS cited: its hadith N is sunnah.com's
+  # nawawi40:N. Our numbering runs 1-42 in the same order as the witness, which
+  # is the same scrape sunnah.com serves, so the correspondence is exact rather
+  # than approximate.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/nawawi40:{n}"
   heading_top_prefixes: []
   # The preface is a section like any other in the file; without this it
   # takes number 1 and the forty-two start at 3.
@@ -102,3 +110,38 @@ gates:
   # regression rather than restating today's figure.
   min_witnessed_matn: 88.0
   min_retrieval_median: 0.85
+
+# ---------------------------------------------------------------------------
+about:
+  description:
+    - >-
+      Al-Arbaʿūn al-Nawawiyya — the forty-two hadith gathered by Yaḥyā b.
+      Sharaf al-Nawawī (d. 676 AH) as the traditions on which, in his words,
+      Islam turns. Short, memorised for seven centuries, and the usual first
+      hadith text a student meets.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its own:
+      its vocalisation is transferred from a fully vowelled edition, and its
+      glosses are shared from al-Tajrīd, where the same word in the same
+      reading carries the same entry. The panel's provenance line says which
+      applies to each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of the Shamela edition, fetched and
+        checksummed at build time. The sibling OpenITI version carries Ibn
+        Rajab's additions and runs to fifty hadith; this one is the forty-two.
+      url: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.ArbacunaNawawiyya/0676Nawawi.ArbacunaNawawiyya.Shamela0012836-ara1.mARkdown
+    - label: "Vocalisation"
+      detail: >-
+        A fully vowelled text of the forty-two, scraped from sunnah.com. Used
+        only to transfer vocalisation onto the words of the primary text; none
+        of it is redistributed here. All 42 records aligned, at a median word
+        overlap of 0.88.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which
+        is keyed by the written form rather than by the book it was written
+        for. Words this text shares with al-Tajrīd inherit its scholarship;
+        words it does not are vowelled but unglossed, and say so.

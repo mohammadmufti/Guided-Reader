@@ -177,6 +177,14 @@ jobs:
           python pipeline/bind.py    --corpus nawawi40
           python pipeline/build.py   --corpus nawawi40
 
+          # Shah Wali Allah's Forty. The only corpus with no OpenITI text and
+          # the only one whose source arrives vowelled, so it is the sole
+          # end-to-end exercise of both the JSON source path and Tier 0.
+          python pipeline/fetch.py   --corpus shahwaliullah40
+          python pipeline/segment.py --corpus shahwaliullah40
+          python pipeline/bind.py    --corpus shahwaliullah40
+          python pipeline/build.py   --corpus shahwaliullah40
+
       # Runs LAST, after every corpus is built: it merges what they have in
       # common into one shared shard set and deletes the per-corpus copies.
       # Order matters -- a corpus built after this would reintroduce its own

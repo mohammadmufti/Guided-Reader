@@ -66,13 +66,10 @@ export default function CorpusPicker({
                    focus-visible:outline-2 focus-visible:outline-(--color-accent)"
       >
         {corpora.map((c) => (
+          // The title, and nothing else. A picker names things; what a book
+          // IS belongs in its info panel, which every corpus now has.
           <option key={c.id} value={c.id}>
             {c.titleEn ?? c.id}
-            {/* Said plainly rather than hidden behind an icon: a corpus with no
-                workbook can show vowelling but not meaning, and a reader should
-                know that before choosing it, not after clicking a word and
-                finding an empty panel. */}
-            {c.hasGlosses ? "" : " — vowelling only"}
           </option>
         ))}
       </select>

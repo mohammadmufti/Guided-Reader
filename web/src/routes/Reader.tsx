@@ -388,6 +388,22 @@ function PageView({
             {main.crossRefs.length > 0 && (
               <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
             )}
+            {/* A collection that cites nothing but IS cited: its hadith N is
+                the same hadith N on sunnah.com, so the record links to itself
+                there. Sits beside the cross-reference line because to a reader
+                it is the same gesture — this text simply points outward
+                instead of inward. */}
+            {index.corpus.recordLink && main.number != null && (
+              <a
+                href={index.corpus.recordLink.url.replace("{n}", String(main.number))}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Hadith ${main.number} on ${index.corpus.recordLink.label} — opens in a new tab`}
+                className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+              >
+                {index.corpus.recordLink.label} {main.number}
+              </a>
+            )}
           </span>
         </div>
 
