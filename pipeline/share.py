@@ -178,8 +178,13 @@ def main() -> int:
         for f in (d / "lex").glob("surface-*.json"):
             f.unlink()
 
-    print(f"\nsurface bytes      {before/1e6:.1f} MB -> {after/1e6:.1f} MB "
-          f"({100*(before-after)/max(before,1):.1f}% saved)")
+    # `before` counts only the private shards still on disk, so on a re-run —
+    # when most corpora were shared already — it is not the pre-sharing total
+    # and a percentage computed from it is nonsense. Report the duplication
+    # avoided instead, which is well defined either way.
+    dup = sum(len(v) - 1 for v in seen_in.values() if len(v) > 1)
+    print(f"\nshared set         {after/1e6:.1f} MB, {len(entries):,} entries")
+    print(f"copies avoided     {dup:,} duplicate entries across corpora")
     print(f"wrote {out}")
     return 0
 

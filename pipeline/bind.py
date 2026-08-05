@@ -337,8 +337,24 @@ class Lexicon:
 class WitnessIndex:
     """Content retrieval over a fully-diacritised witness edition."""
 
-    def __init__(self, csv: Path) -> None:
-        rows = pd.read_csv(csv).iloc[:, 0].astype(str).tolist()
+    @staticmethod
+    def _read(path: Path) -> list[str]:
+        """
+        One vocalised unit per row, from CSV or JSON.
+
+        The Bukhari and Muwatta' witnesses are single-column CSVs. The
+        sunnah.com-derived datasets are JSON with a `hadiths` array. Both are
+        just a list of strings once read, and the index does not care which it
+        came from — so the format lives here and nowhere else.
+        """
+        if path.suffix.lower() == ".json":
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            items = doc["hadiths"] if isinstance(doc, dict) else doc
+            return [str(h["arabic"]) for h in items if h.get("arabic")]
+        return pd.read_csv(path).iloc[:, 0].astype(str).tolist()
+
+    def __init__(self, path: Path) -> None:
+        rows = self._read(path)
         self.forms = [
             [STRIP_EDGE.sub("", t) for t in s.split() if ARABIC.search(t)] for s in rows
         ]

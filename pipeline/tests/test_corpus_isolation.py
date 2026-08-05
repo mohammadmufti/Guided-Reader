@@ -241,3 +241,18 @@ def test_exit_code_and_reported_gate_cannot_disagree():
     assert "min_witnessed_matn" in tail, "exit code must read the declared threshold"
     assert "t.witnessed" in tail, "exit code must use the tier table, not literals"
     assert "return 0 if t12 >= 90 else 1" not in src
+
+
+def test_gloss_availability_is_read_from_the_build_not_the_payload():
+    """`hasGlosses` drives the picker's 'vowelling only' warning.
+
+    It was computed from the corpus's shipped surface shards — which `share.py`
+    deletes once they are shared. Every already-shared corpus therefore reported
+    `false`, and al-Tajrid, the one text with 21,028 curated glosses, was
+    offered to the reader as vowelling-only.
+    """
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    fn = src[src.index("def _payload_has_glosses"):]
+    fn = fn[:fn.index("\ndef ")]
+    assert "lexicon.json" in fn, "must read the build output, not the payload"
+    assert 'glob("surface-*.json")' not in fn

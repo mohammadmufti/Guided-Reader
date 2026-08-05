@@ -64,6 +64,7 @@ class Rules:
     bullet: re.Pattern[str] | None
     aside_marker: str | None
     heading_top_prefixes: tuple[str, ...]
+    front_prefixes: tuple[str, ...]
     section_levels: dict[str, str] | None
     opener_on: str
     numbering: str
@@ -94,6 +95,7 @@ class Rules:
             bullet=rx("aside_bullet"),
             aside_marker=seg.get("aside_marker"),
             heading_top_prefixes=tuple(seg.get("heading_top_prefixes", [])),
+            front_prefixes=tuple(seg.get("front_prefixes", [])),
             section_levels=seg.get("section_levels"),
             opener_on=seg.get("opener_on", "section"),
             numbering=seg.get("numbering", "edition"),
@@ -237,7 +239,12 @@ class Segmenter:
                 self.bab = {"index": self.bab_idx, "titleAr": text}
                 self.open(rtype="bab", layer=self.rules.layers["sub"], number=None, text=text)
                 self.close()
-            elif self.last_structural is None:
+            elif (self.last_structural is None
+                  or self.last_structural == self.rules.layers["front"]):
+                # Nothing has opened yet, or the last thing that did was front
+                # matter. Prose under a preface is still the preface: without
+                # the second test, Nawawi's مقدمة produced two numbered body
+                # records and the forty-two hadith ran 3-44.
                 self.open(rtype="frontmatter", layer=self.rules.layers["front"], number=None, text=text)
             else:
                 # Unnumbered narrative prose under a chapter — the sira material
@@ -341,6 +348,17 @@ class Segmenter:
         self.close()
 
     def emit_heading(self, clean: str, level: str | None) -> None:
+        # A section that opens the book rather than belonging to its sequence.
+        # Nawawi's preface and its `أما بعد` are sections like any other in the
+        # file, and without this they take numbers 1 and 2 and push the forty
+        # -two hadith to 3-44. Declared by prefix rather than by position: "the
+        # first two sections" would be a guess about a file, while "the section
+        # called مقدمة المؤلف" is a statement about a book.
+        if self.rules.front_prefixes and clean.startswith(self.rules.front_prefixes):
+            self.open(rtype="frontmatter", layer=self.rules.layers["front"],
+                      number=None, text=clean)
+            return
+
         if level == "top":
             self.kitab_idx += 1
             self.bab_idx = 0
