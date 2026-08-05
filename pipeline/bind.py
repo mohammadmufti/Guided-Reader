@@ -1325,8 +1325,21 @@ def main() -> int:
         "# Phase 3 — token binding report\n\n```\n" + "\n".join(lines) + "\n```\n",
         encoding="utf-8",
     )
-    t12 = 100 * (stats["tally_matn"][1] + stats["tally_matn"][2]) / sum(stats["tally_matn"].values())
-    return 0 if t12 >= 90 else 1
+    # The exit code must agree with the gate line the report printed. It used
+    # to recompute its own: a hardcoded `>= 90`, over Tiers 1 and 2 only.
+    #
+    # That made the process exit 1 on a corpus whose report said PASS — the
+    # Muwatta' at 73.0% against its declared 68.0% — and it ignored Tier 0
+    # entirely, so a source-vowelled corpus would have been failed for
+    # readings that needed no inference at all. One threshold, one set of
+    # witnessed tiers, read from the same places `report` reads them.
+    matn = stats["tally_matn"]
+    total = sum(matn.values()) or 1
+    witnessed = 100 * sum(matn[t.n] for t in TIERS if t.witnessed) / total
+    threshold = (cfg.get("gates") or {}).get("min_witnessed_matn")
+    if threshold is None:
+        return 0
+    return 0 if witnessed >= threshold else 1
 
 
 if __name__ == "__main__":

@@ -224,3 +224,20 @@ def test_share_refuses_to_merge_conflicting_identities():
     assert "REFUSING TO SHARE" in src
     for field in ("vocalized", "search_key", "unvocalized"):
         assert field in src
+
+
+def test_exit_code_and_reported_gate_cannot_disagree():
+    """`bind.py` must not print PASS and then exit non-zero.
+
+    It did: the report used the per-corpus `gates.min_witnessed_matn` while the
+    exit code recomputed its own hardcoded `>= 90` over Tiers 1 and 2 only. The
+    Muwatta' reported PASS at 73.0% against its declared 68.0% and failed CI.
+
+    Guarded structurally rather than by running a bind: the exit path must read
+    the threshold from config and take its witnessed tiers from `tiers.py`.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    tail = src[src.rindex("def main("):]
+    assert "min_witnessed_matn" in tail, "exit code must read the declared threshold"
+    assert "t.witnessed" in tail, "exit code must use the tier table, not literals"
+    assert "return 0 if t12 >= 90 else 1" not in src
