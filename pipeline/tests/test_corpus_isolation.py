@@ -256,3 +256,32 @@ def test_gloss_availability_is_read_from_the_build_not_the_payload():
     fn = fn[:fn.index("\ndef ")]
     assert "lexicon.json" in fn, "must read the build output, not the payload"
     assert 'glob("surface-*.json")' not in fn
+
+
+def test_corpus_independent_reference_data_is_shared():
+    """Lane's Lexicon is the same book whichever text is being read.
+
+    `classical-*` (headwords by root) and `lane-*` (the entries) were written
+    per corpus and filled only from that corpus's own lexicon, so al-Tajrid
+    shipped 1,829 entries and every other corpus shipped one empty shard. A
+    Muwatta' word whose entry named a Lane root pointed at a file that was not
+    there, and Lane silently appeared in one book out of three.
+    """
+    import share
+    src = (corpus.ROOT / "share.py").read_text(encoding="utf-8")
+    assert hasattr(share, "collect_named")
+    assert '"classical", "lane"' in src
+
+
+def test_derived_lexicon_keeps_every_enriched_field():
+    """The enrichment is pointless if the writer drops it.
+
+    `derive_lexicon` had a fixed field list naming gloss, lemma, root and POS,
+    so `lane_root`, `classical_keywords`, `domain` and the rest were enriched
+    onto the entry and then thrown away on the way to lexicon.json. That is
+    what removed Lane from every corpus without a workbook.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    fn = src[src.index("def derive_lexicon"):]
+    fn = fn[:fn.index("\nTIER_NAMES")]
+    assert "GLOSSARY_FIELDS" in fn

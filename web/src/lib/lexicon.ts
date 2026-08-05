@@ -139,19 +139,22 @@ async function loadPanelOnce(
   // Classical summary and Lane entries are separate shard sets — the summary is
   // tiny and read for every rooted word, the entries are large and only worth
   // fetching for the root actually being looked at. Both in parallel.
-  const c = fnv1a(entry.lane_root) % index.shards.classical;
-  const l = fnv1a(entry.lane_root) % index.shards.lane;
+  // Shared moduli when share.py has run, the corpus's own otherwise. Lane is
+  // a dictionary: the same word must resolve to the same entry whichever book
+  // it is read in, and before this only al-Tajrid shipped the shards at all.
+  const c = fnv1a(entry.lane_root) % (index.shards.sharedClassical ?? index.shards.classical);
+  const l = fnv1a(entry.lane_root) % (index.shards.sharedLane ?? index.shards.lane);
   let cShard = classicalShards.get(c);
   if (!cShard) {
     cShard = fetchJson<Record<string, ClassicalEntry>>(
-      `${corpusBase()}/lex/classical-${pad(c)}.json?v=${index.buildId}`,
+      `${dataRoot()}/lexicon/classical-${pad(c)}.json`,
     );
     classicalShards.set(c, cShard);
   }
   let lShard = laneShards.get(l);
   if (!lShard) {
     lShard = fetchJson<Record<string, LaneRoot>>(
-      `${corpusBase()}/lex/lane-${pad(l)}.json?v=${index.buildId}`,
+      `${dataRoot()}/lexicon/lane-${pad(l)}.json`,
     );
     laneShards.set(l, lShard);
   }

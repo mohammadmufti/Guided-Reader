@@ -563,6 +563,14 @@ class ShardConfig(TypedDict):
     surface: Annotated[int, Doc(
         "Route STATISTICS by hash(search_key) % this. Per corpus."
     )]
+    sharedClassical: Annotated[int | None, Doc(
+        "Route Lane HEADWORDS by hash(lane_root) % this, under data/lexicon/. "
+        "Shared: Lane's Lexicon is the same book whichever text is being read."
+    )]
+    sharedLane: Annotated[int | None, Doc(
+        "Route Lane ENTRIES by hash(nodeid) % this, under data/lexicon/. Shared "
+        "for the same reason. Null until share.py has run."
+    )]
     sharedSurface: Annotated[int | None, Doc(
         "Route lexical ENTRIES by hash(search_key) % this, under data/lexicon/. "
         "Shared across every corpus, because match_id is derived from the form "
