@@ -499,6 +499,10 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "edition": disp.get("edition"),
         "referenceLink": (cfg.get("segmentation") or {}).get("reference_link"),
+        # Per-CHAPTER external reference. sunnah.com publishes the Muwatta'
+        # as one page per book with no per-hadith anchor, so the link that
+        # actually resolves is to the kitab.
+        "chapterLink": (cfg.get("segmentation") or {}).get("chapter_link"),
         # The "about this book" popup, verbatim from the corpus file — the
         # component holds no book knowledge; a second text writes its own.
         "about": cfg.get("about"),

@@ -357,7 +357,25 @@ function PageView({
           <AudioButton url={main.audioUrl} />
           {main.kitab && (
             <span className="arabic text-sm" lang="ar">
-              {main.kitab.titleAr}
+              {index.corpus.chapterLink ? (
+                // sunnah.com has no per-hadith anchor for this text, only a
+                // page per book — so the link goes to the kitab, which is
+                // where the reader would actually land anyway.
+                <a
+                  href={index.corpus.chapterLink.url.replace(
+                    "{n}",
+                    String(main.kitab.index),
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${main.kitab.titleAr} on ${index.corpus.chapterLink.label} — opens in a new tab`}
+                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+                >
+                  {main.kitab.titleAr}
+                </a>
+              ) : (
+                main.kitab.titleAr
+              )}
             </span>
           )}
           {main.bab && (

@@ -133,6 +133,16 @@ class CorpusMeta(TypedDict):
         ReferenceLink | None,
         Doc("How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing."),
     ]
+    chapterLink: Annotated[
+        ReferenceLink | None,
+        Doc(
+            "How to turn a KITAB INDEX into a URL, for a corpus whose external "
+            "reference is per chapter rather than per hadith. sunnah.com gives "
+            "the Muwatta' a page per book but no per-hadith anchor of the kind "
+            "Bukhari has, so the honest link is to the chapter the hadith is "
+            "in. Null where a corpus links per hadith, or not at all."
+        ),
+    ]
     about: Annotated[
         CorpusAbout | None,
         Doc("Content for the 'about this book' popup; None until a corpus writes one."),

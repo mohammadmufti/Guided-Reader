@@ -197,3 +197,23 @@ def test_muwatta_keeps_the_printed_number_alongside():
     assert any(r["editionNumber"] != r["number"] for r in printed)
     # And every record is addressable, numbered by the edition or not.
     assert all(r["number"] for r in matn)
+
+
+def test_muwatta_chapter_indices_match_sunnah_com():
+    """The kitab index is what the external link resolves with.
+
+    Checked once against the sunnah.com-derived dataset (AhmedBaset/hadith-json,
+    1,985 hadith, 61 chapters): our 61 kitab headings and their 61 chapters are
+    in the same order with the same titles, 60 of 61 identical. The one
+    difference is a naming variant in the same slot — ours كتاب الجامع, theirs
+    كتاب المدينة — not a shift, confirmed by 43, 44, 46, 47 and 48 all agreeing
+    around it.
+
+    A change in the kitab count would silently point every link after it at the
+    wrong book, so the count is pinned here.
+    """
+    recs = _muwatta()
+    kitabs = [r for r in recs if r["layer"] == "heading_kitab"]
+    assert len(kitabs) == 61
+    idxs = [r["kitab"]["index"] for r in kitabs if r.get("kitab")]
+    assert idxs == list(range(1, 62))
