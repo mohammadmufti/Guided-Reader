@@ -133,6 +133,16 @@ class CorpusMeta(TypedDict):
         ReferenceLink | None,
         Doc("How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing."),
     ]
+    chapterLink: Annotated[
+        ReferenceLink | None,
+        Doc(
+            "How to turn a KITAB INDEX into a URL, for a corpus whose external "
+            "reference is per chapter rather than per hadith. sunnah.com gives "
+            "the Muwatta' a page per book but no per-hadith anchor of the kind "
+            "Bukhari has, so the honest link is to the chapter the hadith is "
+            "in. Null where a corpus links per hadith, or not at all."
+        ),
+    ]
     about: Annotated[
         CorpusAbout | None,
         Doc("Content for the 'about this book' popup; None until a corpus writes one."),
@@ -157,7 +167,16 @@ class CorpusRecord(TypedDict):
     """One segmented unit of the corpus. Output of Phase 1."""
 
     id: Annotated[str, Doc("Record ID, e.g. 'matn-00005'. Matches workbook convention.")]
-    number: Annotated[int | None, Doc("Primary display number. Null for headings and frontmatter.")]
+    number: Annotated[int | None, Doc(
+        "Primary display number, and the ADDRESS: unique across the corpus, what "
+        "`numberIndex` and the URL use. Null for headings and frontmatter."
+    )]
+    editionNumber: Annotated[int | None, Doc(
+        "The number the printed edition gives this hadith, when it differs from "
+        "`number`. On a text that restarts numbering in every kitab, `number` is a "
+        "running count we assigned and matches no printed copy; this, with the "
+        "kitab, is what a citation should quote. Null where the two agree."
+    )]
     numbersCovered: Annotated[
         list[int],
         Doc(
@@ -480,6 +499,7 @@ class HadithFile(TypedDict):
 
     id: str
     number: int | None
+    editionNumber: int | None
     numbersCovered: list[int]
     type: RecordType
     layer: Layer

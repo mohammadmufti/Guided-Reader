@@ -160,3 +160,60 @@ def test_muwatta_display_numbers_are_a_dense_sequence():
     recs = _muwatta()
     seq = [r["displayNumber"] for r in recs if r["layer"] == "matn"]
     assert seq == list(range(1, len(seq) + 1))
+
+
+def test_muwatta_numbers_address_every_hadith_uniquely():
+    """`number` must be an ADDRESS, not the printed number.
+
+    It was the printed number, and this text restarts at 1 in every kitab. Sixty
+    -one hadith called themselves 1, so `numberIndex` — built from
+    `numbersCovered` — kept only the last of each and collapsed from 1,891
+    entries to 255. Hadith 1 resolved to kitab 61, and 1,636 hadith could not be
+    reached by number at all.
+    """
+    recs = _muwatta()
+    matn = [r for r in recs if r["layer"] == "matn"]
+    numbers = [r["number"] for r in matn]
+    assert numbers == list(range(1, len(matn) + 1))
+    covered = [n for r in matn for n in r["numbersCovered"]]
+    assert len(set(covered)) == len(covered), "a number addresses two records"
+    assert len(set(covered)) == len(matn)
+
+
+def test_muwatta_keeps_the_printed_number_alongside():
+    """The address is ours; the citation is the edition's. Both must survive.
+
+    Not every record has a printed number: 59 matn records are Malik's own
+    comment on the preceding hadith (`قال مالك: ...`) and the edition numbers
+    none of them. Under the old scheme those had `number: None` and could not
+    be linked to at all. They now have an address and no citation, which is the
+    honest description of what they are.
+    """
+    recs = _muwatta()
+    matn = [r for r in recs if r["layer"] == "matn"]
+    printed = [r for r in matn if r.get("editionNumber")]
+    assert len(printed) / len(matn) > 0.9
+    # The two must genuinely differ, or the address is doing no work.
+    assert any(r["editionNumber"] != r["number"] for r in printed)
+    # And every record is addressable, numbered by the edition or not.
+    assert all(r["number"] for r in matn)
+
+
+def test_muwatta_chapter_indices_match_sunnah_com():
+    """The kitab index is what the external link resolves with.
+
+    Checked once against the sunnah.com-derived dataset (AhmedBaset/hadith-json,
+    1,985 hadith, 61 chapters): our 61 kitab headings and their 61 chapters are
+    in the same order with the same titles, 60 of 61 identical. The one
+    difference is a naming variant in the same slot — ours كتاب الجامع, theirs
+    كتاب المدينة — not a shift, confirmed by 43, 44, 46, 47 and 48 all agreeing
+    around it.
+
+    A change in the kitab count would silently point every link after it at the
+    wrong book, so the count is pinned here.
+    """
+    recs = _muwatta()
+    kitabs = [r for r in recs if r["layer"] == "heading_kitab"]
+    assert len(kitabs) == 61
+    idxs = [r["kitab"]["index"] for r in kitabs if r.get("kitab")]
+    assert idxs == list(range(1, 62))

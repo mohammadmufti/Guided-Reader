@@ -88,6 +88,13 @@ export interface CorpusMeta {
   edition: string | null;
   /** How to turn a `crossRefs` number into a URL. Null if the corpus cites nothing. */
   referenceLink: ReferenceLink | null;
+  /**
+   * How to turn a KITAB INDEX into a URL, for a corpus whose external reference is per chapter
+   * rather than per hadith. sunnah.com gives the Muwatta' a page per book but no per-hadith
+   * anchor of the kind Bukhari has, so the honest link is to the chapter the hadith is in. Null
+   * where a corpus links per hadith, or not at all.
+   */
+  chapterLink: ReferenceLink | null;
   /** Content for the 'about this book' popup; None until a corpus writes one. */
   about: CorpusAbout | null;
 }
@@ -108,8 +115,18 @@ export interface BabRef {
 export interface CorpusRecord {
   /** Record ID, e.g. 'matn-00005'. Matches workbook convention. */
   id: string;
-  /** Primary display number. Null for headings and frontmatter. */
+  /**
+   * Primary display number, and the ADDRESS: unique across the corpus, what `numberIndex` and
+   * the URL use. Null for headings and frontmatter.
+   */
   number: number | null;
+  /**
+   * The number the printed edition gives this hadith, when it differs from `number`. On a text
+   * that restarts numbering in every kitab, `number` is a running count we assigned and matches
+   * no printed copy; this, with the kitab, is what a citation should quote. Null where the two
+   * agree.
+   */
+  editionNumber: number | null;
   /**
    * Every display number this record covers. Normally one. The source puts hadith 1201 and 1202
    * on a single opener line with no boundary to split on, so that record covers both and both
@@ -422,6 +439,7 @@ export interface Token {
 export interface HadithFile {
   id: string;
   number: number | null;
+  editionNumber: number | null;
   numbersCovered: number[];
   type: RecordType;
   layer: Layer;

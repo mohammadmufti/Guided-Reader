@@ -339,12 +339,43 @@ function PageView({
           <span data-hadith-number className="text-3xl tabular-nums">
             {main.number}
           </span>
+          {/* Where the edition numbers differently from us, say so. Our number
+              is an address — a running count that matches no printed copy —
+              and a reader who cited it would be citing us. This, with the
+              kitab beside it, is the form every external reference uses. */}
+          {main.editionNumber != null && (
+            <span
+              className="text-xs text-(--color-ink-muted)"
+              dir="ltr"
+              title="The number this edition prints, within its kitab"
+            >
+              ed. {main.editionNumber}
+            </span>
+          )}
           {/* recitation, when this hadith has a recording — header row only,
               never inside the matn */}
           <AudioButton url={main.audioUrl} />
           {main.kitab && (
             <span className="arabic text-sm" lang="ar">
-              {main.kitab.titleAr}
+              {index.corpus.chapterLink ? (
+                // sunnah.com has no per-hadith anchor for this text, only a
+                // page per book — so the link goes to the kitab, which is
+                // where the reader would actually land anyway.
+                <a
+                  href={index.corpus.chapterLink.url.replace(
+                    "{n}",
+                    String(main.kitab.index),
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${main.kitab.titleAr} on ${index.corpus.chapterLink.label} — opens in a new tab`}
+                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+                >
+                  {main.kitab.titleAr}
+                </a>
+              ) : (
+                main.kitab.titleAr
+              )}
             </span>
           )}
           {main.bab && (

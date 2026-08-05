@@ -37,7 +37,10 @@ id: muwatta
 
 display:
   titleAr: "موطأ الإمام مالك"
-  titleEn: "al-Muwaṭṭaʾ"
+  # The recension belongs in the NAME. Nine of these exist in OpenITI and
+  # they are different books; a reader choosing between them, or citing
+  # what they read, needs to know which one this is.
+  titleEn: "Muwaṭṭaʾ Mālik — riwāyat Yaḥyā al-Laythī"
   authorAr: "مالك بن أنس الأصبحي المدني"
   author: "Mālik b. Anas al-Aṣbaḥī al-Madanī"
   authorDied: "179 AH"
@@ -164,6 +167,16 @@ segmentation:
   # nothing here strips nothing — previously `(بخاري: N)` was removed from
   # every corpus whether or not it made sense.
   editorial_reference: null
+  # sunnah.com carries this text as one page per book, numbered 1-61 in the
+  # same order and with the same titles as this edition — checked title by
+  # title against the scraped dataset: 60 of 61 identical, the one difference
+  # being a naming variant in the same slot (ours كتاب الجامع, theirs
+  # كتاب المدينة), not a shift. `{n}` is the kitab index.
+  chapter_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/malik/{n}"
+
   heading_top_prefixes: ["كتاب"]
   layer_names:
     body: matn
