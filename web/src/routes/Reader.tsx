@@ -339,6 +339,19 @@ function PageView({
           <span data-hadith-number className="text-3xl tabular-nums">
             {main.number}
           </span>
+          {/* Where the edition numbers differently from us, say so. Our number
+              is an address — a running count that matches no printed copy —
+              and a reader who cited it would be citing us. This, with the
+              kitab beside it, is the form every external reference uses. */}
+          {main.editionNumber != null && (
+            <span
+              className="text-xs text-(--color-ink-muted)"
+              dir="ltr"
+              title="The number this edition prints, within its kitab"
+            >
+              ed. {main.editionNumber}
+            </span>
+          )}
           {/* recitation, when this hadith has a recording — header row only,
               never inside the matn */}
           <AudioButton url={main.audioUrl} />

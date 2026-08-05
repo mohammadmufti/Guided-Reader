@@ -37,7 +37,10 @@ id: muwatta
 
 display:
   titleAr: "موطأ الإمام مالك"
-  titleEn: "al-Muwaṭṭaʾ"
+  # The recension belongs in the NAME. Nine of these exist in OpenITI and
+  # they are different books; a reader choosing between them, or citing
+  # what they read, needs to know which one this is.
+  titleEn: "Muwaṭṭaʾ Mālik — riwāyat Yaḥyā al-Laythī"
   authorAr: "مالك بن أنس الأصبحي المدني"
   author: "Mālik b. Anas al-Aṣbaḥī al-Madanī"
   authorDied: "179 AH"

@@ -108,8 +108,18 @@ export interface BabRef {
 export interface CorpusRecord {
   /** Record ID, e.g. 'matn-00005'. Matches workbook convention. */
   id: string;
-  /** Primary display number. Null for headings and frontmatter. */
+  /**
+   * Primary display number, and the ADDRESS: unique across the corpus, what `numberIndex` and
+   * the URL use. Null for headings and frontmatter.
+   */
   number: number | null;
+  /**
+   * The number the printed edition gives this hadith, when it differs from `number`. On a text
+   * that restarts numbering in every kitab, `number` is a running count we assigned and matches
+   * no printed copy; this, with the kitab, is what a citation should quote. Null where the two
+   * agree.
+   */
+  editionNumber: number | null;
   /**
    * Every display number this record covers. Normally one. The source puts hadith 1201 and 1202
    * on a single opener line with no boundary to split on, so that record covers both and both
@@ -422,6 +432,7 @@ export interface Token {
 export interface HadithFile {
   id: string;
   number: number | null;
+  editionNumber: number | null;
   numbersCovered: number[];
   type: RecordType;
   layer: Layer;

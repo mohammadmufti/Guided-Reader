@@ -505,6 +505,12 @@ def main() -> int:
         b = bindings[rec["id"]]
         payload = {
             "id": rec["id"], "number": rec["number"], "numbersCovered": rec["numbersCovered"],
+            # The number the EDITION prints, when it differs from the address.
+            # On a text that restarts numbering in every kitab, `number` is a
+            # running count we assigned and matches no printed copy; this plus
+            # the kitab is what a citation should quote. Null where they agree.
+            "editionNumber": (rec.get("editionNumber")
+                              if rec.get("editionNumber") != rec["number"] else None),
             "type": rec["type"], "layer": rec["layer"],
             "kitab": rec["kitab"], "bab": rec["bab"], "pages": rec["pages"],
             "leading": b["leading"],

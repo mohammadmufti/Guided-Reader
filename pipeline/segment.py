@@ -427,11 +427,25 @@ class Segmenter:
                 rec["editionNumber"] = None
                 continue
             rec["editionNumber"] = rec["number"]
-            if continuous:
-                n += 1
-                rec["displayNumber"] = n
-            else:
+            if not continuous:
                 rec["displayNumber"] = rec["number"]
+                continue
+            n += 1
+            rec["displayNumber"] = n
+            # `number` and `numbersCovered` ARE THE ADDRESS. Everything
+            # downstream keys off them: `navigation.numberIndex`, the missing
+            # -number report, audio matching, and the URL the reader lands on.
+            #
+            # Leaving the edition's own number here was a silent disaster on a
+            # text that restarts numbering in every kitab. Sixty-one hadith call
+            # themselves 1, so `numberIndex` kept only the last of each and
+            # collapsed from 1,891 entries to 255 — every earlier hadith
+            # unreachable by number, and `/muwatta/read/1` landing in kitab 61.
+            #
+            # The printed number is not lost; it is `editionNumber`, and with
+            # its kitab it is what a citation should quote.
+            rec["number"] = n
+            rec["numbersCovered"] = [n]
 
         # Workbook index mapping.
         #
