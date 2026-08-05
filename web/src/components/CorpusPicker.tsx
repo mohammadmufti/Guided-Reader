@@ -43,7 +43,17 @@ export default function CorpusPicker({
   const changed = pending !== current;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2" dir="ltr">
+    // `min-w-0` and `max-w-full` throughout: a <select> sizes itself to its
+    // WIDEST OPTION, so the longest book title silently becomes a floor on
+    // the page width. That floor moves with the font — this measured 0px of
+    // overflow at 380px locally and 29px on CI, which has different Arabic
+    // font fallbacks. Constraining the box means the text is clipped
+    // instead, and the page can never be pushed wider than the viewport by
+    // a name.
+    <div
+      className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2"
+      dir="ltr"
+    >
       <label htmlFor="corpus" className="sr-only">
         Book
       </label>
@@ -51,9 +61,9 @@ export default function CorpusPicker({
         id="corpus"
         value={pending}
         onChange={(e) => setPending(e.target.value)}
-        className="rounded-md border border-(--color-rule) bg-transparent px-2 py-1
-                   text-sm text-(--color-ink) focus-visible:outline-2
-                   focus-visible:outline-(--color-accent)"
+        className="min-w-0 max-w-full flex-shrink rounded-md border border-(--color-rule)
+                   bg-transparent px-2 py-1 text-sm text-(--color-ink)
+                   focus-visible:outline-2 focus-visible:outline-(--color-accent)"
       >
         {corpora.map((c) => (
           <option key={c.id} value={c.id}>

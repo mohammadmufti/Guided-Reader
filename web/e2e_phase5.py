@@ -228,6 +228,19 @@ def main() -> int:
             "document.documentElement.scrollWidth - document.documentElement.clientWidth"
         )
         check("no horizontal overflow at 380px", overflow <= 0, f"{overflow}px")
+
+        # 320px too: the narrowest phone still in use, and the width at which a
+        # control that sizes itself to its content gives itself away. The book
+        # picker did — a <select> takes the width of its widest option, so the
+        # longest title became a floor on the page width, and that floor moves
+        # with the font. It measured 0px here and 29px on CI.
+        page.set_viewport_size({"width": 320, "height": 800})
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
+        page.wait_for_timeout(300)
+        narrow = page.evaluate(
+            "document.documentElement.scrollWidth - document.documentElement.clientWidth"
+        )
+        check("no horizontal overflow at 320px", narrow <= 0, f"{narrow}px")
         page.screenshot(path=str(SHOTS / "phase5-mobile.png"), full_page=False)
 
         browser.close()

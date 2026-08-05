@@ -60,6 +60,30 @@ sys.path.insert(0, str(ROOT))
 from build import fnv1a, shard_count  # noqa: E402
 
 
+def collect_named(corpora: list[Path], stem: str, previous: Path | None) -> dict:
+    """
+    Merge a corpus-independent shard set by key, richest entry winning.
+
+    `classical-*` holds Lane's headwords keyed by root and `lane-*` holds the
+    dictionary entries themselves. Neither is a fact about a corpus -- Lane's
+    Lexicon is the same book whichever text you are reading -- but both were
+    written per corpus and populated only from that corpus's own lexicon. The
+    result was that Lane appeared in al-Tajrid alone: the Muwatta' and Nawawi
+    shipped one empty shard each, so a word whose entry pointed at a Lane
+    entry pointed at a file that was not there.
+    """
+    merged: dict = {}
+    if previous is not None and previous.exists():
+        for shard in sorted(previous.glob(f"{stem}-*.json")):
+            merged.update(json.loads(shard.read_text(encoding="utf-8")))
+    for corpus_dir in corpora:
+        for shard in sorted((corpus_dir / "lex").glob(f"{stem}-*.json")):
+            for k, v in json.loads(shard.read_text(encoding="utf-8")).items():
+                if k not in merged or len(json.dumps(v)) > len(json.dumps(merged[k])):
+                    merged[k] = v
+    return merged
+
+
 def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, dict, list[str]]:
     """
     Merge every corpus's surface shards. Returns (entries, provenance, conflicts).
@@ -160,6 +184,14 @@ def main() -> int:
         return 0
 
     out = DATA / "lexicon"
+    shared_counts: dict[str, int] = {}
+    # Read the existing shared sets BEFORE the directory is removed below —
+    # same idempotency point as the surface entries, and easy to get wrong
+    # because the merge that uses them happens after.
+    carried = {
+        stem: collect_named(corpora, stem, None if args.rebuild else out)
+        for stem in ("classical", "lane")
+    }
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -169,17 +201,41 @@ def main() -> int:
         p.write_text(json.dumps(shard, ensure_ascii=False), encoding="utf-8")
         after += p.stat().st_size
 
+    # Lane and the classical index travel with the surface entries: same
+    # reasoning, and a word in one book must resolve to the same dictionary
+    # entry as the same word in another.
+    for stem, merged in carried.items():
+        if not merged:
+            continue
+        k = shard_count(merged, lambda x: x)
+        buckets: list[dict] = [{} for _ in range(k)]
+        for key, val in merged.items():
+            buckets[fnv1a(key) % k][key] = val
+        for i, bucket in enumerate(buckets):
+            (out / f"{stem}-{i:03d}.json").write_text(
+                json.dumps(bucket, ensure_ascii=False), encoding="utf-8")
+        shared_counts[stem] = k
+        print(f"shared {stem:<10} {len(merged):,} entries in {k} shards")
+
     # Point each corpus at the shared set and drop its private copy.
     for d in corpora:
         idx_path = d / "index.json"
         idx = json.loads(idx_path.read_text(encoding="utf-8"))
         idx["shards"]["sharedSurface"] = n
+        for stem, k in shared_counts.items():
+            idx["shards"][f"shared{stem.capitalize()}"] = k
         idx_path.write_text(json.dumps(idx, ensure_ascii=False), encoding="utf-8")
-        for f in (d / "lex").glob("surface-*.json"):
-            f.unlink()
+        for stem in ("surface", *shared_counts):
+            for f in (d / "lex").glob(f"{stem}-*.json"):
+                f.unlink()
 
-    print(f"\nsurface bytes      {before/1e6:.1f} MB -> {after/1e6:.1f} MB "
-          f"({100*(before-after)/max(before,1):.1f}% saved)")
+    # `before` counts only the private shards still on disk, so on a re-run —
+    # when most corpora were shared already — it is not the pre-sharing total
+    # and a percentage computed from it is nonsense. Report the duplication
+    # avoided instead, which is well defined either way.
+    dup = sum(len(v) - 1 for v in seen_in.values() if len(v) > 1)
+    print(f"\nshared set         {after/1e6:.1f} MB, {len(entries):,} entries")
+    print(f"copies avoided     {dup:,} duplicate entries across corpora")
     print(f"wrote {out}")
     return 0
 

@@ -168,6 +168,15 @@ jobs:
           python pipeline/bind.py    --corpus muwatta
           python pipeline/build.py   --corpus muwatta
 
+          # Nawawi's Forty: 42 hadith, 3,465 tokens. The cheapest end-to-end
+          # run there is, and the best canary — anything that only works at
+          # scale, or only on a text with a curated workbook, fails here in
+          # seconds rather than after a full Tajrid build.
+          python pipeline/fetch.py   --corpus nawawi40
+          python pipeline/segment.py --corpus nawawi40
+          python pipeline/bind.py    --corpus nawawi40
+          python pipeline/build.py   --corpus nawawi40
+
       # Runs LAST, after every corpus is built: it merges what they have in
       # common into one shared shard set and deletes the per-corpus copies.
       # Order matters -- a corpus built after this would reintroduce its own

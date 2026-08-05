@@ -413,11 +413,22 @@ def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
 
 
 def _payload_has_glosses(corpus_dir) -> bool:
-    for f in sorted((corpus_dir / "lex").glob("surface-*.json")):
-        for entry in json.loads(f.read_text(encoding="utf-8")).values():
-            if entry.get("gloss_msa") or entry.get("gloss"):
-                return True
-    return False
+    """
+    Does this corpus have meanings to show?
+
+    Read from the corpus's own BUILD output, not from the shipped shards.
+    `share.py` moves the entries into a shared directory and deletes the
+    per-corpus copies, so a registry computed from the payload reported
+    `hasGlosses: false` for every corpus that had already been shared and
+    `true` only for whichever was built last. The picker then offered
+    al-Tajrid — the one corpus with 21,028 curated glosses — as "vowelling
+    only".
+    """
+    path = BUILD / corpus_dir.name / "lexicon.json"
+    if not path.exists():
+        return True          # unknown; do not warn the reader off wrongly
+    surface = json.loads(path.read_text(encoding="utf-8")).get("surface", {})
+    return any(e.get("gloss_msa") or e.get("gloss") for e in surface.values())
 
 
 def main() -> int:

@@ -40,6 +40,7 @@ from pathlib import Path
 import pandas as pd
 
 from corpus import ConfigError, inline_strip_patterns, load_config, source_path
+from glossary import CARRY as GLOSSARY_FIELDS
 from tiers import (TIERS, BY_N as TIER_BY_N, GLOSSES, available, explain,
                    resources_for)
 from vocalisation import FULL, PARTIAL, agrees, classify, is_consistent
@@ -337,8 +338,24 @@ class Lexicon:
 class WitnessIndex:
     """Content retrieval over a fully-diacritised witness edition."""
 
-    def __init__(self, csv: Path) -> None:
-        rows = pd.read_csv(csv).iloc[:, 0].astype(str).tolist()
+    @staticmethod
+    def _read(path: Path) -> list[str]:
+        """
+        One vocalised unit per row, from CSV or JSON.
+
+        The Bukhari and Muwatta' witnesses are single-column CSVs. The
+        sunnah.com-derived datasets are JSON with a `hadiths` array. Both are
+        just a list of strings once read, and the index does not care which it
+        came from — so the format lives here and nowhere else.
+        """
+        if path.suffix.lower() == ".json":
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            items = doc["hadiths"] if isinstance(doc, dict) else doc
+            return [str(h["arabic"]) for h in items if h.get("arabic")]
+        return pd.read_csv(path).iloc[:, 0].astype(str).tolist()
+
+    def __init__(self, path: Path) -> None:
+        rows = self._read(path)
         self.forms = [
             [STRIP_EDGE.sub("", t) for t in s.split() if ARABIC.search(t)] for s in rows
         ]
@@ -821,6 +838,13 @@ def derive_lexicon(bound: dict, records: list[dict], lex: Lexicon) -> dict:
             "first_record": first[mid],
             "pos": e.get("pos"), "lemma": e.get("lemma"), "root": e.get("root"),
             "gloss_msa": e.get("gloss_msa"),
+            # Everything else the glossary supplied. This was a fixed list that
+            # happened to name gloss, lemma, root and POS -- so `lane_root`,
+            # `classical_keywords`, `domain` and the rest were enriched onto the
+            # entry and then dropped on the way out. The visible symptom was
+            # that Lane's Lexicon appeared only in al-Tajrid: every other corpus
+            # lost the root that links a word to its Lane entry.
+            **{f: e[f] for f in GLOSSARY_FIELDS if e.get(f) not in (None, "", "nan")},
             # Provenance: the interface can distinguish a gloss written FOR
             # this book from one borrowed from a sibling corpus.
             "glossFrom": e.get("glossFrom"),

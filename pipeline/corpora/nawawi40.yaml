@@ -1,0 +1,104 @@
+# Corpus configuration — al-Arbaʿūn al-Nawawiyya
+#
+# The smallest corpus by a wide margin: 42 hadith, 3,465 tokens, against
+# al-Tajrid's 127,163. That makes it the cheapest end-to-end exercise of the
+# derived path there is, and a useful canary — anything that only works at
+# scale, or only on a text with a curated workbook, fails here loudly.
+#
+# THE NUMBERING IS SPELLED OUT, NOT WRITTEN IN DIGITS. Headings read
+# `### | الحديث الأول`, `### | الحديث الثاني`, through الثاني والأربعون. No
+# `opener` pattern can parse that without a table of Arabic ordinals, which
+# would be text-specific code in a shared module. So the heading stays a
+# heading and `numbering: continuous` assigns the address by position — which
+# is exactly right here, because the position IS the number: this text is a
+# numbered sequence of forty-two, and nothing else.
+
+id: nawawi40
+
+display:
+  titleAr: "الأربعون النووية"
+  titleEn: "al-Arbaʿūn al-Nawawiyya — Nawawī's Forty"
+  authorAr: "يحيى بن شرف النووي"
+  author: "Yaḥyā b. Sharaf al-Nawawī"
+  authorDied: "676 AH"
+  edition: "unknown — verify against the OpenITI header before shipping"
+  subject: "الحديث والأربعينيات"
+  # Public domain: the author died in 676 AH.
+  rights: "public-domain"
+  # This text cites nothing; it IS the citation others make.
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # NOTE the `.mARkdown` extension. The sibling version (`-ara2`) is a
+    # different book: it carries Ibn Rajab's ziyadat and runs to fifty hadith
+    # in 6,396 tokens. The witness below has forty-two, so the source must be
+    # the forty-two as well.
+    uri: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.ArbacunaNawawiyya/0676Nawawi.ArbacunaNawawiyya.Shamela0012836-ara1.mARkdown
+    filename: nawawi40.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # JSON, not CSV. Scraped from sunnah.com: 42 hadith, 2,694 tokens, 90.7%
+    # of them vowelled. Same shape as the Muwatta' dataset from the same repo.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/forties/nawawi40.json
+    filename: nawawi40_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference to transfer vocalisation; no text from it is
+      redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK. There is no workbook for this text and there will not
+  # be one. The inventory is minted from the witness and meaning comes from
+  # the shared glossary.
+
+# Meaning for the forty-two comes from al-Tajrid's curated glosses via the
+# glossary, which `bind.py` reads automatically. Both are hadith Arabic and
+# `match_id` is derived from the form, so the overlap should be high.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  # One structural level in practice: 43 `### |` (a preface plus the forty-two)
+  # and a single `### ||` under the preface.
+  section: '^###\s*(\|+)\s*(.*)$'
+  section_levels:
+    "|": sub
+    "||": sub
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  # Spelled out, not numbered — see the note at the top of this file.
+  opener: null
+  editorial_reference: null
+  heading_top_prefixes: []
+  # The preface is a section like any other in the file; without this it
+  # takes number 1 and the forty-two start at 3.
+  front_prefixes: ["مقدمة", "أما بعد"]
+  numbering: continuous
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 94.0% Tier 1+2 on matn (Tier 1 59.0%,
+  # Tier 2 34.9%), 4.8% unbound, all 42 records matched at median coverage
+  # 0.881. Higher than the Muwatta's 73.0% despite having no workbook either —
+  # a short text whose whole content is witnessed leaves the alignment very
+  # little to miss. Threshold set below the measurement so it catches
+  # regression rather than restating today's figure.
+  min_witnessed_matn: 88.0
+  min_retrieval_median: 0.85
