@@ -10,9 +10,27 @@ import { useEffect, useRef, useState } from "react";
  * The file is not fetched until the reader presses play (`preload="none"`),
  * and navigating to another hadith unmounts the component, which stops
  * playback — two hadith never sound at once.
+ *
+ * WHY THERE IS A FALLBACK LINK. The recitation is hosted as a GitHub release
+ * asset, and GitHub serves those as:
+ *
+ *     content-type: application/octet-stream
+ *     content-disposition: attachment
+ *     (no access-control-allow-origin)
+ *
+ * Desktop browsers sniff the container and play it regardless. iOS Safari
+ * does not: it requires a real media MIME type and refuses the element
+ * outright. Nothing in this component can fix that — the absent CORS header
+ * also rules out fetching the bytes and re-wrapping them in a Blob with the
+ * right type, which would otherwise be the way around it.
+ *
+ * So on the platforms where playback cannot work, this at least SAYS so and
+ * offers the file directly, instead of a button that does nothing when
+ * pressed. The real fix is to rehost with `audio/mpeg`.
  */
 export default function AudioButton({ url }: { url: string | null }) {
   const [playing, setPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLAudioElement>(null);
 
   // Unmount (navigation) stops the sound.
@@ -29,9 +47,19 @@ export default function AudioButton({ url }: { url: string | null }) {
         ref={ref}
         src={src}
         preload="none"
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlaying(true);
+          setFailed(false);
+        }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
+        // Fires when the browser rejects the source itself, which is the iOS
+        // case: no exception is thrown at the call site, the element simply
+        // errors. Without this the press produced no sound and no sign.
+        onError={() => {
+          setPlaying(false);
+          setFailed(true);
+        }}
       />
       <button
         type="button"
@@ -39,8 +67,15 @@ export default function AudioButton({ url }: { url: string | null }) {
         onClick={() => {
           const el = ref.current;
           if (!el) return;
-          if (el.paused) void el.play();
-          else el.pause();
+          if (!el.paused) {
+            el.pause();
+            return;
+          }
+          // Called synchronously in the gesture — awaiting anything first
+          // would spend the user activation and iOS would refuse on those
+          // grounds instead, hiding the real reason.
+          const started = el.play();
+          if (started) started.catch(() => setFailed(true));
         }}
         aria-label={playing ? "إيقاف التلاوة مؤقتًا" : "تشغيل تلاوة هذا الحديث"}
         aria-pressed={playing}
@@ -58,6 +93,17 @@ export default function AudioButton({ url }: { url: string | null }) {
           </svg>
         )}
       </button>
+      {failed && (
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ms-2 text-xs underline underline-offset-2 text-(--color-ink-muted)"
+          dir="ltr"
+        >
+          Open audio
+        </a>
+      )}
     </span>
   );
 }

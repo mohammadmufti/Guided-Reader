@@ -29,6 +29,22 @@ export function Reader() {
   // index load below, because `loadIndex` reads the corpus-scoped path.
   const corpus = corpusParam ?? getCorpus();
   setCorpus(corpus);
+
+  /**
+   * Leave the page entirely rather than navigate within it.
+   *
+   * A client-side switch has to invalidate the index, the record cache, the
+   * search index and the per-corpus lexicon stats, while requests for all of
+   * them may still be in flight — and anything that survives is one book's
+   * data answering another book's questions. That is what broke the word
+   * panel. A document load discards every bit of it by construction.
+   *
+   * Switching books is rare and deliberate. Paying a full load for it buys a
+   * guarantee that no amount of cache-clearing can.
+   */
+  function switchCorpus(id: string) {
+    window.location.assign(`${import.meta.env.BASE_URL}${id}/read/1`);
+  }
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [browserOpen, setBrowserOpen] = useState(false);
@@ -151,7 +167,6 @@ export function Reader() {
       <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-(--color-rule) pb-4">
         <div className="flex items-start gap-3">
           <div>
-            <CorpusPicker onSelect={(id) => navigate(`/${id}/read/1`)} />
             <Link to={`/${corpus}/read/1`} className="arabic block text-xl leading-tight" lang="ar">
               {index.corpus.titleAr}
             </Link>
@@ -159,8 +174,6 @@ export function Reader() {
               {index.corpus.titleEn} · {index.counts.hadith.toLocaleString()} hadith
             </p>
           </div>
-          {/* ⓘ — the "about this book" popup; content is per-corpus data */}
-          <AboutBook corpus={index.corpus} />
         </div>
         <div className="flex flex-wrap items-start gap-3">
           <ReadingControls
@@ -213,8 +226,18 @@ export function Reader() {
       {status.kind !== "missing" && (
         <footer className="mt-10 border-t border-(--color-rule) pt-4 max-lg:pb-24">
           <NavControls prevNumber={near.prev} nextNumber={near.next} />
-          <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-(--color-ink-muted)" dir="ltr">
-            <span>← next · → previous · / jump · Esc close</span>
+
+          {/* Choosing a book and asking what this book IS are both rare,
+              deliberate acts. They sat in the header beside the title, where
+              they competed with the reading controls for a glance every time
+              the page loaded. Down here they are found when looked for. */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <CorpusPicker onSwitch={switchCorpus} />
+            {/* ⓘ — the "about this book" popup; content is per-corpus data */}
+            <AboutBook corpus={index.corpus} />
+          </div>
+
+          <p className="mt-3 text-center text-xs text-(--color-ink-muted)" dir="ltr">
             <Link to="/about" className="underline underline-offset-2">
               What you are trusting
             </Link>

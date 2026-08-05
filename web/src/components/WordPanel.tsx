@@ -257,12 +257,21 @@ function RootAndLemma({
       )}
 
       {lemma && (
-        <p className="mt-3">
+        // Flex with a real gap, not an inline margin. The two spans have
+        // OPPOSITE directions — Arabic rtl, transliteration ltr — inside an rtl
+        // document, so `ms-2` resolved to the side the transliteration was not
+        // on and the two ran into each other. A flex row places them by box
+        // rather than by text flow, and the gap holds whichever way they read.
+        <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="arabic text-xl" lang="ar" dir="rtl">
             {lemma}
           </span>
           {!rec && entry.lemma_din && (
-            <span className="ms-2 text-sm italic text-(--color-ink-muted)" dir="ltr">
+            <span
+              className="text-sm italic text-(--color-ink-muted)"
+              dir="ltr"
+              style={{ unicodeBidi: "isolate" }}
+            >
               {entry.lemma_din}
             </span>
           )}
@@ -884,9 +893,14 @@ function Provenance({ entry, token }: { entry: PanelEntry; token: Token }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
+    // `min-w-0` on the value: a flex item defaults to min-width:auto, which
+    // refuses to shrink below its content and pushes it out of the panel.
+    // `overflow-wrap: anywhere` because these values have no spaces to break
+    // at — `aligned:945,lexicon_unique:78` is one unbreakable run to the line
+    // breaker, and normal word-wrapping leaves it hanging over the edge.
     <div className="flex gap-2">
       <dt className="w-36 shrink-0 text-(--color-ink-muted)">{label}</dt>
-      <dd>{children}</dd>
+      <dd className="min-w-0 [overflow-wrap:anywhere]">{children}</dd>
     </div>
   );
 }
