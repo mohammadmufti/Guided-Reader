@@ -38,9 +38,22 @@ PER_CRITERION = {
 
 
 def load_surface(data: Path) -> dict:
+    """
+    Lexical entries, wherever the payload keeps them.
+
+    They moved twice: under `data/corpora/{id}/lex/` when the payload was
+    partitioned per corpus, and then to `data/lexicon/` once `share.py`
+    deduplicated them across corpora. Both older layouts are still read so this
+    works against an artifact built from any of them.
+    """
+    roots = [data / "lexicon"]                  # shared, current
+    if (data / "corpora").exists():             # per-corpus, before share.py
+        roots += sorted((data / "corpora").glob("*/lex"))
+    roots.append(data / "lex")                  # single-corpus, historical
     surface: dict = {}
-    for f in sorted(glob.glob(str(data / "lex" / "surface-*.json"))):
-        surface.update(json.loads(Path(f).read_text(encoding="utf-8")))
+    for root in roots:
+        for f in sorted(glob.glob(str(root / "surface-*.json"))):
+            surface.update(json.loads(Path(f).read_text(encoding="utf-8")))
     return surface
 
 
@@ -69,7 +82,14 @@ def main() -> int:
 
     # Reading order: sorted filenames are stable and match record order closely
     # enough for determinism, which is all that matters here.
-    for f in sorted(glob.glob(str(data / "hadith" / "matn-*.json"))):
+    # Records moved under `data/corpora/{id}/` when the payload was
+    # partitioned. The sample is al-Tajrid's, because the phase-7 gate asserts
+    # against al-Tajrid's own divergence categories; fall back to the flat
+    # layout so this still runs against an older artifact.
+    record_dir = data / "corpora" / "tajrid" / "hadith"
+    if not record_dir.exists():
+        record_dir = data / "hadith"
+    for f in sorted(glob.glob(str(record_dir / "matn-*.json"))):
         rec = json.loads(Path(f).read_text(encoding="utf-8"))
         number = rec.get("number")
         if not number:

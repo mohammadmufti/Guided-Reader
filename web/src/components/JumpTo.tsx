@@ -19,13 +19,14 @@ export const JumpTo = forwardRef<HTMLInputElement, Props>(function JumpTo({ inde
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  // Component body, NOT inside submit(): a hook called from an event
+  // handler breaks the rules of hooks, and the navigation silently never
+  // happens. TypeScript cannot see it; the phase-5 gate caught it.
+  const { corpus = "tajrid" } = useParams();
   const numbers = numberedList(index);
   const max = numbers[numbers.length - 1] ?? 0;
 
   function submit() {
-  // The corpus comes from the route, so a link built here points at the
-  // book the reader is actually in.
-  const { corpus = "tajrid" } = useParams();
     const trimmed = value.trim();
     if (!trimmed) return;
     if (!/^\d+$/.test(trimmed)) {

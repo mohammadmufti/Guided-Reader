@@ -73,27 +73,27 @@ def main() -> int:
         check("hadith 1 renders text", len(page.locator("article p[lang=ar]").last.inner_text()) > 80)
         page.screenshot(path=str(SHOTS / "phase5-hadith-1.png"))
 
-        index = page.evaluate("fetch('/data/index.json').then(r=>r.json())")
+        index = page.evaluate("fetch('/data/corpora/tajrid/index.json').then(r=>r.json())")
         numbers = sorted(int(n) for n in index["navigation"]["numberIndex"])
         first, last = numbers[0], numbers[-1]
 
         # --- mechanism 1: next / prev buttons --------------------------------
-        page.goto(f"{BASE}/hadith/{first}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
         page.get_by_role("link", name="Next", exact=False).click()
-        page.wait_for_url(f"**/hadith/{numbers[1]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[1]}")
         settle(page)
         page.get_by_role("link", name="Previous", exact=False).click()
-        page.wait_for_url(f"**/hadith/{first}")
+        page.wait_for_url(f"**/tajrid/read/{first}")
         settle(page)
         check("buttons step forward and back", number_in_url(page) == first)
 
         # --- mechanism 2: keyboard, RTL mapping ------------------------------
         page.keyboard.press("ArrowLeft")
-        page.wait_for_url(f"**/hadith/{numbers[1]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[1]}")
         settle(page)
         forward_ok = number_in_url(page) == numbers[1]
         page.keyboard.press("ArrowRight")
-        page.wait_for_url(f"**/hadith/{first}")
+        page.wait_for_url(f"**/tajrid/read/{first}")
         settle(page)
         check(
             "ArrowLeft advances, ArrowRight retreats (RTL)",
@@ -106,7 +106,7 @@ def main() -> int:
         check("'/' focuses the jump field", focused == "jump", str(focused))
         page.fill("#jump", str(last))
         page.keyboard.press("Enter")
-        page.wait_for_url(f"**/hadith/{last}")
+        page.wait_for_url(f"**/tajrid/read/{last}")
         settle(page)
         check("jump-to reaches the last hadith", number_in_url(page) == last)
         check("last hadith renders", heading_number(page) == last)
@@ -138,7 +138,7 @@ def main() -> int:
         n_kitab = page.locator("[role=dialog] > div ul > li").count()
         check("browser lists every kitab", n_kitab == index["counts"]["kitab"], f"{n_kitab}")
         page.locator("[role=dialog] button", has_text="كتاب بدء الوحي").first.click()
-        page.wait_for_url(f"**/hadith/{first}")
+        page.wait_for_url(f"**/tajrid/read/{first}")
         settle(page)
         check("browser jumps to the first hadith of a kitab", number_in_url(page) == first)
 
@@ -151,26 +151,26 @@ def main() -> int:
 
         # --- deep link restores exact state ----------------------------------
         target = numbers[len(numbers) // 2]
-        page.goto(f"{BASE}/hadith/{target}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{target}", wait_until="networkidle")
         deep_num = heading_number(page)
         deep_kitab = page.locator("article").inner_text()
         check("deep link restores the record", deep_num == target, f"showed {deep_num}")
         check("deep link restores kitab context", "كتاب" in deep_kitab)
 
         # --- back / forward ---------------------------------------------------
-        page.goto(f"{BASE}/hadith/{first}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
         page.keyboard.press("ArrowLeft")
-        page.wait_for_url(f"**/hadith/{numbers[1]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[1]}")
         settle(page)
         page.keyboard.press("ArrowLeft")
-        page.wait_for_url(f"**/hadith/{numbers[2]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[2]}")
         settle(page)
         page.go_back()
-        page.wait_for_url(f"**/hadith/{numbers[1]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[1]}")
         settle(page)
         back_ok = heading_number(page) == numbers[1]
         page.go_forward()
-        page.wait_for_url(f"**/hadith/{numbers[2]}")
+        page.wait_for_url(f"**/tajrid/read/{numbers[2]}")
         settle(page)
         check(
             "back/forward restore both URL and content",
@@ -178,18 +178,18 @@ def main() -> int:
         )
 
         # --- unknown number gives a real page with a way out -----------------
-        page.goto(f"{BASE}/hadith/99999", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/99999", wait_until="networkidle")
         body = page.inner_text("body")
         check("unknown number shows a 404 state", "لا يوجد حديث بهذا الرقم" in body)
         check("404 keeps the jump control", page.locator("#jump").count() == 1)
         page.get_by_role("link", name="ابدأ من الحديث الأول").click()
-        page.wait_for_url(f"**/hadith/{first}")
+        page.wait_for_url(f"**/tajrid/read/{first}")
         settle(page)
         check("404 offers a working way out", number_in_url(page) == first)
         page.screenshot(path=str(SHOTS / "phase5-404.png"))
 
         # --- layout shift across a run of navigations ------------------------
-        page.goto(f"{BASE}/hadith/{first}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
         page.wait_for_timeout(400)
         page.evaluate("window.__cls = 0")
         header_box = page.locator("header").first.bounding_box()
@@ -205,7 +205,7 @@ def main() -> int:
 
         # --- layout: requirement 3, measured not eyeballed --------------------
         page.set_viewport_size({"width": 1440, "height": 960})
-        page.goto(f"{BASE}/hadith/{first}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
         settle(page)
         art = page.locator("article").bounding_box() or {}
         asd = page.locator("aside").bounding_box() or {}
@@ -222,7 +222,7 @@ def main() -> int:
 
         # --- mobile ------------------------------------------------------------
         page.set_viewport_size({"width": 380, "height": 800})
-        page.goto(f"{BASE}/hadith/{first}", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/{first}", wait_until="networkidle")
         page.wait_for_timeout(300)
         overflow = page.evaluate(
             "document.documentElement.scrollWidth - document.documentElement.clientWidth"

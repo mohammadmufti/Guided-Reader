@@ -60,11 +60,27 @@ sys.path.insert(0, str(ROOT))
 from build import fnv1a, shard_count  # noqa: E402
 
 
-def collect(corpora: list[Path]) -> tuple[dict, dict, list[str]]:
-    """Merge every corpus's surface shards. Returns (entries, provenance, conflicts)."""
+def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, dict, list[str]]:
+    """
+    Merge every corpus's surface shards. Returns (entries, provenance, conflicts).
+
+    `previous` is the EXISTING shared set, folded in first. This step deletes a
+    corpus's private shards once they are shared, so a later run that finds a
+    corpus already emptied would otherwise drop it entirely -- rebuild one
+    corpus, re-run this, and every other book's entries vanish from the payload
+    with nothing to report it. Re-reading what is already shared makes the step
+    idempotent, which it has to be: it is the last thing in the pipeline and
+    the most likely to be run twice.
+    """
     entries: dict[str, dict] = {}
     seen_in: dict[str, list[str]] = collections.defaultdict(list)
     conflicts: list[str] = []
+
+    if previous is not None and previous.exists():
+        for shard in sorted(previous.glob("surface-*.json")):
+            for mid, row in json.loads(shard.read_text(encoding="utf-8")).items():
+                entries.setdefault(mid, dict(row))
+                seen_in[mid].append("(already shared)")
 
     for corpus_dir in corpora:
         for shard in sorted((corpus_dir / "lex").glob("surface-*.json")):
@@ -93,6 +109,9 @@ def collect(corpora: list[Path]) -> tuple[dict, dict, list[str]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--rebuild", action="store_true",
+                    help="ignore the existing shared set; drops entries for "
+                         "corpora no longer built")
     args = ap.parse_args()
 
     corpora_root = DATA / "corpora"
@@ -106,7 +125,8 @@ def main() -> int:
 
     before = sum(f.stat().st_size
                  for d in corpora for f in (d / "lex").glob("surface-*.json"))
-    entries, seen_in, conflicts = collect(corpora)
+    entries, seen_in, conflicts = collect(
+        corpora, None if args.rebuild else DATA / "lexicon")
 
     if conflicts:
         print(f"REFUSING TO SHARE — {len(conflicts)} identity conflicts.")
@@ -127,6 +147,9 @@ def main() -> int:
         shards[fnv1a(key) % n][mid] = row
 
     shared_in = sum(1 for v in seen_in.values() if len(v) > 1)
+    carried = sum(1 for v in seen_in.values() if v == ["(already shared)"])
+    if carried:
+        print(f"carried forward   {carried:,} entries from the existing shared set")
     print(f"corpora            {', '.join(d.name for d in corpora)}")
     print(f"distinct entries   {len(entries):,}")
     print(f"in >1 corpus       {shared_in:,}  ({100*shared_in/len(entries):.1f}%)")

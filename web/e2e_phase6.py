@@ -37,14 +37,14 @@ def main() -> int:
             "window.__cls=0;new PerformanceObserver(l=>{for(const e of l.getEntries())"
             "if(!e.hadRecentInput)window.__cls+=e.value}).observe({type:'layout-shift',buffered:true});"
         )
-        page.goto(f"{BASE}/hadith/1", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1", wait_until="networkidle")
         page.wait_for_selector("article p.arabic-body [data-token]")
 
         tokens = page.locator("article p.arabic-body [data-token]")
         clickable = tokens.count()
         record = page.evaluate(
-            "fetch('/data/index.json').then(r=>r.json())"
-            ".then(i=>fetch('/data/hadith/'+i.navigation.numberIndex['1']+'.json?v='+i.buildId))"
+            "fetch('/data/corpora/tajrid/index.json').then(r=>r.json())"
+            ".then(i=>fetch('/data/corpora/tajrid/hadith/'+i.navigation.numberIndex['1']+'.json?v='+i.buildId))"
             ".then(r=>r.json())"
         )
         expect_clickable = sum(1 for t in record["tokens"] if t["clickable"])
@@ -185,7 +185,7 @@ def main() -> int:
               not (seen & set(unbound)), f"{len(unbound)} unbound in this record")
 
         # ---- arrows do not leak into hadith navigation ----------------------
-        check("word arrows do not change the hadith", page.url.rstrip("/").split("?")[0].endswith("/hadith/1"),
+        check("word arrows do not change the hadith", page.url.rstrip("/").split("?")[0].endswith("/tajrid/read/1"),
               page.url)
 
         # ---- Escape releases the pane, then arrows move between hadith ------
@@ -194,10 +194,10 @@ def main() -> int:
         page.keyboard.press("ArrowLeft")
         page.wait_for_timeout(400)
         check("Escape hands the arrows back to hadith navigation",
-              page.url.split("?")[0].rstrip("/").endswith("/hadith/2"), page.url)
+              page.url.split("?")[0].rstrip("/").endswith("/tajrid/read/2"), page.url)
 
         # ---- deep link restores selection -----------------------------------
-        page.goto(f"{BASE}/hadith/1?w=4", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1?w=4", wait_until="networkidle")
         page.wait_for_selector("article p [aria-pressed=true]")
         sel = page.locator("article p.arabic-body [aria-pressed=true]").first
         check("deep link restores the selection",
@@ -216,11 +216,11 @@ def main() -> int:
         page.go_back()
         page.wait_for_timeout(400)
         check("selecting words does not stack history entries",
-              "/hadith/1" not in page.url or page.url != start,
+              "/tajrid/read/1" not in page.url or page.url != start,
               f"back from {page.url}")
 
         # ---- no layout shift on selection -----------------------------------
-        page.goto(f"{BASE}/hadith/1", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1", wait_until="networkidle")
         page.wait_for_selector("article p.arabic-body [data-token]")
         page.wait_for_timeout(500)
         page.evaluate("window.__cls=0")
@@ -237,7 +237,7 @@ def main() -> int:
         check("neighbouring words do not move", moved < 0.6, f"{moved:.2f}px")
 
         # ---- low-confidence marker -------------------------------------------
-        page.goto(f"{BASE}/hadith/7", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/7", wait_until="networkidle")
         page.wait_for_selector("article p.arabic-body [data-token]")
         low = page.locator('article p.arabic-body [data-confidence="low"]').count()
         med = page.locator('article p.arabic-body [data-confidence="medium"]').count()
@@ -245,7 +245,7 @@ def main() -> int:
               page.locator("article p.arabic-body [data-confidence]").count() > 0,
               f"low={low}, medium={med} in hadith 7")
 
-        page.goto(f"{BASE}/hadith/1?w=6", wait_until="networkidle")
+        page.goto(f"{BASE}/tajrid/read/1?w=6", wait_until="networkidle")
         page.wait_for_selector("article p [aria-pressed=true]")
         page.wait_for_timeout(300)
         page.screenshot(path=str(SHOTS / "phase6-selection.png"))
