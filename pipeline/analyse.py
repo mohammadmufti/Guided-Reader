@@ -45,6 +45,7 @@ CACHE = ROOT / "cache"
 OUT = ROOT / "build" / "morphology"
 
 sys.path.insert(0, str(ROOT))
+from corpus import ConfigError, load_config, source_path
 from normalise import normalise, root_key  # noqa: E402
 
 
@@ -353,17 +354,22 @@ def build_analyser():
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--workbook", default=str(CACHE / "Tajrid_frequency_tables.xlsx"))
+    ap.add_argument("--corpus", default="tajrid")
+    ap.add_argument("--workbook", default=None,
+                    help="override; normally resolved from the corpus config")
     ap.add_argument("--limit", type=int, default=0, help="for a quick smoke run")
     args = ap.parse_args()
 
     import pandas as pd
 
-    path = Path(args.workbook)
+    cfg = load_config(args.corpus)
+    try:
+        path = Path(args.workbook) if args.workbook else source_path(cfg, "lexicon")
+    except ConfigError as e:
+        print(e, file=sys.stderr)
+        return 1
     if not path.exists():
-        path = ROOT.parent / "Tajrid_frequency_tables.xlsx"
-    if not path.exists():
-        print(f"no workbook at {args.workbook}", file=sys.stderr)
+        print(f"no workbook at {path}", file=sys.stderr)
         return 1
 
     surface = pd.read_excel(path, sheet_name="Surface")
@@ -379,8 +385,8 @@ def main() -> int:
     #
     # Restricted to keys the workbook already knows, so this widens the READINGS
     # of known words rather than importing Bukhari's isnad vocabulary wholesale.
-    witness = CACHE / "sahih_bukhari_vocalised.csv"
-    if witness.exists():
+    witness = source_path(cfg, "vocalisation_reference", required=False)
+    if witness is not None and witness.exists():
         keys = {normalise(f) for f in forms}
         seen = set(forms)
         import csv

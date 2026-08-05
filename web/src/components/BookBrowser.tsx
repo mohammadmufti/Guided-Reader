@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
 import { numberAtRecord } from "@/lib/data";
 
@@ -18,6 +18,9 @@ interface Props {
  * NUMBERED hadith at or after it rather than to the heading itself.
  */
 export function BookBrowser({ index, open, onClose, currentKitab }: Props) {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<number | null>(currentKitab);
@@ -33,7 +36,7 @@ export function BookBrowser({ index, open, onClose, currentKitab }: Props) {
     const n = await numberAtRecord(recordId);
     if (n !== null) {
       onClose();
-      navigate(`/hadith/${n}`);
+      navigate(`/${corpus}/read/${n}`);
     }
   }
 

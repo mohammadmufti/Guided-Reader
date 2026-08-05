@@ -53,6 +53,12 @@ ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 REPORTS = ROOT / "reports"
 DATA = ROOT.parent / "web" / "public" / "data"
+# Per-corpus payload root, set in main(). Until Phase 6 every corpus wrote to
+# DATA itself and `build.py` began by deleting the whole directory -- so
+# building a second book silently destroyed the first, and index.json named
+# whichever ran last. Nothing warned; the payload simply became a different
+# book.
+CORPUS_DATA = DATA
 
 # Corpus-SPECIFIC fields. These describe this text, not the Arabic language, and
 # holding them inside a lexicon entry is what made that entry corpus-scoped —
@@ -61,7 +67,9 @@ STATS_FIELDS = [
     "freq", "doc_freq", "rank", "cum_pct", "layers", "boundFreq", "boundDocFreq",
 ]
 
-SCHEMA_VERSION = 4
+from corpus import inline_strip_patterns, load_config
+
+SCHEMA_VERSION = 6
 
 # Roadmap E.2 — shard counts are DERIVED, not fixed.
 #
@@ -404,6 +412,14 @@ def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
     }
 
 
+def _payload_has_glosses(corpus_dir) -> bool:
+    for f in sorted((corpus_dir / "lex").glob("surface-*.json")):
+        for entry in json.loads(f.read_text(encoding="utf-8")).values():
+            if entry.get("gloss_msa") or entry.get("gloss"):
+                return True
+    return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--corpus", default="tajrid")
@@ -416,9 +432,12 @@ def main() -> int:
     lexicon = json.loads((BUILD / args.corpus / "lexicon.json").read_text(encoding="utf-8"))
     bindings = json.loads((BUILD / args.corpus / "bindings.json").read_text(encoding="utf-8"))
 
-    if DATA.exists():
-        shutil.rmtree(DATA)
-    DATA.mkdir(parents=True)
+    global CORPUS_DATA
+    CORPUS_DATA = DATA / "corpora" / args.corpus
+    # Only THIS corpus's subtree is rebuilt. Siblings are left alone.
+    if CORPUS_DATA.exists():
+        shutil.rmtree(CORPUS_DATA)
+    CORPUS_DATA.mkdir(parents=True)
 
     sizes: dict[str, list[tuple[int, int, int]]] = {}
 
@@ -459,9 +478,9 @@ def main() -> int:
     # The stamped value is `audioUrl`: absolute (http…) for release assets,
     # a bare filename for local files; the client tells them apart by scheme.
     audio_by_number: dict[int, str] = {}
-    recit = (yaml.safe_load(
-        (ROOT / "corpora" / f"{args.corpus}.yaml").read_text(encoding="utf-8"))
-        or {}).get("recitation")
+    cfg = load_config(args.corpus)
+    strip = inline_strip_patterns(cfg)
+    recit = cfg.get("recitation")
     if recit:
         for lo, hi in recit.get("numbers", []):
             for n in range(int(lo), int(hi) + 1):
@@ -490,7 +509,7 @@ def main() -> int:
             "kitab": rec["kitab"], "bab": rec["bab"], "pages": rec["pages"],
             "leading": b["leading"],
             "zawaidNote": rec["zawaidNote"],
-            "bukhariRefs": rec["bukhariRefs"],
+            "crossRefs": rec["crossRefs"],
             "prev": rec["prev"], "next": rec["next"],
             "audioUrl": next(
                 (audio_by_number[n] for n in rec["numbersCovered"]
@@ -506,7 +525,7 @@ def main() -> int:
                 for t in b["tokens"]
             ],
         }
-        hadith_sizes.append(write(DATA / "hadith" / f"{rec['id']}.json", payload))
+        hadith_sizes.append(write(CORPUS_DATA / "hadith" / f"{rec['id']}.json", payload))
     sizes["hadith/*.json"] = hadith_sizes
     print(f"  context morphology: {context_counts['applied']:,} roots overridden "
           f"of {context_counts['disagreements']:,} disagreements "
@@ -723,7 +742,10 @@ def main() -> int:
         stats_shards[fnv1a(e["search_key"]) % surface_n][mid] = stats
         surface_lookup[mid] = trimmed
         # Match this form's lemma to its own Lane entry.
-        lr = e["lane_root"]
+        # A derived lexicon has no Lane linkage: `lane_root` is computed by
+        # lexicon.py from the workbook. Absent is a legitimate state, not a
+        # missing field — the entry simply has no classical apparatus.
+        lr = e.get("lane_root")
         trimmed["laneEntry"] = None
         if lr and lr in lane_by_root:
             # exact tier (ة preserved) for BOTH candidates before either
@@ -788,13 +810,13 @@ def main() -> int:
             entry["keywords"] = ordered[:14]
 
     sizes["lex/surface-*.json"] = [
-        write(DATA / "lex" / f"surface-{i:03d}.json", s) for i, s in enumerate(surface_shards)
+        write(CORPUS_DATA / "lex" / f"surface-{i:03d}.json", s) for i, s in enumerate(surface_shards)
     ]
     sizes["lex/stats-*.json"] = [
-        write(DATA / "lex" / f"stats-{i:03d}.json", s) for i, s in enumerate(stats_shards)
+        write(CORPUS_DATA / "lex" / f"stats-{i:03d}.json", s) for i, s in enumerate(stats_shards)
     ]
     sizes["lex/classical-*.json"] = [
-        write(DATA / "lex" / f"classical-{i:03d}.json", s)
+        write(CORPUS_DATA / "lex" / f"classical-{i:03d}.json", s)
         for i, s in enumerate(classical_shards)
     ]
 
@@ -832,7 +854,7 @@ def main() -> int:
     for root, payload in lane_payload.items():
         lane_shards[fnv1a(root) % lane_shards_n][root] = payload
     sizes["lex/lane-*.json"] = [
-        write(DATA / "lex" / f"lane-{i:03d}.json", s) for i, s in enumerate(lane_shards)
+        write(CORPUS_DATA / "lex" / f"lane-{i:03d}.json", s) for i, s in enumerate(lane_shards)
     ]
 
     # ---- index, written last because it records the shard counts ------------
@@ -840,7 +862,7 @@ def main() -> int:
                         {"surface": surface_n, "classical": classical_n,
                          "lane": lane_shards_n, "hash": "fnv1a-32",
                          "budgetBytes": SHARD_BUDGET_BYTES})
-    sizes["index.json"] = [write(DATA / "index.json", index)]
+    sizes["index.json"] = [write(CORPUS_DATA / "index.json", index)]
 
     # ---- search index ------------------------------------------------------
     #
@@ -861,7 +883,7 @@ def main() -> int:
         lambda: collections.defaultdict(list)
     )
     for rec in records["records"]:
-        _, toks = tokenise(rec["textRaw"])
+        _, toks = tokenise(rec["textRaw"], strip)
         for tok in toks:
             seen[normalise(tok["raw"])][rec["seq"]].append(tok["i"])
 
@@ -913,7 +935,7 @@ def main() -> int:
 
     sizes["search.json"] = [
         write(
-            DATA / "search.json",
+            CORPUS_DATA / "search.json",
             {"buildId": bid, "postings": postings, "roots": root_postings},
         )
     ]
@@ -921,7 +943,7 @@ def main() -> int:
     # ---- assertions --------------------------------------------------------
     problems: list[str] = []
     listed = set(index["navigation"]["orderedIds"])
-    on_disk = {p.stem for p in (DATA / "hadith").glob("*.json")}
+    on_disk = {p.stem for p in (CORPUS_DATA / "hadith").glob("*.json")}
     if listed - on_disk:
         problems.append(f"{len(listed - on_disk)} records in index.json have no file")
     if on_disk - listed:
@@ -1023,6 +1045,40 @@ def main() -> int:
     # Cache policy. Everything except index.json is requested with ?v={buildId},
     # so it can be cached forever; index.json carries the buildId and therefore
     # has to be revalidated.
+    # ---- the registry -----------------------------------------------------
+    # Rebuilt from what is ON DISK, not from what this run produced, so that
+    # building one corpus never drops another from the list. This is the only
+    # file a client fetches before it knows which book it is showing.
+    registry = []
+    for d in sorted((DATA / "corpora").iterdir()):
+        idx_path = d / "index.json"
+        if not idx_path.exists():
+            continue
+        idx = json.loads(idx_path.read_text(encoding="utf-8"))
+        c = idx.get("corpus", {})
+        n_records = len(list((d / "hadith").glob("*.json")))
+        registry.append({
+            "id": c.get("id", d.name),
+            "titleAr": c.get("titleAr"),
+            "titleEn": c.get("titleEn"),
+            "author": c.get("author"),
+            "records": n_records,
+            # What the interface needs in order to adapt without knowing which
+            # book it is holding.
+            "unit": c.get("unit", "hadith"),
+            # Measured from the shipped shards, never defaulted. A corpus with
+            # no workbook and no donors has no glosses, and a registry that
+            # assumed otherwise would tell the client to render an empty panel.
+            "hasGlosses": _payload_has_glosses(d),
+            "buildId": idx.get("buildId"),
+        })
+    (DATA / "corpora.json").write_text(
+        json.dumps({"schemaVersion": SCHEMA_VERSION, "corpora": registry},
+                   ensure_ascii=False),
+        encoding="utf-8")
+    print(f"\ncorpora.json: {len(registry)} corpus(es) served — "
+          + ", ".join(c["id"] for c in registry))
+
     (DATA.parent / "_headers").write_text(
         "/data/index.json\n"
         "  Cache-Control: public, max-age=0, must-revalidate\n"

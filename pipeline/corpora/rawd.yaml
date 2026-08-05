@@ -51,4 +51,4 @@ segmentation:
     top: heading_kitab
     sub: heading_bab
     front: frontmatter
-  workbook_index_phantoms: false
+  curated_index_phantoms: false

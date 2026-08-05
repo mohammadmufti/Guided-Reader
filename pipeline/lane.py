@@ -188,7 +188,7 @@ def main() -> int:
 
     db = Path(args.db)
     if not db.exists():
-        archive = CACHE / "lexicon.sqlite.zip"
+        archive = CACHE / "lane" / "lexicon.sqlite.zip"
         if not archive.exists():
             print(f"missing {db} and {archive}. Run: python pipeline/fetch.py --corpus lane",
                   file=sys.stderr)

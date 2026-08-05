@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from corpus import ConfigError, load_config, source_path
 from normalise import normalise
 
 ROOT = Path(__file__).resolve().parent
@@ -39,28 +40,11 @@ CACHE = ROOT / "cache"
 OUT = ROOT / "build"   # scoped per corpus at runtime: OUT / corpus
 REPORTS = ROOT / "reports"
 
-WORKBOOK = "Tajrid_frequency_tables.xlsx"
-
-# Spec §3.3 / §3.4, measured 2026-07-26. Recomputed here; any drift is an error.
-EXPECTED_COVERAGE = {
-    "gloss_msa": (98.2, 21028),
-    "root": (51.9, 18894),
-    "classical_keywords": (50.8, 18226),
-    "curated_sense": (11.8, 2539),
-    "morph_exact_with_case": (67.7, 17361),
-    "pos_agreement_agree": (70.4, 17752),
-    "voc_source_aligned": (90.0, 16969),
-}
-EXPECTED_AMBIGUITY = {
-    "distinct_keys": 18593,
-    "ambiguous_keys": 2631,
-    "ambiguous_token_pct": 49.7,
-    "most_frequent_ceiling_pct": 85.9,
-}
-EXPECTED_DIVERGENCE = {
-    "not_applicable": 47.6, "aligned": 16.8, "curated": 11.8, "developed_sense": 9.0,
-    "no_msa_gloss": 8.2, "divergent": 5.6, "no_classical_entry": 1.1,
-}
+# The expected figures used to live here as module constants measured from
+# al-Tajrid on 2026-07-26 — which meant a second corpus was checked against the
+# first corpus's numbers and failed for the wrong reason. They now come from
+# `expected.lexicon` in the corpus yaml. A corpus that declares none is
+# MEASURED AND REPORTED but not gated: there is nothing yet to drift from.
 
 RE_CANDIDATE = re.compile(r"^\s*(.+?)\s*\((\d+)\)\s*$")
 
@@ -168,7 +152,7 @@ def build(path: Path) -> tuple[dict, dict]:
     for wb_id, entry in workbook_rows.items():
         entry = dict(entry)
         # Kept so the workbook's own columns stay traceable after re-keying.
-        entry["workbookMatchId"] = wb_id
+        entry["curatedMatchId"] = wb_id
         entry["match_id"] = remap[wb_id]
         surface[remap[wb_id]] = entry
 
@@ -254,13 +238,28 @@ def measure(S: pd.DataFrame, total: int) -> dict:
     }
 
 
-def verify(stats: dict) -> list[str]:
-    """Compare every measured figure against the spec. Returns failure lines."""
+def verify(stats: dict, expected: dict | None) -> list[str]:
+    """
+    Compare every measured figure against the corpus's declared expectations.
+
+    `expected is None` means the corpus has never been measured. Print the
+    figures, gate nothing, and say which is happening — a silent pass and a
+    silent absence of checking must not look the same.
+    """
     fails: list[str] = []
+    if not expected:
+        print("NOTE: this corpus declares no `expected.lexicon` block. Figures below")
+        print("      are REPORTED, NOT GATED. Record them in the corpus yaml to gate.")
+    cov = (expected or {}).get("coverage") or {}
+    amb = (expected or {}).get("ambiguity") or {}
+    div = (expected or {}).get("divergence") or {}
     print("=== §3.3 coverage (token-weighted) ===")
     print(f"  {'field':<26}{'tokens':>8}{'types':>8}{'spec':>8}{'spec types':>12}")
     for field, (pct, types) in stats["coverage"].items():
-        exp_pct, exp_types = EXPECTED_COVERAGE[field]
+        if field not in cov:
+            print(f"  {field:<26}{pct:>7.1f}%{types:>8,}{'—':>8}{'not gated':>12}")
+            continue
+        exp_pct, exp_types = cov[field]
         ok = abs(pct - exp_pct) < 0.05 and types == exp_types
         print(f"  {field:<26}{pct:>7.1f}%{types:>8,}{exp_pct:>7.1f}%{exp_types:>12,}"
               f"  {'' if ok else '<-- MISMATCH'}")
@@ -269,14 +268,17 @@ def verify(stats: dict) -> list[str]:
 
     print("\n=== §3.4 ambiguity ===")
     for field, got in stats["ambiguity"].items():
-        exp = EXPECTED_AMBIGUITY[field]
+        if field not in amb:
+            print(f"  {field:<30}{got:>10,}   not gated")
+            continue
+        exp = amb[field]
         ok = (abs(got - exp) < 0.05) if isinstance(exp, float) else got == exp
         print(f"  {field:<30}{got:>10,}   spec {exp:>10,}  {'' if ok else '<-- MISMATCH'}")
         if not ok:
             fails.append(f"ambiguity.{field}: got {got} want {exp}")
 
     print("\n=== §3.3 divergence distribution ===")
-    for k, exp in sorted(EXPECTED_DIVERGENCE.items(), key=lambda kv: -kv[1]):
+    for k, exp in sorted(div.items(), key=lambda kv: -kv[1]):
         got = stats["divergence"].get(k, 0.0)
         ok = abs(got - exp) < 0.06
         print(f"  {k:<24}{got:>6.1f}%   spec {exp:>5.1f}%  {'' if ok else '<-- MISMATCH'}")
@@ -395,11 +397,16 @@ def main() -> int:
     out = OUT / args.corpus
     out.mkdir(parents=True, exist_ok=True)
 
-    path = CACHE / WORKBOOK
+    cfg = load_config(args.corpus)
+    try:
+        path = source_path(cfg, "lexicon", required=True)
+    except ConfigError as e:
+        print(f"\n{e}\n", file=sys.stderr)
+        return 1
     doc, stats = build(path)
 
     print(f"normalisation assertion  {len(doc['surface']):,}/{len(doc['surface']):,} exact\n")
-    fails = verify(stats)
+    fails = verify(stats, (cfg.get("expected") or {}).get("lexicon"))
 
     print("\n=== maps emitted ===")
     for k in ("surface", "searchKeyIndex", "lemmas", "roots", "names",

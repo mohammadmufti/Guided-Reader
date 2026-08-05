@@ -9,8 +9,10 @@ first token is carried on the record. Concatenating
 exactly, which is what lets the reading pane wrap every word in its own element
 without disturbing Arabic shaping.
 
-The editorial `(بخاري: N)` cross-reference is removed first: it is apparatus,
-not text, and the workbook did not count it either.
+Editorial apparatus declared by the corpus (`segmentation.editorial_reference`)
+is removed first: it is apparatus, not text, and al-Tajrid's workbook did not
+count its `(بخاري: N)` cross-references either. A corpus that declares none
+strips none -- this module holds no text-specific pattern of its own.
 """
 
 from __future__ import annotations
@@ -19,12 +21,22 @@ import re
 
 # Arabic letters, harakat, tanwin, shadda, sukun, superscript alef, tatweel.
 RE_WORD = re.compile(r"[\u0621-\u064a\u064b-\u0652\u0670\u0640]+")
-RE_BUKHARI_REF = re.compile(r"\(\s*بخاري\s*:\s*[\d\s،,و\u2013-]+?\s*\)")
 
+def tokenise(
+    text: str, strip: "tuple[re.Pattern[str], ...]" = ()
+) -> tuple[str, list[dict]]:
+    """
+    Return (leading punctuation, tokens). Lossless with respect to `text`
+    after `strip` has been applied.
 
-def tokenise(text: str) -> tuple[str, list[dict]]:
-    """Return (leading punctuation, tokens). Lossless with respect to `text`."""
-    clean = RE_BUKHARI_REF.sub(" ", text)
+    `strip` is the corpus's editorial apparatus, from
+    `corpus.inline_strip_patterns(cfg)`. It defaults to EMPTY: a corpus that
+    declares no apparatus strips nothing. This used to be a hardcoded
+    `(بخاري: N)` pattern applied to every text regardless of configuration.
+    """
+    clean = text
+    for pattern in strip:
+        clean = pattern.sub(" ", clean)
     matches = list(RE_WORD.finditer(clean))
     if not matches:
         return clean, []

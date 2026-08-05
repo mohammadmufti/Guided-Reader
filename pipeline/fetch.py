@@ -40,6 +40,19 @@ def manifest_path(corpus: str) -> Path:
     the very first command.
     """
     return CACHE / f"manifest-{corpus}.json"
+
+
+def cache_dir(corpus: str) -> Path:
+    """
+    Sources live under cache/{corpus}/, not in one flat directory.
+
+    The filename is chosen by whoever writes the corpus yaml, so a flat cache
+    lets two corpora that happen to pick the same one overwrite each other --
+    and the checksum guard then fires on the wrong file with a message that
+    blames the wrong text. `lane` is itself a corpus, so the shared lexicon
+    lands in cache/lane/ with no special case.
+    """
+    return CACHE / corpus
 USER_AGENT = "tajrid-reader-pipeline/0.1 (+research; contact via repo)"
 TIMEOUT = 180
 
@@ -108,8 +121,10 @@ def find_local(spec: dict) -> Path:
     raise RuntimeError(f"local source {name!r} not found. Searched: {searched}")
 
 
-def acquire(key: str, spec: dict, manifest: dict, *, force: bool, verify_only: bool) -> dict:
-    dest = CACHE / spec["filename"]
+def acquire(key: str, spec: dict, manifest: dict, *,
+            force: bool, verify_only: bool, corpus: str) -> dict:
+    dest = cache_dir(corpus) / spec["filename"]
+    dest.parent.mkdir(parents=True, exist_ok=True)
     recorded = manifest["sources"].get(key)
 
     if dest.exists() and not force:
@@ -179,7 +194,8 @@ def main() -> int:
     for key, spec in cfg["sources"].items():
         try:
             manifest["sources"][key] = acquire(
-                key, spec, manifest, force=args.force, verify_only=args.verify
+                key, spec, manifest,
+                force=args.force, verify_only=args.verify, corpus=args.corpus,
             )
         except RuntimeError as e:
             print(f"  [FAIL  ] {key:<24} {e}", file=sys.stderr)

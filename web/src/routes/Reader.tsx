@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
-import { loadIndex, loadPage, neighbours, type Page } from "@/lib/data";
+import { loadIndex, loadPage, neighbours, setCorpus, getCorpus, type Page } from "@/lib/data";
+import CorpusPicker from "@/components/CorpusPicker";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useSettings } from "@/hooks/useSettings";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
@@ -21,8 +22,13 @@ type Status =
   | { kind: "error"; message: string };
 
 export function Reader() {
-  const { number: raw } = useParams();
+  const { number: raw, corpus: corpusParam } = useParams();
   const navigate = useNavigate();
+
+  // The URL is the source of truth for which book this is. Done before the
+  // index load below, because `loadIndex` reads the corpus-scoped path.
+  const corpus = corpusParam ?? getCorpus();
+  setCorpus(corpus);
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [browserOpen, setBrowserOpen] = useState(false);
@@ -101,13 +107,13 @@ export function Reader() {
 
   useKeyboard({
     onNext: useCallback(() => {
-      if (near.next) navigate(`/hadith/${near.next}`);
+      if (near.next) navigate(`/${corpus}/read/${near.next}`);
     }, [near.next, navigate]),
     onPrev: useCallback(() => {
-      if (near.prev) navigate(`/hadith/${near.prev}`);
+      if (near.prev) navigate(`/${corpus}/read/${near.prev}`);
     }, [near.prev, navigate]),
     onFocusJump: useCallback(() => jumpRef.current?.focus(), []),
-    onSearch: useCallback(() => navigate("/search"), [navigate]),
+    onSearch: useCallback(() => navigate(`/${corpus}/search`), [navigate]),
     onEscape: useCallback(() => {
       setBrowserOpen(false);
       clearSelection();
@@ -145,7 +151,8 @@ export function Reader() {
       <header className="mb-7 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-(--color-rule) pb-4">
         <div className="flex items-start gap-3">
           <div>
-            <Link to="/hadith/1" className="arabic block text-xl leading-tight" lang="ar">
+            <CorpusPicker onSelect={(id) => navigate(`/${id}/read/1`)} />
+            <Link to={`/${corpus}/read/1`} className="arabic block text-xl leading-tight" lang="ar">
               {index.corpus.titleAr}
             </Link>
             <p className="mt-1 text-xs text-(--color-ink-muted)" dir="ltr" lang="en">
@@ -167,7 +174,7 @@ export function Reader() {
             onFace={settings.cycleFace}
           />
           <Link
-            to="/search"
+            to={`/${corpus}/search`}
             className="rounded-md border border-(--color-rule) px-2.5 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
             lang="ar"
           >
@@ -324,8 +331,8 @@ function PageView({
           )}
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
             {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
-            {main.bukhariRefs.length > 0 && (
-              <BukhariRefs refs={main.bukhariRefs} link={index.corpus.referenceLink} />
+            {main.crossRefs.length > 0 && (
+              <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
             )}
           </span>
         </div>
@@ -452,7 +459,7 @@ function PageView({
  * The URL template comes from the corpus config, not from here, because what a
  * text cites is a property of the text.
  */
-function BukhariRefs({
+function CrossRefs({
   refs,
   link,
 }: {
@@ -485,6 +492,9 @@ function BukhariRefs({
 }
 
 function MissingState({ number, index }: { number: number; index: IndexFile }) {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
   const max = Number(
     Object.keys(index.navigation.numberIndex).sort((a, b) => Number(b) - Number(a))[0],
   );
@@ -501,7 +511,7 @@ function MissingState({ number, index }: { number: number; index: IndexFile }) {
       </p>
       <p className="mt-4">
         <Link
-          to="/hadith/1"
+          to={`/${corpus}/read/1`}
           className="rounded-md border border-(--color-rule) px-3 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
           lang="ar"
         >

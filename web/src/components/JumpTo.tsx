@@ -1,5 +1,5 @@
 import { useState, forwardRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
 import { numberedList } from "@/lib/data";
 
@@ -23,6 +23,9 @@ export const JumpTo = forwardRef<HTMLInputElement, Props>(function JumpTo({ inde
   const max = numbers[numbers.length - 1] ?? 0;
 
   function submit() {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
     const trimmed = value.trim();
     if (!trimmed) return;
     if (!/^\d+$/.test(trimmed)) {
@@ -40,7 +43,7 @@ export const JumpTo = forwardRef<HTMLInputElement, Props>(function JumpTo({ inde
     }
     setError(null);
     setValue("");
-    navigate(`/hadith/${n}`);
+    navigate(`/${corpus}/read/${n}`);
   }
 
   return (

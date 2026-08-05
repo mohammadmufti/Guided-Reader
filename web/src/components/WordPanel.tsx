@@ -13,7 +13,7 @@ import type {
 } from "@/types/contracts";
 import { loadPanel, type PanelData } from "@/lib/lexicon";
 import { loadOccurrences, type Occurrence } from "@/lib/search";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 /**
  * The word panel. Phase 7.
@@ -643,6 +643,9 @@ function Occurrences({
   record: HadithFile;
   token: Token;
 }) {
+  // The corpus comes from the route, so a link built here points at the
+  // book the reader is actually in.
+  const { corpus = "tajrid" } = useParams();
   const [state, setState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "done"; total: number; shown: Occurrence[] }
   >({ kind: "idle" });
@@ -692,7 +695,7 @@ function Occurrences({
         {state.shown.filter((o) => o.number !== null).map((o) => (
           <li key={`${o.id}:${o.index}`}>
             <Link
-              to={`/hadith/${o.number}?w=${o.target}`}
+              to={`/${corpus}/read/${o.number}?w=${o.target}`}
               className="block rounded px-1 py-0.5 transition-colors hover:bg-(--color-rule)"
             >
               <span className="me-2 text-xs tabular-nums text-(--color-ink-muted)">
@@ -791,9 +794,14 @@ function ProperNoun({ entry }: { entry: PanelEntry }) {
 /* ---------------------------------------------------------- 8. provenance */
 
 const BINDING_COPY: Record<string, string> = {
+  // Tier 0. The strongest provenance there is: nothing was inferred.
+  source:
+    "This vowelling is printed in the source text itself. It was not inferred or transferred from another edition.",
   unique: "Only one lexicon entry matches this spelling.",
+  // Deliberately does NOT name Bukhārī: the witness edition is per-corpus, and
+  // hardcoding one book's name here is the same mistake `bukhariRefs` was.
   aligned:
-    "The vowelling was transferred from the matching word in a fully vocalised edition of Bukhārī.",
+    "The vowelling was transferred from the matching word in a fully vocalised parent edition.",
   heuristic: "The vowelling was inferred, not witnessed.",
   unbound: "No lexicon entry.",
 };

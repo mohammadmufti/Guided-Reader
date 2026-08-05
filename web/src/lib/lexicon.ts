@@ -9,7 +9,10 @@ import type {
   LaneEntry,
 } from "@/types/contracts";
 
-const BASE = `${import.meta.env.BASE_URL}data`;
+// Per-corpus payload root. Shared with data.ts so a corpus switch moves
+// every fetch at once; a half-switched client would pair one book's
+// lexicon shards with another book's records.
+import { corpusBase, dataRoot } from "./data";
 
 /**
  * 32-bit FNV-1a over UTF-8, byte for byte the same function as `fnv1a` in
@@ -94,21 +97,33 @@ async function loadPanelOnce(
   index: IndexFile,
 ): Promise<PanelData> {
   const searchKey = matchId.slice(0, matchId.lastIndexOf("#"));
-  const s = fnv1a(searchKey) % index.shards.surface;
-  let shard = surfaceShards.get(s);
+
+  // TWO MODULI, deliberately. What a word IS lives in one shared set across
+  // every corpus, because `match_id` is derived from the form and an entry is
+  // therefore identical wherever it occurs. What a word DOES here — frequency,
+  // rank, which layers it appears in — is per corpus. The two sets are sized
+  // independently against the same byte budget, so they do not share a shard
+  // count and must not share one here.
+  const shared = index.shards.sharedSurface ?? index.shards.surface;
+  const su = fnv1a(searchKey) % shared;
+  let shard = surfaceShards.get(su);
   if (!shard) {
     shard = fetchJson<Record<string, PanelEntry>>(
-      `${BASE}/lex/surface-${pad(s)}.json?v=${index.buildId}`,
+      // No corpus in the path, and no buildId either: a shared entry does not
+      // change when one corpus is rebuilt, so cache-busting per corpus would
+      // throw away a hit the reader has already paid for.
+      `${dataRoot()}/lexicon/surface-${pad(su)}.json`,
     );
-    surfaceShards.set(s, shard);
+    surfaceShards.set(su, shard);
   }
   // Statistics live in a parallel shard set on the same routing, so this is one
   // extra request, in flight alongside the first rather than after it. The
   // split is what lets a lexical entry be identical across corpora.
+  const s = fnv1a(searchKey) % index.shards.surface;
   let statsShard = statsShards.get(s);
   if (!statsShard) {
     statsShard = fetchJson<Record<string, CorpusStats>>(
-      `${BASE}/lex/stats-${pad(s)}.json?v=${index.buildId}`,
+      `${corpusBase()}/lex/stats-${pad(s)}.json?v=${index.buildId}`,
     );
     statsShards.set(s, statsShard);
   }
@@ -129,14 +144,14 @@ async function loadPanelOnce(
   let cShard = classicalShards.get(c);
   if (!cShard) {
     cShard = fetchJson<Record<string, ClassicalEntry>>(
-      `${BASE}/lex/classical-${pad(c)}.json?v=${index.buildId}`,
+      `${corpusBase()}/lex/classical-${pad(c)}.json?v=${index.buildId}`,
     );
     classicalShards.set(c, cShard);
   }
   let lShard = laneShards.get(l);
   if (!lShard) {
     lShard = fetchJson<Record<string, LaneRoot>>(
-      `${BASE}/lex/lane-${pad(l)}.json?v=${index.buildId}`,
+      `${corpusBase()}/lex/lane-${pad(l)}.json?v=${index.buildId}`,
     );
     laneShards.set(l, lShard);
   }

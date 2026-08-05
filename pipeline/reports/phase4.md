@@ -1,28 +1,29 @@
 # Phase 4 — build report
 
 artefact                  files         raw       gzip     brotli
-  hadith/*.json            2550      21.22M      3.61M      2.91M
-  lex/surface-*.json         64      15.49M      2.11M      1.50M
-  lex/classical-*.json        4       0.63M      0.18M      0.15M
-  lex/lane-*.json           512      39.86M      8.36M      7.03M
-  index.json                  1       0.11M      0.03M      0.01M
-  search.json                 1       0.57M      0.18M      0.15M
-  TOTAL                    3132      77.87M     14.46M     11.75M
+  hadith/*.json            2654      24.32M      3.88M      3.58M
+  lex/surface-*.json          8       6.22M      0.54M      0.43M
+  lex/stats-*.json            8       1.50M      0.16M      0.15M
+  lex/classical-*.json        1       0.00M      0.00M      0.00M
+  lex/lane-*.json             1       0.00M      0.00M      0.00M
+  index.json                  1       0.13M      0.02M      0.02M
+  search.json                 1       1.46M      0.48M      0.45M
+  TOTAL                    2674      33.63M      5.08M      4.62M
 
 ## Gate — cold load of one hadith, brotli, including the index
 
-  index.json                    12.3 KB
-  + median hadith                0.9 KB   ->    13.2 KB
-  + 95th-percentile hadith       2.2 KB   ->    14.5 KB
-  + largest hadith              17.7 KB   ->    30.0 KB
+  index.json                    17.7 KB
+  + median hadith                1.1 KB   ->    18.8 KB
+  + 95th-percentile hadith       3.2 KB   ->    20.9 KB
+  + largest hadith              14.4 KB   ->    32.1 KB
 
-  Budget 150 KB. Worst case 30.0 KB — PASS
+  Budget 150 KB. Worst case 32.1 KB — PASS
 
 ## Gate — first word-panel lookup
 
-  surface shard    median   22.7 KB, max 26.8 KB   (64 shards)
-  classical shard  median   36.2 KB, max 37.5 KB   (16 shards)
-  worst first panel = 64.3 KB over two parallel requests; every later panel hitting a cached shard costs zero bytes.
+  surface shard    median   52.0 KB, max 55.1 KB   (64 shards)
+  classical shard  median    0.0 KB, max 0.0 KB   (16 shards)
+  worst first panel = 55.1 KB over two parallel requests; every later panel hitting a cached shard costs zero bytes.
 
   Measured end to end in Node against a local static server, uncompressed:
   a content word needing BOTH shards resolved in a median of 25.2 ms
@@ -31,8 +32,8 @@ artefact                  files         raw       gzip     brotli
 
 ## Assertions
 
-  records in index.json          2,550
-  hadith files on disk           2,550
+  records in index.json          2,654
+  hadith files on disk           2,654
   orphans in either direction    0
   bound match_ids resolving      all
   lane_root references resolving all

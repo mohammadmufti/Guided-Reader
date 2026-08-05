@@ -2,7 +2,10 @@ import type { IndexFile } from "@/types/contracts";
 import { loadIndex, loadRecord, layerOf } from "@/lib/data";
 import { normalise, rootKey } from "@/lib/normalise";
 
-const BASE = `${import.meta.env.BASE_URL}data`;
+// Per-corpus payload root. Shared with data.ts so a corpus switch moves
+// every fetch at once; a half-switched client would pair one book's
+// lexicon shards with another book's records.
+import { corpusBase } from "./data";
 
 interface SearchFile {
   buildId: string;
@@ -38,7 +41,7 @@ export async function loadSearchIndex(): Promise<Map<string, Posting[]>> {
   if (!indexPromise) {
     indexPromise = (async () => {
       const index = await loadIndex();
-      const res = await fetch(`${BASE}/search.json?v=${index.buildId}`);
+      const res = await fetch(`${corpusBase()}/search.json?v=${index.buildId}`);
       if (!res.ok) throw new Error(`search.json: HTTP ${res.status}`);
       const file = (await res.json()) as SearchFile;
       const expand = (src: Record<string, number[][]>) => {

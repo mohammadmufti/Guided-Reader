@@ -64,7 +64,17 @@ The two errors found so far were both found by a reader, not by a test.
 | A single lexicon candidate | 45.8% |
 | Inferred or guessed | 3.6% |
 
-**Neither source text carries any harakāt.** Every vowel comes from the witness
+**No source text carries any harakāt. Measured across a 179-text sample of
+OpenITI — 120 random, plus 59 drawn from the genres where vocalisation is most
+likely (poetry dīwāns, Qurʾānic sciences, Alfiyya commentaries, grammar) — not
+one carried a single mark, with the detector verified at 98.7% on a known
+vocalised control. That is 1.3% of the corpus, so the 95% upper bound on the
+true rate is about 1.7%: rare, not impossible.
+
+This is a fact about OpenITI specifically. The vocalised Bukhārī and Muwaṭṭaʾ
+witnesses this pipeline already fetches are 98.7% vowelled, and a corpus taken
+from Shamela directly, from Tanzil, or from a hadith dataset will arrive marked.
+Tier 0 exists for that day and currently fires never.** Every vowel comes from the witness
 or the workbook. A text with no parent edition therefore gets **no vowelling at
 all** — and most books worth adding have no parent.
 

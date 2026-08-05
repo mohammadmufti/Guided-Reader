@@ -55,7 +55,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: pipeline/cache
-          key: sources-${{ hashFiles('pipeline/corpora/*.yaml') }}
+          # v2: Phase 0 moved sources to cache/{corpus}/. A half-migrated
+          # restore would trip the checksum guard on the wrong file.
+          key: sources-v2-${{ hashFiles('pipeline/corpora/*.yaml') }}
 
       # Lane is ingested whole, once, and shared across every corpus. 72 MB of
       # parsed entries, ~90 s to produce. Keyed on the ingester itself.
@@ -116,6 +118,10 @@ jobs:
         run: |
           pip install qalsadi
           python pipeline/analyse.py
+          # A minted corpus has no other source of lemma/root/POS, so an absent
+          # analyses.json degrades it silently to vowelling-only. Fail here
+          # rather than shipping a reader whose root navigation is dead.
+          test -f pipeline/build/morphology/analyses.json
 
       - name: Check generated code is in sync
         run: python pipeline/codegen.py --check
@@ -140,10 +146,50 @@ jobs:
       # The second corpus is the whole basis of the generalisation claim and is
       # exercised nowhere else. Segmenting it is cheap and it is the thing most
       # likely to rot unnoticed.
-      - name: Segment the second corpus
+      - name: Segment the other corpora
         run: |
           python pipeline/fetch.py   --corpus rawd
           python pipeline/segment.py --corpus rawd
+          # The Muwatta' exercises two things al-Tajrid and al-Rawd never do:
+          # a file that states its own heading hierarchy (`### |` vs `### ||`)
+          # and a numbered opener that sits on a body line rather than a
+          # section line. Both were assumptions baked into segment.py until
+          # this text was added.
+          python pipeline/fetch.py   --corpus muwatta
+          python pipeline/segment.py --corpus muwatta
+          # Bind and build it too, end to end. Stopping a second corpus at
+          # segmentation is how the hardcoded-workbook bug survived: a corpus
+          # that is only ever segmented only ever proves segmentation.
+          #
+          # This corpus has NO workbook. It mints its inventory from the
+          # aligned witness and takes glosses from al-Tajrid via
+          # `lexicon_donors`, which makes it the only end-to-end check that
+          # those two paths work at all.
+          python pipeline/bind.py    --corpus muwatta
+          python pipeline/build.py   --corpus muwatta
+
+      # Runs LAST, after every corpus is built: it merges what they have in
+      # common into one shared shard set and deletes the per-corpus copies.
+      # Order matters -- a corpus built after this would reintroduce its own
+      # surface shards and the client would read stale entries.
+      - name: Deduplicate the lexicon across corpora
+        run: python pipeline/share.py
+
+      # The regression guard for the Phase 1 bug. `bind.py` and `lexicon.py`
+      # took --corpus but read al-Tajrid's workbook and Sahih al-Bukhari as
+      # literals, so this command used to bind a geographical dictionary
+      # against a hadith collection and report a merely-failing gate. It must
+      # now REFUSE. An expected-failure assertion, because the correct
+      # behaviour here is a non-zero exit.
+      - name: Corpus isolation — a lexicon-less corpus must refuse to bind
+        run: |
+          for stage in lexicon bind; do
+            if python pipeline/$stage.py --corpus rawd; then
+              echo "::error::$stage.py bound 'rawd' despite it declaring no workbook"
+              exit 1
+            fi
+            echo "ok: $stage.py refused 'rawd'"
+          done
 
       # Pipeline tests run on EVERY build, including pushes. They need no
       # browser, add about ten seconds, and cover the part of the system whose

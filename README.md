@@ -108,14 +108,25 @@ tell you when it agrees.
 `python pipeline/bind.py` prints the tier table. The number that matters:
 
 ```
-GATE — Tier 1+2 on matn: 97.0%   (requires >= 90.0%)
+GATE — Tier 1+2 on matn: 97.2%   (requires >= 90.0%)
 Naive ceiling for comparison: 85.9%
 ```
 
-Tiers 1 and 2 are witnessed readings. Tier 3 is inference, Tier 4 a guess. If
-Tier 1+2 falls below 90% on a new corpus, the vocalisation reference is probably
-not aligning — check the retrieval coverage line beneath it, which should show a
-median above 0.9.
+Tiers 0, 1 and 2 are witnessed readings. Tier 3 is inference, Tier 4 a guess.
+Tier 0 is the source's own vowelling, which outranks everything: no corpus
+configured so far reaches it, because every OpenITI text sampled is bare.
+
+The threshold is PER CORPUS, in `gates.min_witnessed_matn`. al-Tajrid requires
+90%; the Muwatta', which has no curated workbook and mints its inventory from a
+vocalised parent edition, requires 68% and measures 73.0%. A corpus that
+declares no threshold is reported and explicitly not gated — a silent pass and
+a silent absence of checking must not look alike.
+
+If Tier 1+2 falls short on a new corpus, check the retrieval coverage line
+beneath it first. A median well below 0.9 usually means the vocalisation
+reference is the wrong EDITION rather than that the pipeline is broken: the
+Muwatta's nine OpenITI versions are different recensions, and they score
+between 0.429 and 0.963 against the same witness.
 
 `python pipeline/lexicon.py` verifies every coverage figure against the values
 recorded in the spec and fails loudly if extraction has drifted.
