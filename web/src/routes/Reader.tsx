@@ -358,7 +358,7 @@ function PageView({
           )}
           {/* recitation, when this hadith has a recording — header row only,
               never inside the matn */}
-          <AudioButton url={main.audioUrl} />
+          <AudioButton tracks={main.audio} />
           {main.kitab && (
             <span className="arabic text-sm" lang="ar">
               {index.corpus.chapterLink ? (
@@ -380,6 +380,17 @@ function PageView({
               ) : (
                 main.kitab.titleAr
               )}
+            </span>
+          )}
+          {/* Ibn Rajab's ziyadat are numbered hadith in their own right, so
+              they are the main record rather than something appended below one
+              — but they are still another hand's, and say so. */}
+          {index.corpus.asideLayer && main.layer === index.corpus.asideLayer && (
+            <span
+              className="arabic rounded border border-dashed border-(--color-rule) px-1.5 py-0.5 text-[0.7rem] text-(--color-ink-muted)"
+              lang="ar"
+            >
+              {index.corpus.asideNote}
             </span>
           )}
           {main.bab && (
@@ -427,9 +438,14 @@ function PageView({
 
         {additions.map((add) => (
           <section key={add.id} className="mt-9 border-t border-dashed border-(--color-rule) pt-5">
-            <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
-              زيادة الضياء الداغستاني — ليست من أصل الزبيدي
-            </p>
+            {/* Whose addition, and that it is not the original — from the
+                corpus, not from this file. It named al-Diya' al-Daghistani for
+                every text that has additions, which by now is two. */}
+            {index.corpus.asideNote && (
+              <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
+                {index.corpus.asideNote}
+              </p>
+            )}
             {/* A zawa'id addition is an unnumbered hadith, not decoration.
                 Its words were left inert in Phase 5, before the panel existed,
                 and stayed that way — 6,063 tokens a reader could see but not

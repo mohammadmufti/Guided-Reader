@@ -493,7 +493,10 @@ def main() -> int:
     #
     # The stamped value is `audioUrl`: absolute (http…) for release assets,
     # a bare filename for local files; the client tells them apart by scheme.
-    audio_by_number: dict[int, str] = {}
+    # Keyed by number, then a LIST of tracks: some texts have more than one
+    # recitation, and a reader with a preferred reciter should not have to take
+    # ours. Nawawi's Forty has two.
+    audio_by_number: dict[int, list[dict]] = {}
     cfg = load_config(args.corpus)
     strip = inline_strip_patterns(cfg)
     binding_tally: dict[str, float] = {}
@@ -501,16 +504,32 @@ def main() -> int:
     if recit:
         for lo, hi in recit.get("numbers", []):
             for n in range(int(lo), int(hi) + 1):
-                audio_by_number[n] = recit["baseUrl"] + recit["pattern"].format(n=n)
-        print(f"  audio: {len(audio_by_number)} recitation URLs declared "
-              f"({recit['baseUrl'].split('/')[2]})")
+                # One reciter declared inline, or several under `reciters`.
+                # The single form is kept because al-Tajrid uses it and there is
+                # no reason to make a one-reciter text describe a list.
+                tracks = recit.get("reciters") or [recit]
+                audio_by_number[n] = [
+                    {
+                        "label": t.get("label"),
+                        "labelEn": t.get("labelEn"),
+                        "url": t["baseUrl"] + t["pattern"].format(n=n),
+                    }
+                    for t in tracks
+                ]
+        _tracks = recit.get("reciters") or [recit]
+        _hosts = sorted({t["baseUrl"].split("/")[2] for t in _tracks})
+        print(f"  audio: {len(audio_by_number)} records x {len(_tracks)} reciter(s) "
+              f"({', '.join(_hosts)})")
     audio_dir = ROOT.parent / "web" / "public" / "audio"
     if audio_dir.is_dir():
         local = 0
         for f in sorted(audio_dir.glob("*.mp3")):
             m = re.search(r"(\d+)\.mp3$", f.name)
             if m:
-                audio_by_number[int(m.group(1))] = f.name
+                # A local file overrides the declared URLs entirely — that is
+                # the point of the dev path.
+                audio_by_number[int(m.group(1))] = [{"label": None, "labelEn": None,
+                                                     "url": f.name}]
                 local += 1
         if local:
             print(f"  audio: {local} local files override the declared URLs")
@@ -557,9 +576,9 @@ def main() -> int:
             "zawaidNote": rec["zawaidNote"],
             "crossRefs": rec["crossRefs"],
             "prev": rec["prev"], "next": rec["next"],
-            "audioUrl": next(
+            "audio": next(
                 (audio_by_number[n] for n in rec["numbersCovered"]
-                 if n in audio_by_number), None),
+                 if n in audio_by_number), []),
             "tokens": [
                 {
                     "i": t["i"], "surface": t["surface"], "raw": t["raw"],

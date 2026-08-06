@@ -143,6 +143,19 @@ class CorpusMeta(TypedDict):
             "sunnah.com. Null where the corpus has no such correspondence."
         ),
     ]
+    asideLayer: Annotated[
+        str | None,
+        Doc("Layer name holding additions to the text, if the corpus has one."),
+    ]
+    asideNote: Annotated[
+        str | None,
+        Doc(
+            "What to say beside an addition — whose it is, and that it is not "
+            "part of the original. Al-Tajrid had this as a hardcoded Arabic "
+            "sentence in the reader, which is one text's editorial fact living "
+            "in every text's code."
+        ),
+    ]
     chapterLink: Annotated[
         ReferenceLink | None,
         Doc(
@@ -240,13 +253,12 @@ class Navigation(TypedDict):
     numberIndex: Annotated[
         dict[str, str], Doc("Display number (as string) -> record ID. Gaps are simply absent.")
     ]
-    audioUrl: Annotated[
-        str | None,
+    audio: Annotated[
+        list["AudioTrack"],
         Doc(
-            "This record's recitation: an absolute URL (release-hosted asset) "
-            "or a bare filename under the app's /audio/ (local file, which "
-            "overrides the declared URL at build time). Null when no "
-            "recording exists, and the play button renders nothing."
+            "Recitations of this record, in the order they should be offered. "
+            "Empty where none exists. A list rather than a single URL because a "
+            "text may have more than one reciter and the reader should choose."
         ),
     ]
 
@@ -504,6 +516,14 @@ class Token(TypedDict):
     punctuationAfter: Annotated[str, Doc("Trailing punctuation, kept out of the token proper.")]
 
 
+class AudioTrack(TypedDict):
+    """One recitation of one record."""
+
+    label: str | None
+    labelEn: str | None
+    url: str
+
+
 class HadithFile(TypedDict):
     """`hadith/{id}.json` — what the app actually fetches. Output of Phase 4."""
 
@@ -529,14 +549,9 @@ class HadithFile(TypedDict):
     tokens: list[Token]
     prev: str | None
     next: str | None
-    audioUrl: Annotated[
-        str | None,
-        Doc(
-            "This record's recitation: an absolute URL (release-hosted asset) "
-            "or a bare filename under the app's /audio/ (local file, which "
-            "overrides the declared URL at build time). Null when no "
-            "recording exists, and the play button renders nothing."
-        ),
+    audio: Annotated[
+        list[AudioTrack],
+        Doc("Recitations of this record, in offer order. Empty where none exists."),
     ]
 
 
@@ -945,6 +960,7 @@ EXPORTED: list[type] = [
     LaneRoot,
     ShardConfig,
     BindingTally,
+    AudioTrack,
     IndexCounts,
     IndexFile,
     GlossSlot,

@@ -17,7 +17,7 @@ id: nawawi40
 
 display:
   titleAr: "الأربعون النووية"
-  titleEn: "al-Arbaʿūn al-Nawawiyya"
+  titleEn: "al-Arbaʿūn al-Nawawiyya — maʿ ziyādāt Ibn Rajab"
   authorAr: "يحيى بن شرف النووي"
   author: "Yaḥyā b. Sharaf al-Nawawī"
   authorDied: "676 AH"
@@ -25,17 +25,24 @@ display:
   subject: "الحديث والأربعينيات"
   # Public domain: the author died in 676 AH.
   rights: "public-domain"
+  asideNote: "من زيادات الحافظ ابن رجب الحنبلي — ليست من الأربعين النووية"
   # This text cites nothing; it IS the citation others make.
   crossRefLabel: null
 
 sources:
   text:
     kind: http
-    # NOTE the `.mARkdown` extension. The sibling version (`-ara2`) is a
-    # different book: it carries Ibn Rajab's ziyadat and runs to fifty hadith
-    # in 6,396 tokens. The witness below has forty-two, so the source must be
-    # the forty-two as well.
-    uri: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.ArbacunaNawawiyya/0676Nawawi.ArbacunaNawawiyya.Shamela0012836-ara1.mARkdown
+    # The `-ara2` edition, which carries Ibn Rajab al-Hanbali's ziyadat: forty
+    # -two hadith from al-Nawawi plus eight appended, fifty in all. The sibling
+    # `-ara1` has only the forty-two.
+    #
+    # Three structural levels, and they do not nest consistently: al-Nawawi's
+    # hadith are at `### |||` under `[الأحاديث]`, Ibn Rajab's at `### ||` under
+    # `[زيادات ابن رجب الحنبلي]`. Between them sits an appendix on vowelling
+    # difficult words whose ten sub-headings are also called `الحديث الأول`
+    # and so on — references to hadith rather than hadith, which is what
+    # `front_prefixes` excludes.
+    uri: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.ArbacunaNawawiyya/0676Nawawi.ArbacunaNawawiyya.Sham19Y0147927-ara2
     filename: nawawi40.mARkdown
     encoding: utf-8
 
@@ -63,10 +70,18 @@ sources:
 segmentation:
   # One structural level in practice: 43 `### |` (a preface plus the forty-two)
   # and a single `### ||` under the preface.
-  section: '^###\s*(\|+)\s*(.*)$'
+  # `AUTO`, `CHECK` and `EDITOR` are OpenITI's own editorial tags on a heading,
+  # not part of its title. Consumed here so the prefixes below match the words
+  # a reader would see.
+  # `AUTO` and `CHECK` are OpenITI's confidence tags on a heading, not part of
+  # its title, and are consumed so the prefixes below match the words a reader
+  # would see. `EDITOR` is NOT consumed: it marks the edition's own apparatus —
+  # title page, endnotes — which is front matter, and is listed as such below.
+  section: '^###\s*(\|+)\s*(?:AUTO|CHECK)?\s*(.*)$'
   section_levels:
-    "|": sub
+    "|": top
     "||": sub
+    "|||": sub
   paragraph: '^#\s(.*)$'
   continuation: '^~~(.*)$'
   strip:
@@ -92,10 +107,28 @@ segmentation:
   heading_top_prefixes: []
   # The preface is a section like any other in the file; without this it
   # takes number 1 and the forty-two start at 3.
-  front_prefixes: ["مقدمة", "أما بعد"]
+  front_prefixes:
+    - "مقدمة"
+    - "أما بعد"
+    - "باب الإشارات"          # appendix on vowelling; its sub-headings are refs
+    # This edition brackets its structural headings; the bare forms are
+    # kept because the ara1 sibling does not.
+    - "خطبة"
+    - "[خطبة"
+    - "خاتمة"
+    - "[خاتمة"
+    - "بسم الله"              # editor's foreword
+    - "تقديم"
+    - "EDITOR"                # title page and endnotes: the edition's own
+    - "Endnotes"
+  # After this section, records are additions to the book rather than part of
+  # its original sequence — but still numbered and navigable.
+  aside_section_prefixes: ["[زيادات ابن رجب"]
+  number_asides: true
   numbering: continuous
   layer_names:
     body: matn
+    aside: ziyada
     top: heading_kitab
     sub: heading_bab
     front: frontmatter
@@ -112,6 +145,27 @@ gates:
   min_retrieval_median: 0.85
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Two recitations of the same fifty. Offered side by side rather than one
+# chosen for the reader: which voice suits a listener is not ours to settle.
+#
+# Hosted as GitHub release assets, same as al-Tajrid's. NOTE that GitHub serves
+# those as `application/octet-stream` with `content-disposition: attachment`,
+# which iOS Safari refuses to play — see AudioButton.tsx. The reader falls back
+# to a direct link there. Rehosting somewhere that sends `audio/mpeg` fixes it
+# for every corpus at once.
+recitation:
+  numbers: [[1, 50]]
+  reciters:
+    - label: "أبو أسامة"
+      labelEn: "Abū Usāma"
+      baseUrl: https://github.com/mohammadmufti/Guided-Reader/releases/download/audio-nawawi40-v1/
+      pattern: "al-arbaoon_an-Nawawi_Abu_Usamah_ar_{n:04d}.mp3"
+    - label: "حامد الدرهيم"
+      labelEn: "Ḥāmid al-Darāhim"
+      baseUrl: https://github.com/mohammadmufti/Guided-Reader/releases/download/audio-nawawi40-v1/
+      pattern: "al-arbaoon_an-Nawawi_hamed_ad-darahim_ar_{n:04d}.mp3"
+
 about:
   description:
     - >-

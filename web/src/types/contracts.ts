@@ -95,6 +95,14 @@ export interface CorpusMeta {
    * sunnah.com. Null where the corpus has no such correspondence.
    */
   recordLink: ReferenceLink | null;
+  /** Layer name holding additions to the text, if the corpus has one. */
+  asideLayer: string | null;
+  /**
+   * What to say beside an addition — whose it is, and that it is not part of the original.
+   * Al-Tajrid had this as a hardcoded Arabic sentence in the reader, which is one text's
+   * editorial fact living in every text's code.
+   */
+  asideNote: string | null;
   /**
    * How to turn a KITAB INDEX into a URL, for a corpus whose external reference is per chapter
    * rather than per hadith. sunnah.com gives the Muwatta' a page per book but no per-hadith
@@ -180,11 +188,11 @@ export interface Navigation {
   /** Display number (as string) -> record ID. Gaps are simply absent. */
   numberIndex: Record<string, string>;
   /**
-   * This record's recitation: an absolute URL (release-hosted asset) or a bare filename under
-   * the app's /audio/ (local file, which overrides the declared URL at build time). Null when no
-   * recording exists, and the play button renders nothing.
+   * Recitations of this record, in the order they should be offered. Empty where none exists. A
+   * list rather than a single URL because a text may have more than one reciter and the reader
+   * should choose.
    */
-  audioUrl: string | null;
+  audio: AudioTrack[];
 }
 
 /** `records.json` — the whole segmented corpus. Output of Phase 1. */
@@ -464,12 +472,8 @@ export interface HadithFile {
   tokens: Token[];
   prev: string | null;
   next: string | null;
-  /**
-   * This record's recitation: an absolute URL (release-hosted asset) or a bare filename under
-   * the app's /audio/ (local file, which overrides the declared URL at build time). Null when no
-   * recording exists, and the play button renders nothing.
-   */
-  audioUrl: string | null;
+  /** Recitations of this record, in offer order. Empty where none exists. */
+  audio: AudioTrack[];
 }
 
 /** A chapter in the browsable tree. */
@@ -576,6 +580,13 @@ export interface BindingTally {
   uniqueUncertain: number | null;
   heuristic: number | null;
   unbound: number | null;
+}
+
+/** One recitation of one record. */
+export interface AudioTrack {
+  label: string | null;
+  labelEn: string | null;
+  url: string;
 }
 
 /** Headline counts, so the UI can show them without walking the tree. */
