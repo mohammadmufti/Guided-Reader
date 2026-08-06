@@ -243,3 +243,29 @@ def test_persian_letterforms_are_folded_to_arabic():
     _, toks = tokenise(matn[0]["textRaw"])
     # Three whole words, not five fragments.
     assert all(len(t["raw"]) > 1 for t in toks)
+
+
+def test_final_farsi_yeh_becomes_alef_maksura_not_a_dotted_yeh():
+    """Persian writes one letter where Arabic writes two, and it changes words.
+
+    ی stands for both ي (dotted; a consonant or long i) and ى (alef maksura; a
+    final long a). Folding every ی to ي turned `عَلَی` — the preposition — into
+    `عَلَي`, which is the name Ali. Also hit: السفلى, يرى, التقوى.
+
+    The distinction is recoverable from the preceding vowel: a final ی after a
+    kasra is a long i and keeps the dots (`فِیْ` is fi, `أُمَّتِیْ` is ummati);
+    after a fatha, or an unvowelled letter, it is alef maksura.
+    """
+    from segment import fold_letterforms as fold
+    for src, want in [
+        ("عَلَی", "عَلَى"),          # preposition, not the name
+        ("السُّفْلَی", "السُّفْلَى"),
+        ("یَرَی", "يَرَى"),
+        ("الْتَّقْوَی", "الْتَّقْوَى"),
+        ("عَلی", "عَلى"),            # preceding letter unvowelled
+        ("فِیْ", "فِيْ"),            # after kasra: keeps its dots
+        ("أُمَّتِیْ", "أُمَّتِيْ"),
+        ("لَیْسَ", "لَيْسَ"),        # medial: always dotted
+        ("کَالْمُعَایَنَةِ", "كَالْمُعَايَنَةِ"),
+    ]:
+        assert fold(src) == want, f"{src!r} folded to {fold(src)!r}, expected {want!r}"

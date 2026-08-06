@@ -491,25 +491,59 @@ class Segmenter:
 
 
 # Persian and Urdu codepoints for letters Arabic already has. They are the
-# SAME letters — a farsi yeh is a yeh — but they sit outside `RE_WORD`'s
-# \u0621-\u064a range, so a word containing one is not one word.
+# SAME letters -- a farsi kaf is a kaf -- but they sit outside `RE_WORD`'s
+# \u0621-\u064a range, so a word containing one is not one word. `لَیْسَ` in
+# Shah Wali Allah's Forty is written with U+06CC, and the tokeniser split it at
+# that letter into two half-words, each separately hoverable.
 #
-# `لَیْسَ` in Shah Wali Allah's Forty is written with U+06CC, and the tokeniser
-# split it at that letter into `لَ` and `ْسَ`: two half-words, each separately
-# hoverable and neither meaning anything. 47 farsi yeh and 21 farsi kaf in that
-# text; none in any other source here, so this is a no-op everywhere else.
+# THE YEH IS NOT A SIMPLE SUBSTITUTION. Persian writes ی for what Arabic
+# distinguishes as ي (dotted, a consonant or long i) and ى (alef maksura, a
+# final long a). Folding every ی to ي changes words: `عَلَی` becomes `عَلَي`,
+# which is the name Ali rather than the preposition on. Also affected here:
+# السُّفْلَی, یَرَی, الْتَّقْوَی.
 #
-# Deliberately NOT extending RE_WORD instead. These forms should not survive
-# into the payload at all — a reader searching for `ليس` must find this word,
-# and `normalise` folds letters rather than codepoint variants.
-LETTER_VARIANTS = str.maketrans({
-    "\u06CC": "\u064A",   # farsi yeh        -> yeh
-    "\u06A9": "\u0643",   # farsi kaf        -> kaf
-    "\u06BE": "\u0647",   # heh doachashmee  -> heh
-    "\u06C1": "\u0647",   # heh goal         -> heh
-    "\u06D2": "\u064A",   # yeh barree       -> yeh
-    "\u0683": "\u062C",   # nyeh             -> jeem
+# The distinction is recoverable from the preceding vowel. A final ی after a
+# kasra is a long i and takes the dotted form -- `فِیْ` is fi, `أُمَّتِیْ` is
+# ummati. After a fatha, or after an unvowelled letter, it is alef maksura.
+# Non-final ی is always the dotted form.
+_HARAKAT = "\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670"
+_KASRA = "\u0650"
+_SIMPLE_VARIANTS = str.maketrans({
+    "\u06a9": "\u0643",   # farsi kaf        -> kaf
+    "\u06be": "\u0647",   # heh doachashmee  -> heh
+    "\u06c1": "\u0647",   # heh goal         -> heh
+    "\u0683": "\u062c",   # nyeh             -> jeem
 })
+_RE_PERSIAN_WORD = re.compile(r"[\u0600-\u06ff]+")
+
+
+def _fold_word(word: str) -> str:
+    out = list(word.translate(_SIMPLE_VARIANTS))
+    if "\u06cc" not in out and "\u06d2" not in out:
+        return "".join(out)
+    last = max((i for i, c in enumerate(out) if c not in _HARAKAT), default=-1)
+    for i, c in enumerate(out):
+        if c not in ("\u06cc", "\u06d2"):
+            continue
+        if i != last:
+            out[i] = "\u064a"
+            continue
+        # The vowel that matters belongs to the PRECEDING letter, so walk back
+        # through this yeh's own marks (a sukun, typically) to reach it.
+        j = i - 1
+        vowel = None
+        while j >= 0 and out[j] in _HARAKAT:
+            if out[j] in "\u064e\u0650\u064f":
+                vowel = out[j]
+                break
+            j -= 1
+        out[i] = "\u064a" if vowel == _KASRA else "\u0649"
+    return "".join(out)
+
+
+def fold_letterforms(text: str) -> str:
+    """Persian/Urdu letterforms -> their Arabic equivalents, word by word."""
+    return _RE_PERSIAN_WORD.sub(lambda m: _fold_word(m.group(0)), text)
 
 
 def read_source(source: Path) -> tuple[dict, str]:
@@ -529,7 +563,7 @@ def read_source(source: Path) -> tuple[dict, str]:
         if HEADER_END not in raw:
             raise SystemExit(f"{source.name}: no {HEADER_END} — not an OpenITI mARkdown file")
         header, body = raw.split(HEADER_END, 1)
-        return parse_header(header), body.translate(LETTER_VARIANTS)
+        return parse_header(header), fold_letterforms(body)
 
     doc = json.loads(source.read_text(encoding="utf-8"))
     items = doc["hadiths"] if isinstance(doc, dict) else doc
@@ -545,7 +579,7 @@ def read_source(source: Path) -> tuple[dict, str]:
     ar = meta_src.get("arabic") or {}
     if ar.get("title"):
         meta["020.BookTITLE"] = ar["title"]
-    return meta, "\n".join(lines).translate(LETTER_VARIANTS)
+    return meta, fold_letterforms("\n".join(lines))
 
 
 def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
