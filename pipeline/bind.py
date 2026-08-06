@@ -43,7 +43,8 @@ from corpus import ConfigError, inline_strip_patterns, load_config, source_path
 from glossary import CARRY as GLOSSARY_FIELDS
 from tiers import (TIERS, BY_N as TIER_BY_N, GLOSSES, available, explain,
                    resources_for)
-from vocalisation import FULL, NONE, PARTIAL, agrees, classify, is_consistent
+from vocalisation import (FULL, NONE, PARTIAL, agrees, classify, is_consistent,
+                          transfer_marks)
 from lexicon import stable_id
 from normalise import dediac, normalise
 from tokenise import tokenise
@@ -807,9 +808,17 @@ def bind_corpus(
                 unopposed += 1
             out.append({
                 "i": i,
-                "surface": surfaces.get(
-                    (rec["id"], i),
-                    lex.entry[mid]["vocalized"] if mid else tok["raw"],
+                # THE RASM IS THE SOURCE'S. Whatever edition supplied the
+                # vowelling -- an aligned witness, or a lexicon entry -- only
+                # its MARKS are shown. The letters are the ones this book
+                # writes, because a reader looking at al-Tajrid must see
+                # al-Tajrid's spelling and not Bukhari's.
+                "surface": transfer_marks(
+                    tok["raw"],
+                    surfaces.get(
+                        (rec["id"], i),
+                        lex.entry[mid]["vocalized"] if mid else tok["raw"],
+                    ),
                 ),
                 "raw": tok["raw"],
                 "matchId": mid,

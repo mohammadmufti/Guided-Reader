@@ -181,3 +181,46 @@ def test_a_vowelled_word_is_used_even_without_a_final_haraka():
         "Tier 0 must fire on any source vowelling, not only a full one"
     assert "partial_source" in tier0, \
         "a partially vowelled reading must still be recorded as less certain"
+
+
+# --- the rasm belongs to the source ----------------------------------------
+
+def test_transferred_vowelling_never_changes_a_letter():
+    """A vowelling may be borrowed. A spelling may not.
+
+    `normalise` folds hamza seats, ta marbuta and alef maksura so that editions
+    can be MATCHED, and the matched entry's form was then displayed verbatim.
+    That put hamzas into words that had none — `الارض` shown as `الأرض` — moved
+    them between seats, and turned a ha into a ta marbuta. 0.08% of al-Tajrid's
+    tokens and 0.90% of the Muwatta's were affected: small, and not ours to
+    change.
+    """
+    from vocalisation import transfer_marks
+    for source, vowelled in [
+        ("الارض", "الْأَرْضُ"),      # hamza must not be added
+        ("رحمه", "رَحْمَةُ"),        # ha must not become ta marbuta
+        ("يشتري", "يَشْتَرَى"),      # yeh must not become alef maksura
+        ("آلله", "اللَّهُ"),         # madda must not be dropped
+        ("الموطأ", "الْمُوَطَّإِ"),  # the hamza must not move seat
+    ]:
+        out = transfer_marks(source, vowelled)
+        assert split_marks(out)[0] == split_marks(source)[0], (
+            f"{source!r} was displayed as {out!r} — the letters changed"
+        )
+
+
+def test_a_disputed_letter_takes_no_mark():
+    """`أن` against `إن` is a different word, not a different vowelling.
+
+    Carrying the witness's kasra onto the source's hamza-above would assert a
+    reading neither edition contains, so the mark for that position is dropped
+    and the letter stands bare.
+    """
+    from vocalisation import transfer_marks
+    assert transfer_marks("أن", "إِنَّ") == "أنَّ"
+
+
+def test_mismatched_skeletons_leave_the_source_alone():
+    """No position-by-position correspondence, so nothing is transferred."""
+    from vocalisation import transfer_marks
+    assert transfer_marks("كتاب", "كُتُبٌ") == "كتاب"
