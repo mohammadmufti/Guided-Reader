@@ -1,4 +1,7 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { getCorpus, loadIndex, setCorpus } from "@/lib/data";
+import type { IndexFile } from "@/types/contracts";
 
 /**
  * What a reader is trusting. Linked from every page.
@@ -9,11 +12,43 @@ import { Link } from "react-router-dom";
  * witnessed and which are guesses.
  */
 export function Limitations() {
+  // The page describes WHICHEVER BOOK IS OPEN. It used to state al-Tajrid's
+  // measured shares whatever the reader was looking at — false for a corpus
+  // bound off a different witness, and meaningless for one bound off its own
+  // harakat, where three quarters of the words are the edition's own vowelling
+  // and nothing was inferred at all.
+  const [index, setIndex] = useState<IndexFile | null>(null);
+  // From the URL, not from module state: this page can be linked to directly
+  // and loaded cold, at which point module state is still the default and the
+  // page would describe al-Tajrid whatever book the reader came from.
+  const { corpus: corpusParam } = useParams();
+  const corpus = corpusParam ?? getCorpus();
+  useEffect(() => {
+    let live = true;
+    setCorpus(corpus);
+    loadIndex().then((i) => live && setIndex(i), () => {});
+    return () => {
+      live = false;
+    };
+  }, [corpus]);
+
+  const b = index?.binding;
+  const rows: [string, string, string][] = b
+    ? ([
+        ["Vowelled in the source itself", b.source, "not inferred"],
+        ["Transferred from a vocalised parent edition", b.aligned, "high"],
+        ["One entry matched, and its vowelling was witnessed", b.unique, "not in doubt"],
+        ["Inferred — from syntax, or the same phrase elsewhere", b.heuristic, "see below"],
+        ["Not in the lexicon at all", b.unbound, "shown bare"],
+      ].filter(([, v]) => v != null && (v as number) > 0) as [string, number, string][])
+        .map(([a, v, c]) => [a, `${v.toFixed(1)}%`, c])
+    : [];
+
   return (
     <main className="mx-auto max-w-2xl px-5 py-10">
       <p className="mb-6">
         <Link
-          to="/hadith/1"
+          to={`/${corpus}/read/1`}
           className="rounded-md border border-(--color-rule) px-3 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
           lang="ar"
         >
@@ -46,14 +81,7 @@ export function Limitations() {
             </tr>
           </thead>
           <tbody>
-            {[
-              ["Transferred from a vocalised Bukhārī edition", "49.5%", "high"],
-              ["One entry matched, and its vowelling was witnessed", "45.8%", "not in doubt"],
-              ["Inferred from the same phrase elsewhere", "2.1%", "97.2%"],
-              ["Most frequent reading — a guess", "1.5%", "71.3%"],
-              ["One entry matched, but its vowelling was itself a guess", "1.1%", "vowels uncertain"],
-              ["Not in the lexicon at all", "12 tokens", "—"],
-            ].map(([a, b, c]) => (
+            {rows.map(([a, b, c]) => (
               <tr key={a} className="border-b border-(--color-rule)">
                 <td className="py-1.5">{a}</td>
                 <td className="py-1.5 text-end tabular-nums">{b}</td>
@@ -63,11 +91,22 @@ export function Limitations() {
           </tbody>
         </table>
         <p className="mt-3 text-sm leading-relaxed text-(--color-ink-muted)">
-          The two accuracy figures are measured, not estimated, and are pinned
-          by the test suite. Roughly{" "}
-          <strong className="text-(--color-ink)">one word in every 66</strong> is
-          a guess that is probably right and might not be. Those words carry a
-          dotted underline.
+          Measured on this book, not estimated, and recomputed on every build.
+          Words that were inferred rather than witnessed carry a dotted
+          underline, and the panel names the tier for each.{" "}
+          {b?.uniqueUncertain != null && b.uniqueUncertain > 0 && (
+            <>
+              A further{" "}
+              <strong className="text-(--color-ink)">
+                {b.uniqueUncertain.toFixed(1)}%
+              </strong>{" "}
+              matched a single entry whose own vowelling was a guess — unopposed
+              is not the same as certain.{" "}
+            </>
+          )}
+          The accuracy of the inference rules is measured by hiding the witness
+          and re-deriving the answer: on al-Tajrīd that puts the syntax rules at
+          97.2% and the most-frequent fallback at 71.3%.
         </p>
       </section>
 
@@ -106,10 +145,12 @@ export function Limitations() {
       <section className="mt-8" dir="ltr">
         <h2 className="text-lg">4. The editorial layers are less reliable</h2>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
-          The hadith text is aligned against a vocalised Bukhārī. The preface,
-          the headings, and al-Ḍiyāʾ al-Dāghistānī's 88 added hadith have no such
-          target, so their vowelling comes from the lower tiers. Additions are
-          marked in the text.
+          Where a book is aligned against a vocalised parent edition, only its
+          hadith have such a target. Prefaces, headings and editorial additions
+          do not, so their vowelling comes from the lower tiers. Additions are
+          marked in the text. One book here — Shāh Walī Allāh's Forty — arrives
+          vowelled and needs no alignment at all; its harakāt are the edition's
+          own, and the table above says so.
         </p>
       </section>
     </main>

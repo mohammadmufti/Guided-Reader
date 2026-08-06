@@ -39,7 +39,11 @@ export default function App() {
         <Route path="/hadith/:number" element={<LegacyRecordRedirect />} />
         <Route path="/search" element={<Navigate to="/tajrid/search" replace />} />
 
-        <Route path="/about" element={<Limitations />} />
+        {/* Corpus-scoped: the page states measured figures for the book
+            being read, so it cannot be a bare /about. The old path still
+            works and lands on al-Tajrid. */}
+        <Route path="/:corpus/about" element={<Limitations />} />
+        <Route path="/about" element={<Navigate to="/tajrid/about" replace />} />
         <Route path="*" element={<Reader />} />
       </Routes>
     </BrowserRouter>

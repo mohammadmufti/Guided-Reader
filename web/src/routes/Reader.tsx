@@ -231,14 +231,21 @@ export function Reader() {
               deliberate acts. They sat in the header beside the title, where
               they competed with the reading controls for a glance every time
               the page loaded. Down here they are found when looked for. */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {/* The picker is centred on the page, so it lines up with the
+              midpoint of the previous/next controls above it. The info button
+              sits to its left and is taken out of the flow to get there —
+              putting both in one centred row would push the picker off-centre
+              by half the button's width. */}
+          <div className="relative mt-6 flex items-center justify-center" dir="ltr">
+            <div className="absolute left-0 flex items-center">
+              {/* ⓘ — the "about this book" popup; content is per-corpus data */}
+              <AboutBook corpus={index.corpus} />
+            </div>
             <CorpusPicker onSwitch={switchCorpus} />
-            {/* ⓘ — the "about this book" popup; content is per-corpus data */}
-            <AboutBook corpus={index.corpus} />
           </div>
 
           <p className="mt-3 text-center text-xs text-(--color-ink-muted)" dir="ltr">
-            <Link to="/about" className="underline underline-offset-2">
+            <Link to={`/${corpus}/about`} className="underline underline-offset-2">
               What you are trusting
             </Link>
           </p>
@@ -380,7 +387,23 @@ function PageView({
           )}
           {main.bab && (
             <span className="arabic text-sm text-(--color-ink-muted)" lang="ar">
-              {main.bab.titleAr}
+              {/* The heading already names the hadith — الحديث الأول — so the
+                  link goes on that, not on a bolted-on "sunnah.com 4". The
+                  reader clicks the thing they are reading. Same treatment the
+                  Muwatta's kitab title gets. */}
+              {index.corpus.recordLink && main.number != null ? (
+                <a
+                  href={index.corpus.recordLink.url.replace("{n}", String(main.number))}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${main.bab.titleAr} — ${index.corpus.recordLink.label}`}
+                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+                >
+                  {main.bab.titleAr}
+                </a>
+              ) : (
+                main.bab.titleAr
+              )}
             </span>
           )}
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
@@ -388,22 +411,7 @@ function PageView({
             {main.crossRefs.length > 0 && (
               <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
             )}
-            {/* A collection that cites nothing but IS cited: its hadith N is
-                the same hadith N on sunnah.com, so the record links to itself
-                there. Sits beside the cross-reference line because to a reader
-                it is the same gesture — this text simply points outward
-                instead of inward. */}
-            {index.corpus.recordLink && main.number != null && (
-              <a
-                href={index.corpus.recordLink.url.replace("{n}", String(main.number))}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Hadith ${main.number} on ${index.corpus.recordLink.label} — opens in a new tab`}
-                className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
-              >
-                {index.corpus.recordLink.label} {main.number}
-              </a>
-            )}
+
           </span>
         </div>
 

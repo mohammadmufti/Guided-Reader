@@ -562,6 +562,22 @@ export interface ShardConfig {
   budgetBytes: number;
 }
 
+/**
+ * Measured share of each provenance on this corpus's body layer. Published so the "what you
+ * are trusting" page can describe the book being read. It used to state al-Tajrid's figures
+ * for every corpus, which is false for one bound off a different witness and meaningless for
+ * one bound off its own harakat.
+ */
+export interface BindingTally {
+  total: number;
+  source: number | null;
+  aligned: number | null;
+  unique: number | null;
+  uniqueUncertain: number | null;
+  heuristic: number | null;
+  unbound: number | null;
+}
+
 /** Headline counts, so the UI can show them without walking the tree. */
 export interface IndexCounts {
   records: number;
@@ -596,6 +612,7 @@ export interface IndexFile {
   /** Proper-name gazetteer: name -> attribution hits. */
   names: Record<string, number>;
   shards: ShardConfig;
+  binding: BindingTally;
   counts: IndexCounts;
 }
 

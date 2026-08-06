@@ -490,6 +490,28 @@ class Segmenter:
             rec["next"] = self.records[i + 1]["id"] if i + 1 < len(self.records) else None
 
 
+# Persian and Urdu codepoints for letters Arabic already has. They are the
+# SAME letters — a farsi yeh is a yeh — but they sit outside `RE_WORD`'s
+# \u0621-\u064a range, so a word containing one is not one word.
+#
+# `لَیْسَ` in Shah Wali Allah's Forty is written with U+06CC, and the tokeniser
+# split it at that letter into `لَ` and `ْسَ`: two half-words, each separately
+# hoverable and neither meaning anything. 47 farsi yeh and 21 farsi kaf in that
+# text; none in any other source here, so this is a no-op everywhere else.
+#
+# Deliberately NOT extending RE_WORD instead. These forms should not survive
+# into the payload at all — a reader searching for `ليس` must find this word,
+# and `normalise` folds letters rather than codepoint variants.
+LETTER_VARIANTS = str.maketrans({
+    "\u06CC": "\u064A",   # farsi yeh        -> yeh
+    "\u06A9": "\u0643",   # farsi kaf        -> kaf
+    "\u06BE": "\u0647",   # heh doachashmee  -> heh
+    "\u06C1": "\u0647",   # heh goal         -> heh
+    "\u06D2": "\u064A",   # yeh barree       -> yeh
+    "\u0683": "\u062C",   # nyeh             -> jeem
+})
+
+
 def read_source(source: Path) -> tuple[dict, str]:
     """
     (header metadata, body) for a corpus source, mARkdown or JSON.
@@ -507,7 +529,7 @@ def read_source(source: Path) -> tuple[dict, str]:
         if HEADER_END not in raw:
             raise SystemExit(f"{source.name}: no {HEADER_END} — not an OpenITI mARkdown file")
         header, body = raw.split(HEADER_END, 1)
-        return parse_header(header), body
+        return parse_header(header), body.translate(LETTER_VARIANTS)
 
     doc = json.loads(source.read_text(encoding="utf-8"))
     items = doc["hadiths"] if isinstance(doc, dict) else doc
@@ -523,7 +545,7 @@ def read_source(source: Path) -> tuple[dict, str]:
     ar = meta_src.get("arabic") or {}
     if ar.get("title"):
         meta["020.BookTITLE"] = ar["title"]
-    return meta, "\n".join(lines)
+    return meta, "\n".join(lines).translate(LETTER_VARIANTS)
 
 
 def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:

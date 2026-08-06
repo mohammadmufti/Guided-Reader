@@ -602,6 +602,25 @@ class IndexCounts(TypedDict):
     bab: int
 
 
+class BindingTally(TypedDict):
+    """
+    Measured share of each provenance on this corpus's body layer.
+
+    Published so the "what you are trusting" page can describe the book being
+    read. It used to state al-Tajrid's figures for every corpus, which is false
+    for one bound off a different witness and meaningless for one bound off its
+    own harakat.
+    """
+
+    total: int
+    source: float | None
+    aligned: float | None
+    unique: float | None
+    uniqueUncertain: float | None
+    heuristic: float | None
+    unbound: float | None
+
+
 class IndexFile(TypedDict):
     """`index.json` — navigation payload loaded once at boot. 12.3 KB brotli."""
 
@@ -634,6 +653,7 @@ class IndexFile(TypedDict):
     ]
     names: Annotated[dict[str, int], Doc("Proper-name gazetteer: name -> attribution hits.")]
     shards: ShardConfig
+    binding: BindingTally
     counts: IndexCounts
 
 
@@ -924,6 +944,7 @@ EXPORTED: list[type] = [
     LaneEntry,
     LaneRoot,
     ShardConfig,
+    BindingTally,
     IndexCounts,
     IndexFile,
     GlossSlot,
