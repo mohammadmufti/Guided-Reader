@@ -217,3 +217,29 @@ def test_muwatta_chapter_indices_match_sunnah_com():
     assert len(kitabs) == 61
     idxs = [r["kitab"]["index"] for r in kitabs if r.get("kitab")]
     assert idxs == list(range(1, 62))
+
+
+def test_persian_letterforms_are_folded_to_arabic():
+    """A farsi yeh is a yeh, and must not break a word in half.
+
+    U+06CC and U+06A9 sit outside RE_WORD's \\u0621-\\u064a range, so
+    `لَیْسَ` — written with a farsi yeh in Shah Wali Allah's source — tokenised
+    as `لَ` and `ْسَ`: two half-words, each separately hoverable and neither
+    meaning anything. 47 farsi yeh and 21 farsi kaf in that text; none in any
+    other source here.
+    """
+    import json
+    from conftest import BUILD
+    path = BUILD / "shahwaliullah40" / "records.json"
+    if not path.exists():
+        pytest.skip("shahwaliullah40 records not present")
+    recs = json.loads(path.read_text(encoding="utf-8"))["records"]
+    text = " ".join(r["textRaw"] for r in recs)
+    for cp in ("\u06cc", "\u06a9", "\u06be", "\u06d2"):
+        assert cp not in text, f"unfolded variant U+{ord(cp):04X} reached the payload"
+
+    from tokenise import tokenise
+    matn = [r for r in recs if r["layer"] == "matn"]
+    _, toks = tokenise(matn[0]["textRaw"])
+    # Three whole words, not five fragments.
+    assert all(len(t["raw"]) > 1 for t in toks)

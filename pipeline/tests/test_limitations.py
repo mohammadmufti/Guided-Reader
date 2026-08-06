@@ -33,9 +33,15 @@ def _percentages(text):
     return {float(m) for m in re.findall(r"(\d+\.\d)%", text)}
 
 
-@pytest.mark.parametrize("page", [LIMITATIONS, ABOUT])
+@pytest.mark.parametrize("page", [LIMITATIONS])
 def test_documented_shares_are_current(page, shares):
-    """Every tier share quoted on the page must match what the build produced."""
+    """Every tier share quoted on the page must match what the build produced.
+
+    LIMITATIONS.md only. `/about` no longer quotes figures at all: it reads
+    `index.binding`, measured per corpus at build time, because al-Tajrid's
+    shares are false for the other three books and meaningless for the one
+    bound off its own harakat.
+    """
     pct, _ = shares
     text = page.read_text(encoding="utf-8")
     quoted = _percentages(text)
@@ -47,19 +53,6 @@ def test_documented_shares_are_current(page, shares):
         )
 
 
-@pytest.mark.parametrize("page", [LIMITATIONS, ABOUT])
-def test_guess_rate_is_current(page, shares):
-    """`one word in every N` must match the Tier 4 share."""
-    pct, total = shares
-    expected = round(100 / pct[("heuristic", "low")])
-    text = page.read_text(encoding="utf-8")
-    found = [int(m) for m in re.findall(r"one word in every\s*(?:<[^>]+>)?\s*(\d+)", text)]
-    assert found, f"{page.name} does not state a guess rate"
-    assert any(abs(f - expected) <= 2 for f in found), (
-        f"{page.name} says 1 in {found}, current is 1 in {expected}"
-    )
-
-
 def test_no_longer_claims_tier_1_is_beyond_doubt():
     """
     The specific sentence the الأعمال case disproved. Tier 1 means the lexicon
@@ -67,3 +60,21 @@ def test_no_longer_claims_tier_1_is_beyond_doubt():
     """
     text = LIMITATIONS.read_text(encoding="utf-8")
     assert "| Only one entry matches the spelling | 50.3% | **Not in doubt** |" not in text
+
+
+def test_about_page_reads_its_figures_rather_than_quoting_them():
+    """/about must describe the book being read, not one book's numbers.
+
+    This file used to assert that Limitations.tsx quoted the measured shares as
+    literals, and kept them honest for a single corpus. With four corpora the
+    literals were false three times out of four — al-Tajrid's 49.5% aligned
+    said nothing about a text bound off its own harakat. The page now reads
+    `index.binding`, which the build measures per corpus, so the thing to pin
+    is that it still does.
+    """
+    src = ABOUT.read_text(encoding="utf-8")
+    assert "index?.binding" in src or "index.binding" in src, \
+        "the About page must take its figures from the payload"
+    # No stale hardcoded share should creep back in.
+    for stale in ("49.5%", "45.8%", "2.1%\"", "1.5%\""):
+        assert stale not in src, f"hardcoded share {stale} is back in the About page"

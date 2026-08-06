@@ -50,10 +50,16 @@ export default function CorpusPicker({
     // font fallbacks. Constraining the box means the text is clipped
     // instead, and the page can never be pushed wider than the viewport by
     // a name.
+    // Three columns, the outer two equal: the select sits in the middle one
+    // and is therefore centred on the page regardless of how wide the Switch
+    // button is. Centring a flex row containing both put the select half the
+    // button's width to the left — 37px off the midpoint of the previous/next
+    // controls it is supposed to line up with.
     <div
-      className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2"
+      className="grid w-full min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2"
       dir="ltr"
     >
+      <span aria-hidden="true" />
       <label htmlFor="corpus" className="sr-only">
         Book
       </label>
@@ -76,9 +82,11 @@ export default function CorpusPicker({
       <button
         type="button"
         disabled={!changed}
+        // justify-self-start keeps it hard against the select rather than
+        // floating to the far edge of its column.
         onClick={() => onSwitch(pending)}
-        className="rounded-md border border-(--color-rule) px-2.5 py-1 text-sm
-                   transition-colors hover:bg-(--color-rule)
+        className="justify-self-start rounded-md border border-(--color-rule) px-2.5
+                   py-1 text-sm transition-colors hover:bg-(--color-rule)
                    disabled:cursor-default disabled:opacity-40
                    disabled:hover:bg-transparent"
       >

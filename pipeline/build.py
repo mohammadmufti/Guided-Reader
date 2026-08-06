@@ -367,7 +367,7 @@ def make_context_override(disambiguated: dict, surface: dict, counter: dict):
 
 
 def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
-                shards: dict) -> dict:
+                shards: dict, binding_tally: dict) -> dict:
     tree: list[dict] = []
     for rec in records:
         if rec["layer"] == "heading_kitab":
@@ -403,6 +403,11 @@ def build_index(records: list[dict], corpus: dict, lexicon: dict, bid: str,
         "missingNumbers": missing,
         "names": {k: v["pattern_hits"] for k, v in lexicon["names"].items()},
         "shards": shards,
+        # Measured shares of each binding tier on the body layer, so the
+        # "what you are trusting" page can describe THIS corpus. It quoted
+        # al-Tajrid's figures for every book, which for a corpus bound off a
+        # different witness — or off its own harakat — was simply false.
+        "binding": binding_tally,
         "counts": {
             "records": len(records),
             "hadith": sum(1 for r in records if r["type"] == "hadith"),
@@ -491,6 +496,7 @@ def main() -> int:
     audio_by_number: dict[int, str] = {}
     cfg = load_config(args.corpus)
     strip = inline_strip_patterns(cfg)
+    binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")
     if recit:
         for lo, hi in recit.get("numbers", []):
@@ -508,6 +514,29 @@ def main() -> int:
                 local += 1
         if local:
             print(f"  audio: {local} local files override the declared URLs")
+
+    # ---- binding tally, for the "what you are trusting" page ---------------
+    _body = cfg["segmentation"]["layer_names"]["body"]
+    _tally: dict[str, int] = collections.Counter()
+    for rec in records["records"]:
+        if rec["layer"] != _body:
+            continue
+        for tok in bindings[rec["id"]]["tokens"]:
+            _tally[tok["binding"]] += 1
+            if tok["binding"] == "unique" and tok["confidence"] != "high":
+                _tally["uniqueUncertain"] += 1
+    _total = sum(v for k, v in _tally.items() if k != "uniqueUncertain") or 1
+    binding_tally = {
+        "total": _total,
+        # Every key present, null where the tier never fired — "this corpus
+        # reached no aligned readings" and "we forgot to measure" must not look
+        # the same on the page that exists to say what a reader is trusting.
+        **{
+            k: (round(100 * _tally[k] / _total, 1) if k in _tally else None)
+            for k in ("source", "aligned", "unique", "uniqueUncertain",
+                      "heuristic", "unbound")
+        },
+    }
 
     # ---- hadith files ------------------------------------------------------
     by_id = {r["id"]: r for r in records["records"]}
@@ -878,7 +907,8 @@ def main() -> int:
     index = build_index(records["records"], records["corpus"], lexicon, bid,
                         {"surface": surface_n, "classical": classical_n,
                          "lane": lane_shards_n, "hash": "fnv1a-32",
-                         "budgetBytes": SHARD_BUDGET_BYTES})
+                         "budgetBytes": SHARD_BUDGET_BYTES},
+                        binding_tally)
     sizes["index.json"] = [write(CORPUS_DATA / "index.json", index)]
 
     # ---- search index ------------------------------------------------------
