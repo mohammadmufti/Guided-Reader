@@ -74,11 +74,14 @@ segmentation:
   curated_index_phantoms: false
 
 gates:
-  # MEASURED on the first binding run: 77.3% witnessed on matn, of which
-  # Tier 0 alone is 75.1% — the source's own harakat, needing no inference at
-  # all. 20.2% unbound: short aphoristic hadith use words al-Tajrid's lexicon
-  # never saw, so there is nothing to bind them to.
-  min_witnessed_matn: 72.0
+  # MEASURED: 100% of matn is Tier 0 — every word shown with the harakat the
+  # source printed, nothing inferred. An earlier run reported 77.3% only
+  # because Tier 0 demanded a final short vowel, and a quarter of this text
+  # ends in a long vowel or alef, which takes none.
+  #
+  # Set just below 100 rather than at it: a drop means the source stopped
+  # arriving vowelled, which is worth failing on.
+  min_witnessed_matn: 99.0
 
 about:
   description:
@@ -88,11 +91,12 @@ about:
       was argued about in South Asia. They are short — often a single clause —
       and chosen for what each one settles rather than for how much it says.
     - >-
-      Every word is tappable. Unusually, this text arrives already vowelled,
-      so its harakāt are the source's own rather than transferred from
-      elsewhere; the panel marks those readings as coming from the text
-      itself. Glosses are shared from al-Tajrīd, where the same word in the
-      same reading carries the same entry.
+      Every word is tappable. Unusually, this text arrives already vowelled —
+      every single word of it — so nothing here is inferred: the harakāt shown
+      are the edition's own, and the panel marks each reading as coming from
+      the text itself. Glosses are shared from al-Tajrīd, where the same word
+      in the same reading carries the same entry; where a word is not in that
+      lexicon it is still shown correctly vowelled, simply without a meaning.
   sources:
     - label: "Primary text"
       detail: >-
@@ -103,9 +107,12 @@ about:
       url: https://github.com/AhmedBaset/hadith-json
     - label: "Vocalisation"
       detail: >-
-        None transferred. 99.6% of the words carry harakāt in the source, so
-        the vowelling shown is the edition's own and nothing was inferred for
-        it — the only text here of which that is true.
+        None transferred, and none inferred. Every word carries harakāt in the
+        source, so the vowelling shown is the edition's own throughout — the
+        only text here of which that is true. About a quarter of the words end
+        in a long vowel or alef and so carry no final short vowel; those are
+        marked as vowelled but silent on their case ending, which is what the
+        edition itself is.
     - label: "Meaning"
       detail: >-
         Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which

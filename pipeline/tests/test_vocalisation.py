@@ -124,3 +124,60 @@ def test_configured_corpus_is_currently_bare(records):
                 vowelled += 1
                 break
     assert vowelled == 0
+
+
+def test_a_vowelled_source_is_never_guessed_over():
+    """If the text says it, do not infer it.
+
+    Tier 0's first pass takes only tokens whose FINAL letter carries a short
+    vowel, because a partially marked word has not settled its own i'rab and a
+    witness can improve on it. But Tier 4 is a guess and Tier 5 is nothing, and
+    neither improves on marks the source already supplies.
+
+    Shah Wali Allah's Forty is 100% marked — 72.8% fully, 27.2% partially — and
+    every partial token was landing in Tier 4 or 5. The "what you are trusting"
+    page reported 24.1% of it as absent from the lexicon, of a text in which
+    nothing is unvowelled.
+    """
+    import json
+    from conftest import BUILD
+    path = BUILD / "shahwaliullah40" / "bindings.json"
+    recs_path = BUILD / "shahwaliullah40" / "records.json"
+    if not path.exists() or not recs_path.exists():
+        pytest.skip("shahwaliullah40 bindings not present")
+    recs = {r["id"]: r for r in json.loads(recs_path.read_text(encoding="utf-8"))["records"]}
+    bound = json.loads(path.read_text(encoding="utf-8"))
+
+    guessed_over = []
+    for rid, rec in bound.items():
+        if recs[rid]["layer"] != "matn":
+            continue
+        for tok in rec["tokens"]:
+            if classify(tok["raw"]) != NONE and tok["tier"] in (4, 5):
+                guessed_over.append(tok["raw"])
+    assert not guessed_over, (
+        f"{len(guessed_over)} vowelled tokens were guessed over or dropped: "
+        f"{guessed_over[:5]}"
+    )
+
+
+def test_a_vowelled_word_is_used_even_without_a_final_haraka():
+    """Tier 0 must not demand what the language does not supply.
+
+    A word ending in a long vowel or alef takes no final short vowel:
+    `إِسْتَعِيْنُوْا` is completely vowelled and has none. Requiring one
+    classified 27.2% of Shah Wali Allah's Forty as PARTIAL, dropped those words
+    through to the lexicon, and re-derived vowels that were already printed in
+    the file. Whether the ending is settled is a question about CONFIDENCE, not
+    about whether to use the source's reading.
+    """
+    for form in ("إِسْتَعِيْنُوْا", "عَلَي", "مُحَمَّد"):
+        assert classify(form) == PARTIAL
+    src = (__import__("pathlib").Path(__file__).resolve().parent.parent
+           / "bind.py").read_text(encoding="utf-8")
+    tier0 = src[src.index("---- Tier 0"):]
+    tier0 = tier0[:tier0.index("for i, key in enumerate(keys)")]
+    assert "if state_of == NONE:" in tier0, \
+        "Tier 0 must fire on any source vowelling, not only a full one"
+    assert "partial_source" in tier0, \
+        "a partially vowelled reading must still be recorded as less certain"

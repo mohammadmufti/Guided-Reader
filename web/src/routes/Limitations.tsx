@@ -96,12 +96,12 @@ export function Limitations() {
           underline, and the panel names the tier for each.{" "}
           {b?.uniqueUncertain != null && b.uniqueUncertain > 0 && (
             <>
-              A further{" "}
+              Of the words above that matched a single entry,{" "}
               <strong className="text-(--color-ink)">
                 {b.uniqueUncertain.toFixed(1)}%
               </strong>{" "}
-              matched a single entry whose own vowelling was a guess — unopposed
-              is not the same as certain.{" "}
+              of all words matched one whose own vowelling was itself a guess —
+              unopposed is not the same as certain.{" "}
             </>
           )}
           The accuracy of the inference rules is measured by hiding the witness
