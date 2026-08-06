@@ -225,24 +225,21 @@ export function Reader() {
 
       {status.kind !== "missing" && (
         <footer className="mt-10 border-t border-(--color-rule) pt-4 max-lg:pb-24">
-          <NavControls prevNumber={near.prev} nextNumber={near.next} />
-
           {/* Choosing a book and asking what this book IS are both rare,
-              deliberate acts. They sat in the header beside the title, where
-              they competed with the reading controls for a glance every time
-              the page loaded. Down here they are found when looked for. */}
-          {/* The picker is centred on the page, so it lines up with the
-              midpoint of the previous/next controls above it. The info button
-              sits to its left and is taken out of the flow to get there —
-              putting both in one centred row would push the picker off-centre
-              by half the button's width. */}
-          <div className="relative mt-6 flex items-center justify-center" dir="ltr">
-            <div className="absolute left-0 flex items-center">
-              {/* ⓘ — the "about this book" popup; content is per-corpus data */}
-              <AboutBook corpus={index.corpus} />
-            </div>
-            <CorpusPicker onSwitch={switchCorpus} />
-          </div>
+              deliberate acts, but they belong on the row the reader is already
+              using — not stacked beneath it, where the eye has to travel past
+              the navigation to find them. Info button, picker and Switch sit
+              together between the two arrows. */}
+          <NavControls
+            prevNumber={near.prev}
+            nextNumber={near.next}
+            centre={
+              <CorpusPicker
+                onSwitch={switchCorpus}
+                before={<AboutBook corpus={index.corpus} />}
+              />
+            }
+          />
 
           <p className="mt-3 text-center text-xs text-(--color-ink-muted)" dir="ltr">
             <Link to={`/${corpus}/about`} className="underline underline-offset-2">

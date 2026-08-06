@@ -18,17 +18,30 @@ import { Link, useParams } from "react-router-dom";
 interface Props {
   prevNumber: number | null;
   nextNumber: number | null;
+  /** Rendered between the two arrows, centred on the row. */
+  centre?: React.ReactNode;
 }
 
-export function NavControls({ prevNumber, nextNumber }: Props) {
+export function NavControls({ prevNumber, nextNumber, centre }: Props) {
   return (
     <nav
-      className="flex items-center justify-between gap-4"
+      // Grid, not flex: the two arrows have different label widths ("Next"
+      // against "Previous"), so justify-between leaves the middle slot a few
+      // pixels off the row's midpoint. Equal outer tracks put it dead centre.
+      className="grid grid-cols-[1fr_auto_1fr] items-center gap-4"
       aria-label="التنقل بين الأحاديث"
     >
       {/* Physically left: forward. */}
-      <Step to={nextNumber} labelAr="التالي" labelEn="Next" arrow="←" side="next" />
-      <Step to={prevNumber} labelAr="السابق" labelEn="Previous" arrow="→" side="prev" />
+      <div className="justify-self-start">
+        <Step to={nextNumber} labelAr="التالي" labelEn="Next" arrow="←" side="next" />
+      </div>
+      {/* The book controls belong between the arrows, not stacked under them:
+          there is room on this row, and putting them below pushed the reader's
+          eye past the navigation to find them. */}
+      <div className="min-w-0 px-2">{centre}</div>
+      <div className="justify-self-end">
+        <Step to={prevNumber} labelAr="السابق" labelEn="Previous" arrow="→" side="prev" />
+      </div>
     </nav>
   );
 }
