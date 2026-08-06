@@ -494,6 +494,7 @@ def bind_corpus(
     witness_fixes: collections.Counter = collections.Counter()
     surfaces: dict[tuple[str, int], str] = {}
     source_voc = collections.Counter()
+    partial_source: set[tuple[str, int]] = set()
     witness_disagrees = collections.Counter()
     state: list[tuple[dict, str, list[dict], list[str], list[int | None], list[str | None]]] = []
 
@@ -506,19 +507,31 @@ def bind_corpus(
 
         # ---- Tier 0: the source vowelled it itself -------------------------
         # Outranks the witness and the workbook, both of which are inferences
-        # about a text that is right here saying what it means. Every corpus
-        # configured today is bare, so this costs nothing and fires never --
-        # until a text arrives from Shamela, Tanzil or a hadith dataset rather
-        # than from OpenITI, at which point it is the difference between using
-        # the best evidence available and discarding it.
+        # about a text that is right here saying what it means.
+        #
+        # ANY mark is enough. This originally required a final short vowel, on
+        # the reasoning that a word bare on its last letter has not settled its
+        # own i'rab. That is true of the i'rab and false of the vowelling: on
+        # Shah Wali Allah's Forty every token carries marks, but 27.2% end in a
+        # long vowel or alef, which takes no haraka -- `إِسْتَعِيْنُوْا` is
+        # completely vowelled and was being classified PARTIAL, dropped through
+        # to the lexicon, and then re-derived or left bare. A quarter of a fully
+        # vowelled text was having its vowels inferred with the answer sitting
+        # right there in the file.
+        #
+        # So the source's reading is always shown. Whether it settled the case
+        # ending is a question about CONFIDENCE, and is recorded as one below.
         for i, tok in enumerate(tokens):
             state_of = classify(tok["raw"])
             source_voc[state_of] += 1
-            if state_of != FULL:
+            if state_of == NONE:
                 continue
             tiers[i] = 0
             mids[i] = lex.mint_from_witness(keys[i], tok["raw"])
             surfaces[(rec["id"], i)] = tok["raw"]
+            if state_of == PARTIAL:
+                # Vowelled, but silent on its own ending.
+                partial_source.add((rec["id"], i))
 
         for i, key in enumerate(keys):
             if tiers[i] is not None:
@@ -737,15 +750,51 @@ def bind_corpus(
                 if minted_id:
                     tiers[i], mids[i] = 1, minted_id
                     corrected.add((rec["id"], i))
+            tier, mid = tiers[i], mids[i]
+
+            # ---- Tier 0, second pass: PARTIAL source vowelling ---------------
+            #
+            # Tier 0 above takes only tokens whose FINAL letter carries a short
+            # vowel, because a partially marked word has not settled its own
+            # i'rab and a witness or a unique lexicon entry can genuinely
+            # improve on it. Tiers 1, 2 and 3 therefore keep their answer.
+            #
+            # Tier 4 and Tier 5 cannot. Tier 4 is the most frequent candidate —
+            # a guess — and Tier 5 is nothing at all. Where the source has
+            # already vowelled the word, printing a guess over it, or reporting
+            # it as "not in the lexicon", is worse than simply showing what the
+            # text says.
+            #
+            # This is not a small correction on a text that arrives vowelled.
+            # Shah Wali Allah's Forty is 100% marked — 72.8% fully, 27.2%
+            # partially — and every one of the partial ones was landing in Tier
+            # 4 or 5. The page reported 24.1% of it as absent from the lexicon,
+            # of a text where nothing is unvowelled.
+            if tier in (4, 5) and classify(tok["raw"]) == PARTIAL:
+                tier = 0
+                # The match_id survives where there was one: the vowelling
+                # shown is the source's, and the meaning is still the lexicon's.
+                surfaces[(rec["id"], i)] = tok["raw"]
+                tiers[i] = 0
+                source_voc["partial_kept"] += 1
 
             binding, confidence = TIER_BY_N[tier].binding, TIER_BY_N[tier].confidence
+            # A partially vowelled source settles the word but not its ending,
+            # so it is not the same claim as a fully vowelled one.
+            if tier == 0 and classify(tok["raw"]) == PARTIAL:
+                confidence = "medium"
             # Tier 1 means the LEXICON offered one candidate — not that the
             # candidate is right. Where that candidate's own vowelling was the
             # workbook's fallback rather than a witness, the reading is not
             # certain and must not be labelled as if it were. The TIER is
             # unchanged, so coverage accounting and the 90% gate stay
             # comparable; only the honesty of the label moves.
-            if tier == 1 and mid and lex.entry[mid]["lexiconGuess"]:
+            if tier == 0 and (rec["id"], i) in partial_source:
+                # The word is the source's own; only its case ending is
+                # unstated. Not the same doubt as an inferred reading, but not
+                # "not in doubt" either.
+                confidence = "medium"
+            elif tier == 1 and mid and lex.entry[mid]["lexiconGuess"]:
                 confidence = "medium"
                 unopposed += 1
             # On a minted-only inventory, "unique" means only that ONE reading
