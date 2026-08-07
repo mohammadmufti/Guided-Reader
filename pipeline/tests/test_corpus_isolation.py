@@ -318,3 +318,27 @@ def test_a_vowelled_source_is_evidence_on_its_own():
     cfg = corpus.load_config("shahwaliullah40")
     sources = cfg.get("sources") or {}
     assert "lexicon" not in sources and "vocalisation_reference" not in sources
+
+
+def test_no_corpus_alters_the_letters_it_displays():
+    """End to end: the rasm shown is the rasm fetched.
+
+    Checked on the built bindings rather than on a helper, because the failure
+    mode was not in any single function — it was that the surface came from
+    whichever edition supplied the vowelling, and nothing compared it back to
+    the source.
+    """
+    import json
+    from normalise import dediac
+    for cid in ("tajrid", "muwatta", "nawawi40", "shahwaliullah40"):
+        path = corpus.ROOT / "build" / cid / "bindings.json"
+        if not path.exists():
+            continue
+        bound = json.loads(path.read_text(encoding="utf-8"))
+        bad = [
+            (t["raw"], t["surface"])
+            for rec in bound.values()
+            for t in rec["tokens"]
+            if dediac(t["raw"]) != dediac(t["surface"])
+        ]
+        assert not bad, f"{cid}: {len(bad)} tokens displayed different letters, e.g. {bad[:3]}"

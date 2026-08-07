@@ -131,3 +131,40 @@ def agrees(raw: str, candidate: str) -> bool:
     if r_letters != c_letters:
         return False
     return {i: set(m) for i, m in r_marks.items()} == {i: set(m) for i, m in c_marks.items()}
+
+
+def transfer_marks(source: str, vowelled: str) -> str:
+    """
+    The source's letters, wearing the witness's harakat.
+
+    THE RASM IS THE TEXT. A vowelling can be transferred onto a word from
+    another edition; the letters cannot. Where the two editions spell a word
+    differently -- `الارض` against `الأرض`, `رحمه` against `رحمة`, `يشتري`
+    against `يشترى` -- the spelling shown must be the one in the book being
+    read, or the reader is being shown a word the edition does not contain.
+
+    This was not true. `normalise` folds hamza seats, ta marbuta and alef
+    maksura in order to MATCH across editions, and the matched entry's form was
+    then displayed verbatim. That silently added hamzas the source had not
+    written, moved them between seats, and turned a ha into a ta marbuta:
+    0.08% of al-Tajrid's tokens, 0.90% of the Muwatta's.
+
+    Returns `source` unchanged when the two skeletons differ in length, because
+    there is then no position-by-position correspondence to transfer along and
+    guessing one would be worse than leaving the word bare.
+    """
+    src_letters, _ = split_marks(source)
+    voc_letters, voc_marks = split_marks(vowelled)
+    if len(src_letters) != len(voc_letters):
+        return source
+    # Where a LETTER differs, the two editions are not spelling the same word
+    # at that position -- `أن` against `إن` is not a vowelling difference, it is
+    # a different word -- so the source's letter is kept and the witness's mark
+    # for it is dropped. Asserting `إن`'s kasra over `أن`'s hamza would be
+    # inventing a reading neither edition contains.
+    out: list[str] = []
+    for i, letter in enumerate(src_letters):
+        out.append(letter)
+        if letter == voc_letters[i]:
+            out.append(voc_marks.get(i, ""))
+    return "".join(out)

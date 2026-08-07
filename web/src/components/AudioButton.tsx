@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { AudioTrack } from "@/types/contracts";
 
 /**
  * The recitation play/pause button, shown in the hadith header row — never
@@ -28,7 +29,30 @@ import { useEffect, useRef, useState } from "react";
  * offers the file directly, instead of a button that does nothing when
  * pressed. The real fix is to rehost with `audio/mpeg`.
  */
-export default function AudioButton({ url }: { url: string | null }) {
+export default function AudioButton({ tracks }: { tracks: AudioTrack[] }) {
+  if (!tracks.length) return null;
+  // One control per reciter. Rendered side by side rather than behind a menu:
+  // there are two, and a reader picking a voice should not have to open
+  // anything to see that there is a choice.
+  return (
+    <span className="inline-flex items-center gap-1">
+      {tracks.map((t, i) => (
+        <OneTrack key={t.url} track={t} index={i} many={tracks.length > 1} />
+      ))}
+    </span>
+  );
+}
+
+function OneTrack({
+  track,
+  index,
+  many,
+}: {
+  track: AudioTrack;
+  index: number;
+  many: boolean;
+}) {
+  const url = track.url;
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLAudioElement>(null);
@@ -77,11 +101,24 @@ export default function AudioButton({ url }: { url: string | null }) {
           const started = el.play();
           if (started) started.catch(() => setFailed(true));
         }}
-        aria-label={playing ? "إيقاف التلاوة مؤقتًا" : "تشغيل تلاوة هذا الحديث"}
+        aria-label={
+          (playing ? "إيقاف التلاوة مؤقتًا" : "تشغيل تلاوة هذا الحديث") +
+          (track.label ? ` — ${track.label}` : "")
+        }
         aria-pressed={playing}
-        title={playing ? "Pause recitation" : "Play recitation"}
+        // The reciter's name, so the two controls are distinguishable by
+        // more than position.
+        title={
+          (playing ? "Pause" : "Play") +
+          (track.labelEn ? ` — ${track.labelEn}` : " recitation")
+        }
         className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-rule) text-(--color-ink-muted) transition-colors hover:bg-(--color-rule) hover:text-(--color-ink)"
       >
+        {many && (
+          <span className="me-1 text-[0.65rem] leading-none" aria-hidden="true">
+            {index + 1}
+          </span>
+        )}
         {playing ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <rect x="6" y="5" width="4" height="14" rx="1" />

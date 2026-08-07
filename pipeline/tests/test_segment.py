@@ -269,3 +269,33 @@ def test_final_farsi_yeh_becomes_alef_maksura_not_a_dotted_yeh():
         ("کَالْمُعَایَنَةِ", "كَالْمُعَايَنَةِ"),
     ]:
         assert fold(src) == want, f"{src!r} folded to {fold(src)!r}, expected {want!r}"
+
+
+def test_nawawi_carries_ibn_rajab_as_numbered_additions():
+    """Fifty hadith: al-Nawawi's forty-two and Ibn Rajab's eight.
+
+    Two things had to be true at once. The ziyadat are ADDITIONS — another
+    hand's, and marked as such — and they are also numbers 43-50 of the book as
+    it is read and cited, so unlike al-Tajrid's zawa'id they are numbered and
+    addressable.
+
+    The edition also nests inconsistently: al-Nawawi's hadith sit at `### |||`,
+    Ibn Rajab's at `### ||`, and between them is an appendix on vowelling whose
+    ten sub-headings are themselves called `الحديث الأول` and so on. Those are
+    references to hadith, not hadith, and counting them pushed the ziyadat to
+    53-60.
+    """
+    import collections, json
+    from conftest import BUILD
+    path = BUILD / "nawawi40" / "records.json"
+    if not path.exists():
+        pytest.skip("nawawi40 records not present")
+    recs = json.loads(path.read_text(encoding="utf-8"))["records"]
+    layers = collections.Counter(r["layer"] for r in recs)
+    assert layers["matn"] == 42
+    assert layers["ziyada"] == 8
+
+    numbered = [r for r in recs if r["layer"] in ("matn", "ziyada")]
+    assert [r["number"] for r in numbered] == list(range(1, 51))
+    # The additions are the tail, not interleaved.
+    assert all(r["layer"] == "ziyada" for r in numbered[42:])

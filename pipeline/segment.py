@@ -65,6 +65,8 @@ class Rules:
     aside_marker: str | None
     heading_top_prefixes: tuple[str, ...]
     front_prefixes: tuple[str, ...]
+    aside_section_prefixes: tuple[str, ...]
+    number_asides: bool
     section_levels: dict[str, str] | None
     opener_on: str
     numbering: str
@@ -96,6 +98,8 @@ class Rules:
             aside_marker=seg.get("aside_marker"),
             heading_top_prefixes=tuple(seg.get("heading_top_prefixes", [])),
             front_prefixes=tuple(seg.get("front_prefixes", [])),
+            aside_section_prefixes=tuple(seg.get("aside_section_prefixes", [])),
+            number_asides=bool(seg.get("number_asides", False)),
             section_levels=seg.get("section_levels"),
             opener_on=seg.get("opener_on", "section"),
             numbering=seg.get("numbering", "edition"),
@@ -194,6 +198,10 @@ class Segmenter:
         # Layer of the most recent structural record, so a paragraph arriving
         # with no open record can be classified by what preceded it.
         self.last_structural: str | None = None
+        # Depth of the open front-matter section, and whether we are inside
+        # a part of the book whose records are ADDITIONS to it.
+        self.front_depth: int | None = None
+        self.in_aside_part = False
 
     # -- record lifecycle ---------------------------------------------------
     def close(self) -> None:
@@ -249,7 +257,9 @@ class Segmenter:
             else:
                 # Unnumbered narrative prose under a chapter — the sira material
                 # in Kitab al-Manaqib. Body text, not front matter.
-                self.open(rtype="hadith", layer=self.rules.layers["body"], number=None, text=text)
+                layer = (self.rules.layers["aside"] if self.in_aside_part
+                         else self.rules.layers["body"])
+                self.open(rtype="hadith", layer=layer, number=None, text=text)
         else:
             self.current["textRaw"] += " " + text
 
@@ -273,6 +283,7 @@ class Segmenter:
                     self.handle_section(
                         sec.group(2), lineno,
                         level=self.rules.section_levels.get(sec.group(1).strip()),
+                        depth=len(sec.group(1).strip()),
                     )
                 else:
                     self.handle_section(sec.group(1), lineno)
@@ -290,7 +301,8 @@ class Segmenter:
                 self.warnings.append(f"line {lineno}: unprefixed text {clean[:60]!r}")
                 self.add_text(clean)
 
-    def handle_section(self, payload: str, lineno: int, level: str | None = None) -> None:
+    def handle_section(self, payload: str, lineno: int, level: str | None = None,
+                       depth: int = 1) -> None:
         clean, pages = strip_markers(payload, self.rules)
 
         # A page-marker line carries no other content — it is not a record.
@@ -311,7 +323,7 @@ class Segmenter:
         # A declared structural level is authoritative: this line is a
         # heading, whatever its text happens to look like.
         if level is not None:
-            self.emit_heading(clean, level)
+            self.emit_heading(clean, level, depth)
             self.add_pages(pages)
             self.close()
             return
@@ -343,11 +355,34 @@ class Segmenter:
         # the level has to be inferred lexically.
         is_top = bool(self.rules.heading_top_prefixes
                       and clean.startswith(self.rules.heading_top_prefixes))
-        self.emit_heading(clean, "top" if is_top else "sub")
+        self.emit_heading(clean, "top" if is_top else "sub", depth)
         self.add_pages(pages)
         self.close()
 
-    def emit_heading(self, clean: str, level: str | None) -> None:
+    def emit_heading(self, clean: str, level: str | None, depth: int = 1) -> None:
+        # Front matter is STICKY BY DEPTH. A section declared front matter keeps
+        # everything nested under it as front matter, until a heading at the
+        # same level or shallower closes it.
+        #
+        # Nawawi's ara2 edition has an appendix — باب الإشارات إلى ضبط الألفاظ
+        # المشكلات, on vowelling difficult words — whose ten sub-headings are
+        # `الحديث الأول`, `الحديث الثاني` and so on. They are references to
+        # hadith, not hadith, and without this they became records 43-52 and
+        # pushed Ibn Rajab's additions to 53-60.
+        if self.front_depth is not None and depth > self.front_depth:
+            self.open(rtype="frontmatter", layer=self.rules.layers["front"],
+                      number=None, text=clean)
+            return
+        self.front_depth = None
+
+        # A part of the book whose records are additions to it. Ibn Rajab's
+        # ziyadat are eight hadith appended to Nawawi's forty-two, and they
+        # should read as such — numbered and navigable like the rest, but
+        # marked as another hand's.
+        if self.rules.aside_section_prefixes and clean.startswith(
+                self.rules.aside_section_prefixes):
+            self.in_aside_part = True
+
         # A section that opens the book rather than belonging to its sequence.
         # Nawawi's preface and its `أما بعد` are sections like any other in the
         # file, and without this they take numbers 1 and 2 and push the forty
@@ -355,6 +390,7 @@ class Segmenter:
         # first two sections" would be a guess about a file, while "the section
         # called مقدمة المؤلف" is a statement about a book.
         if self.rules.front_prefixes and clean.startswith(self.rules.front_prefixes):
+            self.front_depth = depth
             self.open(rtype="frontmatter", layer=self.rules.layers["front"],
                       number=None, text=clean)
             return
@@ -437,10 +473,17 @@ class Segmenter:
         # unambiguously; al-Tajrid declares nothing and gets `displayNumber ==
         # number`.
         body = self.rules.layers["body"]
+        # Ibn Rajab's ziyadat are additions AND hadith: they are another hand's
+        # work, and they are also numbers 43-50 of the book as it is read and
+        # cited. al-Tajrid's zawa'id are the other case — unnumbered, and shown
+        # beside the hadith they supplement — so which applies is declared.
+        numbered = {body}
+        if self.rules.number_asides:
+            numbered.add(self.rules.layers["aside"])
         continuous = self.rules.numbering == "continuous"
         n = 0
         for rec in self.records:
-            if rec["layer"] != body:
+            if rec["layer"] not in numbered:
                 rec["displayNumber"] = None
                 rec["editionNumber"] = None
                 continue
@@ -610,6 +653,10 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         # actually resolves is to the kitab.
         "chapterLink": (cfg.get("segmentation") or {}).get("chapter_link"),
         "recordLink": (cfg.get("segmentation") or {}).get("record_link"),
+        # Which layer holds additions, and what to say about them. Both were
+        # a hardcoded Arabic sentence in Reader.tsx naming al-Diya' al-Daghistani.
+        "asideLayer": (cfg.get("segmentation") or {}).get("layer_names", {}).get("aside"),
+        "asideNote": (cfg.get("display") or {}).get("asideNote"),
         # The "about this book" popup, verbatim from the corpus file — the
         # component holds no book knowledge; a second text writes its own.
         "about": cfg.get("about"),
