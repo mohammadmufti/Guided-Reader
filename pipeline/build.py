@@ -499,6 +499,8 @@ def main() -> int:
     audio_by_number: dict[int, list[dict]] = {}
     cfg = load_config(args.corpus)
     strip = inline_strip_patterns(cfg)
+    _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
+    _link_layers = _rl.get("layers")
     binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")
     if recit:
@@ -568,6 +570,14 @@ def main() -> int:
             # On a text that restarts numbering in every kitab, `number` is a
             # running count we assigned and matches no printed copy; this plus
             # the kitab is what a citation should quote. Null where they agree.
+            # The external link, per record. A corpus may restrict it to
+            # certain layers: sunnah.com has al-Nawawi's forty-two but not Ibn
+            # Rajab's additions, so those must not carry one.
+            "recordLinkNumber": (
+                rec["number"]
+                if (_link_layers is None or rec["layer"] in _link_layers)
+                else None
+            ),
             "editionNumber": (rec.get("editionNumber")
                               if rec.get("editionNumber") != rec["number"] else None),
             "type": rec["type"], "layer": rec["layer"],
