@@ -1,77 +1,116 @@
 # The pipeline, file by file
 
-What each program does, what it reads and writes, and when it runs. This is
-the map a person opens BEFORE a source file; the files' own docstrings carry
-the detail, this carries the shape. Kept honest by the fact that CI is the
-same commands in the same order — if this document and `deploy.yml` disagree,
-one of them is wrong and it is probably this one.
+This page says what each program does, what it reads, what it writes, and when
+it runs. Read it before you open a source file. The docstring in each file gives
+the detail. This page gives the shape.
 
-Two kinds of trigger exist:
+CI runs the same commands in the same order. If this page and `deploy.yml`
+disagree, one of them is wrong. It is probably this page.
 
-- **Every build** — runs in CI on every push and pull request, and locally
-  when you run the pipeline by hand.
-- **On change, cached** — expensive stages whose output is cached in CI,
-  keyed on their own inputs; they rerun only when those inputs change.
-  Locally they rerun whenever you invoke them.
+Written to ASD-STE100 Simplified Technical English. See `DOCS.md`.
+
+Two triggers exist:
+
+- **Every build.** The stage runs in CI on each push and each pull request. It
+  also runs when you start the pipeline by hand.
+- **On change, cached.** The stage is expensive. CI caches its output and keys
+  the cache on the stage's own inputs. The stage runs again only when an input
+  changes. On your machine it runs each time you call it.
 
 ---
 
-## The build chain, in running order
+## Build order
 
-| # | file | one line | reads | writes | trigger / cache key |
+| # | File | What it does | Reads | Writes | Trigger |
 |--:|---|---|---|---|---|
-| 0 | `fetch.py` | download and checksum every external source; refuses to proceed on changed input | corpus configs `corpora/*.yaml` | `pipeline/cache/` + manifests | every build; downloads cached on the corpus configs |
-| 0b | `lane.py` | ingest Lane's Lexicon (61 MB sqlite) into structured entries keyed by root | cached Lane db | `build/lane/entries.json` (72 MB) | on change, keyed on `lane.py` (~90 s) |
-| 1 | `analyse.py` | run BOTH analyser stacks — CAMeL (calima-msa-r13) and qalsadi+arramooz — over every workbook form and witness reading; choose each root by vocalisation → majority → Lane, never by alphabet; merge the stacks with a recorded `rootBasis` | workbook, witness CSV, Lane roots, CAMeL db | `build/morphology/analyses.json` | on change, keyed on `analyse.py` + workbook (~5 min) |
-| 2 | `segment.py` | OpenITI mARkdown → `records.json`; the line grammar lives in `corpora/{id}.yaml`, the code holds no Arabic | fetched source text | `build/{corpus}/records.json` | every build (~5 s) |
-| 3 | `disambiguate.py` | context-level morphology over whole sentences via `farahidi`; licensed to override the workbook ONLY on the measured geminate→hollow class | records.json | `build/{corpus}/disambiguated.json` | on change, keyed on `disambiguate.py` + `segment.py` (~5 min). MUST run after segment and before build — ordering it after build once shipped a payload with no contextRoot at all |
-| 4 | `lexicon.py` | extract the workbook into `lexicon.json` + indices | workbook | `build/{corpus}/lexicon.json` | every build (~1 min) |
-| 5 | `bind.py` | bind every corpus token to a lexicon entry, tier by tier, witness-aligned where possible | records, lexicon, witness | `build/{corpus}/bindings.json` | every build (~30 s) |
-| 6 | `build.py` | assemble the payload: trim entries, apply context overrides and corrections, fold hamza radicals, suppress garbage transliterations, filter empty Lane senses, shard to budget, assert no orphans and the 100 ms panel budget, stamp `buildCommit` | everything above | `web/public/data/` | every build (~1 min) |
-| — | `codegen.py --check` | fail the build if the TypeScript contracts drifted from `contracts.py` | contracts.py | (check only; without `--check` it writes `contracts.ts`) | every build |
+| 0 | `fetch.py` | Downloads each external source. Checksums it. Stops the build if an input changed. | `corpora/*.yaml` | `cache/{corpus}/` and a manifest | Every build. Cache key: the corpus configs. |
+| 0b | `lane.py` | Reads Lane's Lexicon from a 61 MB SQLite file. Writes entries keyed by root. | Cached Lane database | `build/lane/entries.json` | On change. Key: `lane.py`. About 90 s. |
+| 1 | `analyse.py` | Runs two analysers over every form: CAMeL, and qalsadi with arramooz. Chooses each root by vocalisation, then majority, then Lane. Never by alphabet. Records which basis it used. | Workbook, witness, Lane roots, CAMeL database | `build/morphology/analyses.json` | On change. Key: `analyse.py` and the workbook. About 5 min. |
+| 1b | `glossary.py` | Lifts the workbook's lexicography into a corpus-independent store. Run once. | Workbook | `build/glossary/glossary.json` | By hand, after the workbook changes. |
+| 2 | `segment.py` | Turns a source text into records. The line grammar is in `corpora/{id}.yaml`. This file holds no Arabic that names a book. | Fetched source | `build/{corpus}/records.json` | Every build. About 5 s. |
+| 3 | `disambiguate.py` | Runs sentence-level morphology through `farahidi`. Overrides the workbook on one measured class only: geminate to hollow. | `records.json` | `build/{corpus}/disambiguated.json` | On change. Key: `disambiguate.py` and `segment.py`. About 5 min. |
+| 4 | `lexicon.py` | Extracts a workbook into `lexicon.json` and its indices. Fails if the corpus declares no workbook. | Workbook | `build/{corpus}/lexicon.json` | Every build, for a corpus with a workbook. About 1 min. |
+| 5 | `bind.py` | Binds each token to a lexicon entry, tier by tier. Transfers vowels from a witness where one exists. Derives `lexicon.json` for a corpus that has no workbook. | Records, lexicon, witness, glossary | `build/{corpus}/bindings.json` | Every build. About 30 s. |
+| 6 | `build.py` | Assembles the payload. Trims entries, applies corrections, shards to a byte budget, and checks that no reference is broken. | Everything above | `web/public/data/corpora/{corpus}/` | Every build. About 1 min. |
+| 7 | `share.py` | Merges the entries that corpora hold in common into one shared set. Run last. | Every built corpus | `web/public/data/lexicon/` | Every build, after the last corpus. |
+| — | `codegen.py --check` | Fails the build if the TypeScript contracts no longer match `contracts.py`. | `contracts.py` | Nothing, with `--check`. Writes `contracts.ts` without it. | Every build. |
 
-Then the app: `npm ci && npx tsc -b && npm run build` in `web/`, the SPA
-404 fallback copy, and — on `main` only — deploy to Pages.
+**Run `share.py` last.** It deletes the private copy of each shared entry. A
+corpus built after it puts its own copy back. The reader then loads a stale
+entry.
 
-## The library modules (imported, never invoked)
+Then build the app. In `web/`, run `npm ci`, then `npx tsc -b`, then
+`npm run build`. Copy the SPA 404 fallback. On `main` only, deploy to Pages.
 
-| file | job | used by |
+---
+
+## Library modules
+
+You import these files. You do not run them.
+
+| File | What it holds | Used by |
 |---|---|---|
-| `contracts.py` | the single source of truth for every data shape; `contracts.ts` is generated from it | everything |
-| `normalise.py` | `normalise()` and `root_key()` — THE join keys between tokens, lexicon and roots | everything |
-| `tokenise.py` | a token is a maximal run of Arabic letters+marks; round-trips the record text exactly | bind, build, tests |
-| `morphology.py` | recover the stem of the 409 forms whose supplied analysis kept only a clitic | build |
-| `gloss.py` | parse the workbook's Buckwalter gloss chains (`the + prayer;salat + [fem.sg.]`) so raw markup never reaches a reader | build, tests |
+| `contracts.py` | Every data shape. `contracts.ts` is generated from it. | Everything |
+| `corpus.py` | Loads a corpus config. Resolves a source path. Refuses to answer with another corpus's file. | Every stage |
+| `normalise.py` | `normalise()` and `root_key()`. These are the join keys. | Everything |
+| `tokenise.py` | A token is a run of Arabic letters and marks. Round-trips the record text exactly. | bind, build, tests |
+| `vocalisation.py` | Classifies a token's own vowelling. Transfers marks without a change to any letter. | bind |
+| `tiers.py` | The tier table. States which evidence each tier needs. | bind |
+| `workbook.py` | Reads al-Tajrīd's spreadsheet. The only file that knows what a sheet is. | lexicon, glossary, analyse |
+| `morphology.py` | Recovers the stem of 409 forms whose analysis kept only a clitic. | build |
+| `gloss.py` | Parses the workbook's Buckwalter gloss chains. Stops raw markup from reaching a reader. | build, tests |
 
-## Tools run by hand (never in CI)
+---
 
-| file | job | when |
+## Tools you run by hand
+
+CI never runs these.
+
+| File | What it does | When to run it |
 |---|---|---|
-| `gold.py sample` | draw the 300-token stratified hand-check sample; write `gold/{corpus}/sample.json` + the review workbook | after any change that alters shown values (tests force this: payload drift under a drawn sample fails CI until regenerated or re-scored) |
-| `gold.py score` | read the filled review workbook → per-stratum accuracy with Wilson intervals → `reports/gold.md` | whenever verdicts exist or change |
-| `bakeoff_camel.py` | score CAMeL against the arramooz chain on all forms, Lane-adjudicated; wrote the evidence (`reports/camel-bakeoff.md`) on which CAMeL was adopted | when evaluating a provider; keep for the next candidate |
+| `gold.py sample` | Draws a 300-token stratified sample for a hand check. | After a change that alters a shown value. The tests force this. A payload that drifts under a drawn sample fails CI. |
+| `gold.py score` | Reads the filled review workbook. Writes accuracy per stratum with Wilson intervals. | When a verdict changes. |
+| `bakeoff_camel.py` | Scores CAMeL against the arramooz chain. Lane adjudicates. | When you evaluate a new analyser. |
 
-## The browser gates (`web/`)
+---
 
-| file | asserts | trigger |
-|---|---|---|
-| `serve.py` | static server with SPA fallback and the base-path emulation of GitHub Pages (incl. the 301 on the slashless prefix) | serves the gates, locally and in CI |
-| `e2e_sample.py` | derives phase 7's stratified word sample from the artifact under test, deterministically | before the gates, every `test` job |
-| `e2e_phase5.py` | reader shell: routing, deep links, 404s, layout stability (26 checks) | every `test` job — blocking on PRs, reporting on pushes; deploy never waits on it |
-| `e2e_phase6.py` | selection and keyboard: traversal reaches every clickable word (event-driven, not clock-driven), Escape semantics, deep-link restore (20) | same |
-| `e2e_phase7.py` | the word panel walked over the sample: no raw markup, no null leaks, Lane rendering, divergence promises, provenance collapsed (114) | same |
-| `e2e_phase8.py` | accessibility and responsive layout (31) | same |
+## Browser gates
 
-## The test suite (`pipeline/tests/`)
+| File | What it checks |
+|---|---|
+| `serve.py` | Serves the built site. Emulates the GitHub Pages base path and the SPA fallback. |
+| `e2e_sample.py` | Draws the word sample for phase 7 from the artifact under test. Deterministic. |
+| `e2e_phase5.py` | The reader shell: routing, deep links, 404 states, layout stability. |
+| `e2e_phase6.py` | Selection and keyboard: traversal, Escape, deep-link restore. |
+| `e2e_phase7.py` | The word panel across the sample: no raw markup, no null values, Lane rendering, provenance. |
+| `e2e_phase8.py` | Accessibility and responsive layout. |
 
-Runs on every build, ~20 s, no browser. Split along two axes (see
-`conftest.py`): by what must exist on disk (workbook / fetched / built), and
-by scope — corpus-agnostic **invariants** always run; per-corpus **pins**
-live in `fixtures/{corpus}.yaml` and skip, naming the missing key, on a
-corpus that has not supplied them. `--corpus` selects the text under test.
+The gates block a pull request. They report on a push. The deploy does not wait
+for them.
 
-Notable: `test_gold.py` binds hand verdicts to the build they describe;
-`test_payload_hygiene.py` pins closed the defect classes a reader found
-(mixed hamza spellings, garbage transliterations, empty Lane senses, masked
-radicals); `test_analyse.py` pins the الخطاب/مصر/غدا root-selection fixes and
-holds a catastrophe floor — not a conformity target — against the workbook.
+---
+
+## Test suite
+
+The suite is in `pipeline/tests/`. It runs on every build in about 20 s. It
+needs no browser.
+
+`conftest.py` splits the tests two ways:
+
+1. **By what must exist on disk**: a workbook, a fetched source, or a build.
+2. **By scope**: an invariant applies to every corpus and always runs. A pin
+   applies to one corpus, lives in `fixtures/{corpus}.yaml`, and skips with the
+   name of the missing key.
+
+Use `--corpus` to choose the text under test.
+
+Four suites are worth your attention:
+
+- `test_corpus_isolation.py` — one corpus must never read another's files. A
+  wrong config trips this suite first.
+- `test_determinism.py` — the same input must give the same output. Retrieval
+  once depended on hash order, and two runs of the same code gave different
+  results.
+- `test_vocalisation.py` — the reader may add marks. It may not change a letter.
+- `test_payload_hygiene.py` — the defect classes a reader already found stay
+  closed.

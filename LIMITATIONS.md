@@ -1,5 +1,13 @@
 # What you are trusting
 
+> **Scope.** The figures on this page are al-Tajrīd's. The reader now serves
+> four texts, and each one is bound off different evidence — the Muwaṭṭaʾ off a
+> different witness, Shāh Walī Allāh off its own harakāt, with nothing inferred
+> at all. The `/about` page inside the app states the measured figures for
+> whichever book is open; it reads them from the build rather than quoting them.
+> `CORPORA.md` summarises all four.
+
+
 This reader shows the vowelling, root, and meaning of every word in
 al-Tajrīd al-Ṣarīḥ. Some of that is witnessed and some of it is inferred, and
 the difference matters when you are learning. This page says which is which.

@@ -1,5 +1,11 @@
 # Tajrīd Reader
 
+> **Four texts.** al-Tajrīd al-Ṣarīḥ, al-Muwaṭṭaʾ, al-Arbaʿūn al-Nawawiyya with
+> Ibn Rajab's ziyādāt, and al-Arbaʿūn li-Shāh Walī Allāh. `CORPORA.md` describes
+> each one, its sources, and its measured figures. `DOCS.md` says which document
+> to read for what.
+
+
 A word-by-word reading surface for **al-Tajrīd al-Ṣarīḥ li-aḥādīth al-Jāmiʿ
 al-Ṣaḥīḥ**, al-Zabīdī's abridgement of Ṣaḥīḥ al-Bukhārī. One hadith on screen;
 click any word to see its vowelling, root, lemma, modern gloss, and — where the
