@@ -598,6 +598,14 @@ class ShardConfig(TypedDict):
     surface: Annotated[int, Doc(
         "Route STATISTICS by hash(search_key) % this. Per corpus."
     )]
+    lexiconVersion: Annotated[
+        str | None,
+        Doc(
+            "Content hash of the shared lexicon. The client puts it in the URL "
+            "of every shared shard, so a rebuild invalidates the cache while a "
+            "corpus switch does not. Null until share.py has run."
+        ),
+    ]
     sharedClassical: Annotated[int | None, Doc(
         "Route Lane HEADWORDS by hash(lane_root) % this, under data/lexicon/. "
         "Shared: Lane's Lexicon is the same book whichever text is being read."

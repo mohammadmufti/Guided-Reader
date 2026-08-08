@@ -1231,13 +1231,25 @@ def main() -> int:
           + ", ".join(c["id"] for c in registry))
 
     (DATA.parent / "_headers").write_text(
-        "/data/index.json\n"
+        # These paths moved when the payload was partitioned per corpus, and
+        # the rules did not follow. `/data/hadith/*` and `/data/lex/*` have not
+        # existed since; every rule here matched nothing.
+        #
+        # Only files fetched with a version in the URL may be immutable. The
+        # index is not: it is how the client learns the current version.
+        "/data/corpora/*/index.json\n"
         "  Cache-Control: public, max-age=0, must-revalidate\n"
         "\n"
-        "/data/hadith/*\n"
+        "/data/corpora.json\n"
+        "  Cache-Control: public, max-age=0, must-revalidate\n"
+        "\n"
+        "/data/corpora/*/hadith/*\n"
         "  Cache-Control: public, max-age=31536000, immutable\n"
         "\n"
-        "/data/lex/*\n"
+        "/data/corpora/*/lex/*\n"
+        "  Cache-Control: public, max-age=31536000, immutable\n"
+        "\n"
+        "/data/lexicon/*\n"
         "  Cache-Control: public, max-age=31536000, immutable\n",
         encoding="utf-8",
     )
