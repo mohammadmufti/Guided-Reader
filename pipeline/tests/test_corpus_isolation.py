@@ -477,3 +477,36 @@ def test_quick_gloss_uses_the_stem_not_the_clitic_chain():
     src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
     assert 'a.get("stemgloss")' in src
     assert 'gloss_for' in src
+
+
+def test_cache_rules_name_paths_that_exist():
+    """`_headers` rules that match nothing are worse than none.
+
+    The rules named `/data/index.json`, `/data/hadith/*` and `/data/lex/*`.
+    None of those has existed since the payload was partitioned per corpus, so
+    every rule matched nothing and the real files fell back to whatever the
+    host sends.
+    """
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    block = src[src.index('"_headers"'):]
+    block = block[:block.index("REPORTS.mkdir")]
+    for path in ("/data/corpora.json", "/data/corpora/*/index.json",
+                 "/data/corpora/*/hadith/*", "/data/lexicon/*"):
+        assert path in block, f"no cache rule for {path}"
+    assert '"/data/hadith/*' not in block, "a rule still names a path that moved"
+    assert '"/data/lex/*' not in block
+
+
+def test_shared_lexicon_urls_are_versioned():
+    """An immutable URL that never changes is a cache that never updates.
+
+    The shared shards deliberately carry no corpus buildId, so switching books
+    does not re-download a lexicon the reader already holds. Without a version
+    of their own, though, a reader who visited before a rebuild kept the old
+    entries: the text updated and the word panel did not.
+    """
+    src = (corpus.ROOT.parent / "web/src/lib/lexicon.ts").read_text(encoding="utf-8")
+    assert "lexVer(index)" in src
+    assert "lexiconVersion" in src
+    share = (corpus.ROOT / "share.py").read_text(encoding="utf-8")
+    assert "lexiconVersion" in share and "hashlib" in share

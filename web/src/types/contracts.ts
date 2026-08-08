@@ -547,6 +547,11 @@ export interface ShardConfig {
   /** Route STATISTICS by hash(search_key) % this. Per corpus. */
   surface: number;
   /**
+   * Content hash of the shared lexicon. The client puts it in the URL of every shared shard, so
+   * a rebuild invalidates the cache while a corpus switch does not. Null until share.py has run.
+   */
+  lexiconVersion: string | null;
+  /**
    * Route Lane HEADWORDS by hash(lane_root) % this, under data/lexicon/. Shared: Lane's Lexicon
    * is the same book whichever text is being read.
    */

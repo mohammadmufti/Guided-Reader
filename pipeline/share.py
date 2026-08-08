@@ -44,6 +44,7 @@ assumption this whole file rests on.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import collections
 import json
 import shutil
@@ -233,10 +234,24 @@ def main() -> int:
         print(f"shared {stem:<10} {len(merged):,} entries in {k} shards")
 
     # Point each corpus at the shared set and drop its private copy.
+    # A version for the shared set, so its URLs change when its contents do.
+    #
+    # The shared shards are fetched WITHOUT the per-corpus buildId — that is
+    # deliberate, so switching books does not re-download a lexicon the reader
+    # already has. But a stable URL with no version is a URL that never
+    # updates: a reader who visited before a rebuild kept the old entries, and
+    # the words they clicked showed the old roots and glosses while the text
+    # around them was current.
+    digest = hashlib.sha256(
+        json.dumps(entries, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:12]
+    print(f"shared version     {digest}")
+
     for d in corpora:
         idx_path = d / "index.json"
         idx = json.loads(idx_path.read_text(encoding="utf-8"))
         idx["shards"]["sharedSurface"] = n
+        idx["shards"]["lexiconVersion"] = digest
         for stem, k in shared_counts.items():
             idx["shards"][f"shared{stem.capitalize()}"] = k
         idx_path.write_text(json.dumps(idx, ensure_ascii=False), encoding="utf-8")

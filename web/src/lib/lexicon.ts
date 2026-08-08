@@ -14,6 +14,11 @@ import type {
 // lexicon shards with another book's records.
 import { corpusBase, dataRoot } from "./data";
 
+/** Cache key for the shared lexicon: its own content hash, not a buildId. */
+function lexVer(index: IndexFile): string {
+  return index.shards.lexiconVersion ? `?v=${index.shards.lexiconVersion}` : "";
+}
+
 /**
  * 32-bit FNV-1a over UTF-8, byte for byte the same function as `fnv1a` in
  * pipeline/build.py. A match_id is routed to its shard without any lookup
@@ -109,10 +114,14 @@ async function loadPanelOnce(
   let shard = surfaceShards.get(su);
   if (!shard) {
     shard = fetchJson<Record<string, PanelEntry>>(
-      // No corpus in the path, and no buildId either: a shared entry does not
-      // change when one corpus is rebuilt, so cache-busting per corpus would
-      // throw away a hit the reader has already paid for.
-      `${dataRoot()}/lexicon/surface-${pad(su)}.json`,
+      // No corpus in the path — a shared entry does not change when one
+      // corpus is rebuilt, and cache-busting per corpus would throw away a
+      // hit the reader has already paid for.
+      //
+      // But it DOES carry `lexiconVersion`, a hash of the shared set. Without
+      // it the URL never changed, so a reader who had visited before kept the
+      // old entries indefinitely: the text updated and the word panel did not.
+      `${dataRoot()}/lexicon/surface-${pad(su)}.json${lexVer(index)}`,
     );
     surfaceShards.set(su, shard);
   }
@@ -147,14 +156,14 @@ async function loadPanelOnce(
   let cShard = classicalShards.get(c);
   if (!cShard) {
     cShard = fetchJson<Record<string, ClassicalEntry>>(
-      `${dataRoot()}/lexicon/classical-${pad(c)}.json`,
+      `${dataRoot()}/lexicon/classical-${pad(c)}.json${lexVer(index)}`,
     );
     classicalShards.set(c, cShard);
   }
   let lShard = laneShards.get(l);
   if (!lShard) {
     lShard = fetchJson<Record<string, LaneRoot>>(
-      `${dataRoot()}/lexicon/lane-${pad(l)}.json`,
+      `${dataRoot()}/lexicon/lane-${pad(l)}.json${lexVer(index)}`,
     );
     laneShards.set(l, lShard);
   }
