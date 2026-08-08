@@ -42,7 +42,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / "cache"
-OUT = ROOT / "build" / "morphology"
+BUILD = ROOT / "build"
+OUT = BUILD / "morphology"
 
 sys.path.insert(0, str(ROOT))
 from corpus import ConfigError, load_config, source_path
@@ -170,7 +171,7 @@ def build_camel():
             out.append(fixed)
         return "".join(out)
 
-    def camel(form: str, resolve=None) -> list[str]:
+    def camel(form: str, resolve=None, lexOut: list | None = None) -> list[str]:
         """
         Distinct recovered roots. The diacritic test NARROWS when it can and
         steps aside when the DB's marking conventions admit nothing — a
@@ -189,6 +190,17 @@ def build_camel():
         # one more analyses support leads. NOT sorted() — this project has
         # already shipped one alphabet-as-tiebreak and will not ship another.
         support: dict[str, int] = {}
+        # The VOCALISED lemma, alongside the root. CAMeL states it in `lex`,
+        # and it is what Lane indexes an article by: `بَعَث`, not the inflected
+        # `بَعَثَكَ` and not the bare `بعث`. The bare lemma cannot use the
+        # vocalised matching tier, which is the tier that tells `هِجْرَةٌ` from
+        # `هُجْرَةٌ`, so a bare candidate falls through to a tier where six
+        # entries look alike.
+        lex_support: dict[str, int] = {}
+        for a in keep:
+            _lex = a.get("lex")
+            if _lex and _lex not in ("NOAN", "NTWS"):
+                lex_support[str(_lex)] = lex_support.get(str(_lex), 0) + 1
         for a in keep:
             r = a.get("root")
             if not r or r in ("NTWS", "NOAN"):
@@ -203,6 +215,11 @@ def build_camel():
                 got = resolve(dediac_ar(a.get("lex") or ""), r)
             if got:
                 support[got] = support.get(got, 0) + 1
+        # `lexOut` carries the best-supported vocalised lemma back to the
+        # caller. A list, because the closure has no other channel and the
+        # caller must not have to re-run the analyser to get it.
+        if lexOut is not None and lex_support:
+            lexOut.append(max(lex_support, key=lambda k: (lex_support[k], k)))
         return sorted(support, key=lambda r: (-support[r], r))
 
     return camel
@@ -327,7 +344,8 @@ def build_analyser():
         return None
 
     def analyse(form: str) -> dict | None:
-        camel_roots = camel(form, resolve_masked)
+        camel_lex: list[str] = []
+        camel_roots = camel(form, resolve_masked, camel_lex)
         lemma = pos = None
         arr_root, arr_alts, arr_basis = None, [], None
         try:
@@ -343,6 +361,10 @@ def build_analyser():
             camel_roots, arr_root, arr_alts, arr_basis)
         return {
             "lemma": lemma,
+            # The vocalised lemma, for looking Lane up by headword. Kept beside
+            # the bare one rather than replacing it: the bare lemma is the join
+            # key everything else already uses.
+            "lemmaVocalised": camel_lex[0] if camel_lex else None,
             "pos": pos if pos not in ("all", "") else None,
             "root": root,
             "rootAlternatives": alternatives,
@@ -374,6 +396,37 @@ def main() -> int:
 
     surface = pd.read_excel(path, sheet_name="Surface")
     forms = [str(v) for v in surface["vocalized"]]
+
+    # ---- and every token of every corpus ---------------------------------
+    #
+    # This stage used to read the workbook alone. The workbook belongs to
+    # al-Tajrid, so a word that occurs in another book and not in al-Tajrid was
+    # never shown to an analyser at all. Measured on the Muwatta': 10,208 tokens
+    # bound to nothing, and 111 of them had an analysis.
+    #
+    # A sample of 300 of those unbound forms says what it cost. CAMeL finds a
+    # root for 264, and that root already has a Lane entry. The pipeline simply
+    # did not ask.
+    #
+    # Analysing them here means a corpus without a workbook still gets a lemma,
+    # a root and a part of speech for its own vocabulary — which is what makes
+    # a word clickable and what Lane is looked up by.
+    from tokenise import tokenise as _tokenise
+    corpora_dir = ROOT / "corpora"
+    for cfg_path in sorted(corpora_dir.glob("*.yaml")):
+        recs = BUILD / cfg_path.stem / "records.json"
+        if not recs.exists():
+            continue
+        doc = json.loads(recs.read_text(encoding="utf-8"))
+        n_before = len(forms)
+        seen_forms = set(forms)
+        for rec in doc["records"]:
+            _, toks = _tokenise(rec["textRaw"])
+            for t in toks:
+                if t["raw"] not in seen_forms:
+                    seen_forms.add(t["raw"])
+                    forms.append(t["raw"])
+        print(f"  + {len(forms) - n_before:,} forms from {cfg_path.stem}")
 
     # Also analyse forms the WITNESS attests that the workbook lacks.
     #

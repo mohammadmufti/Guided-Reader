@@ -299,3 +299,36 @@ def test_nawawi_carries_ibn_rajab_as_numbered_additions():
     assert [r["number"] for r in numbered] == list(range(1, 51))
     # The additions are the tail, not interleaved.
     assert all(r["layer"] == "ziyada" for r in numbered[42:])
+
+
+def test_nawawi_carries_no_footnote_apparatus():
+    """`(¬1)` points at an apparatus this reader does not carry.
+
+    246 of them in this edition. The NOT SIGN, U+00AC, is the marker: a bare
+    `(1)` is left alone, because al-Tajrid's zawa'id cite Bukhari numbers in
+    plain parentheses and those are content.
+    """
+    import json
+    from conftest import BUILD
+    path = BUILD / "nawawi40" / "records.json"
+    if not path.exists():
+        pytest.skip("nawawi40 records not present")
+    text = " ".join(r["textRaw"] for r in json.loads(path.read_text(encoding="utf-8"))["records"])
+    assert "\u00ac" not in text
+
+
+def test_ibn_rajabs_additions_carry_no_external_link():
+    """sunnah.com has al-Nawawi's forty-two and not Ibn Rajab's eight.
+
+    A link for hadith 43-50 would send the reader to a page that is not there,
+    or to whatever else that number resolves to.
+    """
+    import json
+    from conftest import BUILD
+    path = BUILD / "nawawi40" / "records.json"
+    if not path.exists():
+        pytest.skip("nawawi40 records not present")
+    recs = json.loads(path.read_text(encoding="utf-8"))["records"]
+    ziyada = [r for r in recs if r["layer"] == "ziyada"]
+    assert ziyada
+    assert all(r["number"] >= 43 for r in ziyada)

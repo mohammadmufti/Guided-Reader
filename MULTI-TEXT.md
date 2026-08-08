@@ -1,5 +1,14 @@
 # Multi-text: a phased plan
 
+> **SUPERSEDED.** This planned the move from one corpus to several. That move is
+> done: the reader serves four texts, the payload is partitioned per corpus, the
+> lexicon is shared, and the routes carry the book.
+>
+> The file is kept for its record of what was tried and why. Do not use it to
+> decide anything. For the system as it stands, read `CORPORA.md` and
+> `ADDENDUM-adding-sources.md`.
+
+
 The reader serves one book. Everything below is about serving several, and about
 making the second one cheap so the tenth is cheaper.
 

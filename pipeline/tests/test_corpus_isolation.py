@@ -342,3 +342,41 @@ def test_no_corpus_alters_the_letters_it_displays():
             if dediac(t["raw"]) != dediac(t["surface"])
         ]
         assert not bad, f"{cid}: {len(bad)} tokens displayed different letters, e.g. {bad[:3]}"
+
+
+def test_lane_headwords_beat_cited_forms():
+    """An article's own headword must claim its key before a form it cites.
+
+    Lane holds 48 entries under `رجل`, and six share the bare spelling. The
+    article on the verb `رَجِلَ` cites the form `رَجُلَ`; the noun `رَجُلٌ` has
+    exactly that headword. Indexed in one pass, the verb took the key, and the
+    commonest noun in the corpus opened an article about walking on foot.
+
+    Pinned structurally: the index must be built headword-pass first.
+    """
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    assert "for take_headwords in (True, False):" in src
+    # And the candidates must run vocalised-lemma, then form, then bare lemma.
+    # A bare candidate cannot use the vocalised tier, which is the tier that
+    # separates entries sharing a spelling.
+    assert 'for candidate in (_lv, e.get("vocalized"), e.get("lemma")):' in src
+    assert 'lemmaVocalised' in src
+
+
+def test_rajul_opens_the_noun_not_the_verb():
+    """The case that found it, measured on the built payload."""
+    import glob, json
+    import pathlib
+    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
+    if not shards:
+        pytest.skip("payload not built")
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(pathlib.Path(f).read_text(encoding="utf-8")))
+    rajul = [e for e in entries.values()
+             if e.get("vocalized") == "رَجُلٌ" and e.get("laneEntry")]
+    if not rajul:
+        pytest.skip("رَجُلٌ not in this payload")
+    assert all(e["laneEntry"] == "n14929" for e in rajul), (
+        f"expected the noun's article n14929, got {[e['laneEntry'] for e in rajul]}"
+    )

@@ -194,6 +194,15 @@ class CorpusRecord(TypedDict):
         "Primary display number, and the ADDRESS: unique across the corpus, what "
         "`numberIndex` and the URL use. Null for headings and frontmatter."
     )]
+    recordLinkNumber: Annotated[
+        int | None,
+        Doc(
+            "The number to build `corpus.recordLink` with, or null where this "
+            "record has no counterpart at the external site. Ibn Rajab's "
+            "ziyadat are hadith 43-50 of Nawawi's Forty here and are absent "
+            "from sunnah.com, so they carry no link."
+        ),
+    ]
     editionNumber: Annotated[int | None, Doc(
         "The number the printed edition gives this hadith, when it differs from "
         "`number`. On a text that restarts numbering in every kitab, `number` is a "
@@ -529,6 +538,7 @@ class HadithFile(TypedDict):
 
     id: str
     number: int | None
+    recordLinkNumber: int | None
     editionNumber: int | None
     numbersCovered: list[int]
     type: RecordType

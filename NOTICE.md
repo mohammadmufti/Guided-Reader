@@ -69,6 +69,27 @@ redistributed: `pipeline/cache/` is not committed, and the payload contains no
 sentence from it. Where the editor cites Bukhārī, the reader is sent to
 sunnah.com rather than shown the hadith here.
 
+**al-Muwaṭṭaʾ** — OpenITI, from a Shamela edition of the riwāya of Yaḥyā b.
+Yaḥyā al-Laythī. Mālik died in 179 AH, so the work is public domain.
+
+**al-Arbaʿūn al-Nawawiyya, with Ibn Rajab's ziyādāt** — OpenITI, from a Shamela
+edition. Al-Nawawī died in 676 AH and Ibn Rajab in 795 AH. Both are public
+domain.
+
+**al-Arbaʿūn li-Shāh Walī Allāh al-Dihlawī** — this one is different, and the
+difference matters. The work is public domain: the author died in 1176 AH. But
+it is in no OpenITI repository, and the only machine-readable copy is a scrape
+of sunnah.com published as `AhmedBaset/hadith-json`. That copy is therefore the
+**source text, not an alignment reference**, and unlike every other text here
+its words *are* redistributed in the payload. sunnah.com states its own terms of
+use. If those terms are a problem, this is the corpus to remove, and removing it
+is one file: `pipeline/corpora/shahwaliullah40.yaml`.
+
+**Vocalised Muwaṭṭaʾ and Nawawī texts** — `abdelrahmaan/Hadith-Data-Sets` and
+`AhmedBaset/hadith-json`. Used **only as alignment references**, on the same
+terms as the Bukhārī above: vowelling is transferred onto words this project
+already holds, and no sentence from either is redistributed.
+
 **The frequency workbook** — supplied by the maintainer. Its README records that
 it was itself built from a Bukhārī alignment, `qalsadi`, Buckwalter/AraMorph and
 Lane; three of those four are GPL, which is consistent with everything above.
@@ -78,5 +99,8 @@ Lane; three of those four are GPL, which is consistent with everything above.
 - Taha Zerrouki, for `qalsadi`, `tashaphyne`, `arramooz` and `pyarabic`
 - the `farahidi` authors, and the Alkhalil Morpho Sys team whose work it ports
 - the OpenITI project
+- `AhmedBaset/hadith-json` and `abdelrahmaan/Hadith-Data-Sets`, for machine
+  -readable vocalised texts that no other source provides
+- sunnah.com, from which both of those datasets were scraped
 - the `laneslexicon` project, for a digitisation that would otherwise have taken
   years

@@ -499,6 +499,8 @@ def main() -> int:
     audio_by_number: dict[int, list[dict]] = {}
     cfg = load_config(args.corpus)
     strip = inline_strip_patterns(cfg)
+    _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
+    _link_layers = _rl.get("layers")
     binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")
     if recit:
@@ -568,6 +570,14 @@ def main() -> int:
             # On a text that restarts numbering in every kitab, `number` is a
             # running count we assigned and matches no printed copy; this plus
             # the kitab is what a citation should quote. Null where they agree.
+            # The external link, per record. A corpus may restrict it to
+            # certain layers: sunnah.com has al-Nawawi's forty-two but not Ibn
+            # Rajab's additions, so those must not carry one.
+            "recordLinkNumber": (
+                rec["number"]
+                if (_link_layers is None or rec["layer"] in _link_layers)
+                else None
+            ),
             "editionNumber": (rec.get("editionNumber")
                               if rec.get("editionNumber") != rec["number"] else None),
             "type": rec["type"], "layer": rec["layer"],
@@ -633,12 +643,31 @@ def main() -> int:
     hw_voc: dict[tuple[str, str], str] = {}
     hw_exact: dict[tuple[str, str], str] = {}
     hw_folded: dict[tuple[str, str], str] = {}
+    # HEADWORDS FIRST, FORMS SECOND — in two passes over every root.
+    #
+    # A headword is what an article is ABOUT. A `forms` entry is a word the
+    # article happens to cite while discussing something else. Indexing both in
+    # one pass let a cited form claim a key before the headword that owns it,
+    # and `setdefault` then kept the wrong one.
+    #
+    # `رجل` is the case that showed it. Lane's article on the verb `رَجِلَ`
+    # (n14921) cites the form `رَجُلَ`, whose voc_key is `رَجُل`. The noun
+    # `رَجُلٌ` (n14929) has exactly that headword. The verb article was
+    # indexed first, took the key, and every occurrence of the commonest noun
+    # in the corpus pointed at a verb about walking on foot.
+    #
+    # There are 48 entries under this root and six share the bare spelling, so
+    # the bare tiers cannot separate them either. Only the headword pass can.
     for root, payload in lane.items():
-        entries = payload.get("entries", [])
-        lane_by_root[root] = entries
-        for e in entries:
-            for form in [e.get("headword")] + (e.get("forms") or []):
-                if form:
+        lane_by_root[root] = payload.get("entries", [])
+    for take_headwords in (True, False):
+        for root, payload in lane.items():
+            for e in payload.get("entries", []):
+                forms = ([e.get("headword")] if take_headwords
+                         else (e.get("forms") or []))
+                for form in forms:
+                    if not form:
+                        continue
                     hw_voc.setdefault((root, voc_key(str(form))), e["nodeid"])
                     hw_exact.setdefault((root, dediac(str(form))), e["nodeid"])
                     hw_folded.setdefault((root, normalise(form)), e["nodeid"])
@@ -818,7 +847,22 @@ def main() -> int:
             # not shadow an exact hit on the vocalised form
             for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
                                (hw_folded, normalise)):
-                for candidate in (e.get("lemma"), e.get("vocalized")):
+                # Order matters, and each step is a different question.
+                #
+                # 1. `lemmaVocalised` — the analyser's vocalised lemma, with
+                #    clitics stripped. `بَعَثَكَ` gives `بَعَث`, which IS a Lane
+                #    headword; the inflected form is not, and the bare lemma
+                #    `بعث` cannot use the vocalised tier at all.
+                # 2. `vocalized` — the form as this text writes it. Right when
+                #    the word is already in its dictionary shape.
+                # 3. `lemma` — bare, and last, because six entries under one
+                #    root can share a bare spelling.
+                # A workbook entry has no `lemmaVocalised` of its own — the
+                # spreadsheet never held one — so fall back to the analyser's,
+                # keyed by the form. This is what lets al-Tajrid benefit too.
+                _lv = (e.get("lemmaVocalised")
+                       or (analyses.get(str(e.get("vocalized"))) or {}).get("lemmaVocalised"))
+                for candidate in (_lv, e.get("vocalized"), e.get("lemma")):
                     if candidate:
                         node = index.get((lr, key(str(candidate))))
                         if node:

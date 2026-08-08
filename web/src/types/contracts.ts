@@ -136,6 +136,12 @@ export interface CorpusRecord {
    */
   number: number | null;
   /**
+   * The number to build `corpus.recordLink` with, or null where this record has no counterpart
+   * at the external site. Ibn Rajab's ziyadat are hadith 43-50 of Nawawi's Forty here and are
+   * absent from sunnah.com, so they carry no link.
+   */
+  recordLinkNumber: number | null;
+  /**
    * The number the printed edition gives this hadith, when it differs from `number`. On a text
    * that restarts numbering in every kitab, `number` is a running count we assigned and matches
    * no printed copy; this, with the kitab, is what a citation should quote. Null where the two
@@ -454,6 +460,7 @@ export interface Token {
 export interface HadithFile {
   id: string;
   number: number | null;
+  recordLinkNumber: number | null;
   editionNumber: number | null;
   numbersCovered: number[];
   type: RecordType;

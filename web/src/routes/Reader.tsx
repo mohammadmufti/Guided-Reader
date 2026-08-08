@@ -399,9 +399,9 @@ function PageView({
                   link goes on that, not on a bolted-on "sunnah.com 4". The
                   reader clicks the thing they are reading. Same treatment the
                   Muwatta's kitab title gets. */}
-              {index.corpus.recordLink && main.number != null ? (
+              {index.corpus.recordLink && main.recordLinkNumber != null ? (
                 <a
-                  href={index.corpus.recordLink.url.replace("{n}", String(main.number))}
+                  href={index.corpus.recordLink.url.replace("{n}", String(main.recordLinkNumber))}
                   target="_blank"
                   rel="noopener noreferrer"
                   title={`${main.bab.titleAr} — ${index.corpus.recordLink.label}`}

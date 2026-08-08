@@ -300,7 +300,16 @@ class Lexicon:
             "lexiconGuess": False,
             "fromWitness": True,
             "lemma": analysis.get("lemma"),
+            # Vocalised, for the Lane headword lookup. See build.py.
+            "lemmaVocalised": analysis.get("lemmaVocalised"),
             "root": analysis.get("root"),
+            # The key the classical apparatus is looked up by. A workbook entry
+            # carries it already; a minted one did not, so a corpus without a
+            # workbook reached Lane only for the words al-Tajrid happened to
+            # share. Set here from the analyser's own root, and validated
+            # against Lane at build time — an unvalidated root would point at
+            # nothing and the orphan check would fail the build.
+            "lane_root": analysis.get("root"),
         }
         self.by_key_form[(key, vocalized)] = mid
         self.by_key.setdefault(key, []).append(mid)
@@ -780,6 +789,25 @@ def bind_corpus(
                 source_voc["partial_kept"] += 1
 
             binding, confidence = TIER_BY_N[tier].binding, TIER_BY_N[tier].confidence
+
+            # ---- a word with no reading may still have a MEANING -----------
+            #
+            # A Tier 5 token matched no entry, so nothing witnesses how it is
+            # vowelled. That is a statement about its vowels, not about the
+            # word: the analyser very often knows its lemma and root, and Lane
+            # very often has an article for that root.
+            #
+            # Measured on the Muwatta' before this: 10,208 tokens bound to
+            # nothing and were therefore unclickable. A sample of 300 of those
+            # forms found a Lane-present root for 264 of them. The pipeline had
+            # the answer and never offered it.
+            #
+            # So mint an entry from the token's own form. It carries no
+            # vowelling it did not already have, and the TIER IS UNCHANGED —
+            # the coverage gate still counts this token as unwitnessed, because
+            # it is. What changes is that the reader can open it.
+            if tier == 5 and mid is None and lex.analyses.get(tok["raw"]):
+                mid = lex.mint_from_witness(keys[i], tok["raw"])
             # A partially vowelled source settles the word but not its ending,
             # so it is not the same claim as a fully vowelled one.
             if tier == 0 and classify(tok["raw"]) == PARTIAL:

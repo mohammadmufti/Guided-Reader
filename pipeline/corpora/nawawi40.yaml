@@ -91,6 +91,14 @@ segmentation:
       pattern: 'PageV\d+P\d+'
     - name: shamela_div
       pattern: '<div[^>]*>'
+    # Shamela's footnote references: `(¬1)`, `(¬2)`, and so on. They point at
+    # an apparatus this reader does not carry, so they are markup rather than
+    # text. 246 of them in this edition.
+    #
+    # Note the NOT SIGN, U+00AC, and not a bare `(1)`. al-Tajrid's zawa'id
+    # cite Bukhari numbers in plain parentheses, which are content.
+    - name: shamela_footnote
+      pattern: '\(\s*\u00ac\s*\d+\s*\)'
   page_marker_alt: 'PageV(\d+)P(\d+)'
   page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
   # Spelled out, not numbered — see the note at the top of this file.
@@ -104,6 +112,10 @@ segmentation:
     label: "sunnah.com"
     labelAr: "سنة.كوم"
     url: "https://sunnah.com/nawawi40:{n}"
+    # sunnah.com carries al-Nawawi's forty-two and NOT Ibn Rajab's eight, so
+    # hadith 43-50 have no page there. Linking them would send a reader to a
+    # 404, or worse to whatever else that number resolves to.
+    layers: [matn]
   heading_top_prefixes: []
   # The preface is a section like any other in the file; without this it
   # takes number 1 and the forty-two start at 3.
@@ -199,3 +211,13 @@ about:
         is keyed by the written form rather than by the book it was written
         for. Words this text shares with al-Tajrīd inherit its scholarship;
         words it does not are vowelled but unglossed, and say so.
+  audio:
+    note: >-
+      Two recitations of the fifty, both playable in the reader. The play
+      controls beside each hadith carry the reciter's name; these are the
+      recordings they were cut from.
+    files:
+      - label: "Abū Usāma"
+        url: https://youtu.be/jQn6qcn8f6U
+      - label: "Ḥāmid al-Darāhim"
+        url: https://youtu.be/a7M398Vk_l0
