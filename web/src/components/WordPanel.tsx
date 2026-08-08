@@ -91,6 +91,15 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
     // mid-paint and reported sections as missing when they were not.
     <div className="space-y-6" data-panel="ready">
       <Headword entry={entry} />
+      {/* The quick gloss first: it is short, modern, and exists for words no
+          workbook covers. The curated gloss follows where there is one, and
+          Lane sits below both. A reader who wants depth scrolls; a reader who
+          wants the word does not have to. */}
+      <Meaning
+        gloss={entry.glossQuick}
+        isName={entry.isName}
+        quick={!!entry.gloss}
+      />
       <Meaning gloss={entry.gloss} isName={entry.isName} />
       <RootAndLemma entry={entry} classical={classical} token={token} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
@@ -126,7 +135,16 @@ function Headword({ entry }: { entry: PanelEntry }) {
 
 /* ------------------------------------------------------------- 2. meaning */
 
-function Meaning({ gloss, isName }: { gloss: Gloss | null; isName: boolean }) {
+function Meaning({
+  gloss,
+  isName,
+  quick = false,
+}: {
+  gloss: Gloss | null;
+  isName: boolean;
+  /** True when a curated gloss follows this one, so the two can be told apart. */
+  quick?: boolean;
+}) {
   if (!gloss || gloss.senses.length === 0) return null;
   const chain = [...gloss.before, ...gloss.after];
   // A name is a person; the dictionary sense belongs to the common word that
@@ -135,7 +153,9 @@ function Meaning({ gloss, isName }: { gloss: Gloss | null; isName: boolean }) {
   return (
     <Section
       title="المعنى"
-      subtitle={isName ? "As a common word" : "Meaning"}
+      subtitle={
+        isName ? "As a common word" : quick ? "Meaning — at a glance" : "Meaning"
+      }
     >
       {isName && (
         <p className="mb-1.5 text-[0.7rem] text-(--color-ink-muted)" dir="ltr">

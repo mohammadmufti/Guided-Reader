@@ -68,7 +68,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: pipeline/build/morphology
-          key: morph-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx') }}
+          # The stage now analyses every corpus's tokens, not the workbook
+          # alone, so a corpus config change must invalidate this cache.
+          # Without the configs in the key, adding or re-segmenting a text
+          # would silently reuse an analysis that predates it.
+          key: morph-v2-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx', 'pipeline/corpora/*.yaml', 'pipeline/segment.py') }}
 
       # Context disambiguation over 2,550 records takes about five minutes and
       # only changes when the records or the script do.

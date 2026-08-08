@@ -109,8 +109,53 @@ Two numbers bound what the lookup can reach:
   root are linked. A fold-match against every headword and cited form in that
   root would reach 82.2%, so the tiered lookup already does better.
 
-Token coverage of Lane is therefore 44.7% for al-Tajrīd, 27.1% for the
-Muwaṭṭaʾ, and 15.6% for Nawawī's Forty.
+### Root spelling
+
+An analyser and Lane spell some roots differently. The lookup tries the root as
+written, then Lane's conventions:
+
+- A geminate root, written once by Lane: `ردد` becomes `رد`.
+- A final weak radical: ي, ى and و are one position written three ways.
+- A hamza seat: ء, أ, إ, آ and ا are one position written five ways. An
+  analyser writes `أوي` where Lane files `اوى`.
+
+The three combine, so `أوي` yields fifteen candidates and `كتم` yields one.
+
+The root itself comes from three places, in order: the workbook's validated
+key, the entry's root, then the analyser's. The third is not a formality — a
+workbook row can carry no root at all and take one from the analysis later,
+and 220 entries reached the lookup with a null root while the analysis had one
+ready.
+
+An exact hit always wins. A root that resolves to nothing is DROPPED and not
+shipped: an unresolvable root still produced a classical shard, so the panel
+drew an empty root section, which reads as "Lane has nothing on this word" when
+Lane has an article under another spelling. 4,408 entries were in that state.
+
+### What the reader actually opens
+
+The reader opens Lane by ROOT. Where a word has no headword of its own, it
+shows the first article under that root and says so. `كِتْمَان` is discussed
+inside the article on `كَتَمَ` and is not a headword anywhere, so an exact match
+can never succeed and the root is what matters.
+
+Tokens that reach a Lane root:
+
+| Corpus | Reaches a Lane root |
+|---|--:|
+| al-Tajrīd | 83.7% |
+| al-Muwaṭṭaʾ | 76.9% |
+| Nawawī's Forty | 70.8% |
+| Shāh Walī Allāh | 90.9% |
+
+These read lower than an earlier measurement of the same thing. That measurement
+counted entries which shipped a root Lane could not resolve, and the panel drew
+an empty section for each. Those are now dropped, so the figure is smaller and
+true.
+
+Tokens whose own form matches a headword exactly are fewer: 44.7%, 27.1% and
+15.6% for the first three. That number describes Lane's article inventory, not
+this pipeline.
 
 Adding `lemmaVocalised` moved these by half a point. It helps less than expected
 for two reasons. CAMeL's `lex` is itself unvocalised for some words — `جاز`, not
@@ -154,6 +199,23 @@ differently still match.
 **The join key is not shown to the reader.** See section 6.
 
 ---
+
+## 4b. Two glosses
+
+The panel shows two, in this order.
+
+1. **The quick gloss.** From the analyser's `stemgloss` field: short, modern,
+   and present for 81% of entries. `stemgloss` and not `gloss`, because the
+   latter decorates the stem with every clitic and case tag —
+   `with;by_+_the+concealment;silence+[def.gen.]` for a word that means
+   *concealment*.
+2. **The curated gloss**, where the workbook has one. 57% of entries.
+
+Lane sits below both, and is deeper and older.
+
+The quick gloss exists for words no workbook covers, which is most words in
+three of the four corpora. Token coverage: 98.4% for al-Tajrīd, 90.8% for the
+Muwaṭṭaʾ, 77.6% for Nawawī's Forty, 99.6% for Shāh Walī Allāh.
 
 ## 5. Enrich
 

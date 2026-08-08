@@ -197,10 +197,17 @@ def build_camel():
         # `هُجْرَةٌ`, so a bare candidate falls through to a tier where six
         # entries look alike.
         lex_support: dict[str, int] = {}
+        # `stemgloss`, not `gloss`. The latter decorates the stem with every
+        # clitic and case tag — `with;by_+_the+concealment;silence+[def.gen.]`
+        # where the word means "concealment". The stem gloss is the word.
+        gloss_for: dict[str, str] = {}
         for a in keep:
             _lex = a.get("lex")
             if _lex and _lex not in ("NOAN", "NTWS"):
                 lex_support[str(_lex)] = lex_support.get(str(_lex), 0) + 1
+                _sg = a.get("stemgloss")
+                if _sg and str(_lex) not in gloss_for:
+                    gloss_for[str(_lex)] = str(_sg)
         for a in keep:
             r = a.get("root")
             if not r or r in ("NTWS", "NOAN"):
@@ -219,7 +226,9 @@ def build_camel():
         # caller. A list, because the closure has no other channel and the
         # caller must not have to re-run the analyser to get it.
         if lexOut is not None and lex_support:
-            lexOut.append(max(lex_support, key=lambda k: (lex_support[k], k)))
+            best = max(lex_support, key=lambda k: (lex_support[k], k))
+            lexOut.append(best)
+            lexOut.append(gloss_for.get(best) or "")
         return sorted(support, key=lambda r: (-support[r], r))
 
     return camel
@@ -365,6 +374,10 @@ def build_analyser():
             # the bare one rather than replacing it: the bare lemma is the join
             # key everything else already uses.
             "lemmaVocalised": camel_lex[0] if camel_lex else None,
+            # A short modern gloss for the lemma. Lane is deeper and older;
+            # this is the line a reader can use at a glance, and it exists for
+            # words no workbook covers.
+            "glossCamel": (camel_lex[1] or None) if len(camel_lex) > 1 else None,
             "pos": pos if pos not in ("all", "") else None,
             "root": root,
             "rootAlternatives": alternatives,

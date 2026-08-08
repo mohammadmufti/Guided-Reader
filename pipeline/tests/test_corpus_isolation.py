@@ -380,3 +380,100 @@ def test_rajul_opens_the_noun_not_the_verb():
     assert all(e["laneEntry"] == "n14929" for e in rajul), (
         f"expected the noun's article n14929, got {[e['laneEntry'] for e in rajul]}"
     )
+
+
+def test_minted_entries_reach_lane():
+    """A minted entry must carry the key its Lane article is found by.
+
+    `build.py` OVERWRITES a derived-lexicon entry with the one in minted.json,
+    nulling every field that file does not carry. minted.json had a fixed
+    field list without `lane_root`, so an entry arrived at the trim with
+    `lane_root: None` even though the derived lexicon held it — and no minted
+    word ever reached Lane. Silent, because both files looked right on their
+    own.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    writer = src[src.index('(out / "minted.json").write_text'):]
+    writer = writer[:writer.index("encoding=\"utf-8\",")]
+    for field in ("lane_root", "lemmaVocalised"):
+        assert field in writer, f"minted.json drops {field}"
+
+
+def test_every_resolvable_root_reaches_lane():
+    """An invariant, not a percentage.
+
+    The share of entries carrying a Lane root moves with corpus composition and
+    with which corpora a given build produced — it read 76% on one machine and
+    69% on CI for the same code. A threshold pinned to either number tests the
+    build order, not the linkage.
+
+    What must always hold: if an entry has a root, and that root resolves to
+    Lane under any of Lane's own spellings, then the entry must carry
+    `lane_root`. An entry whose root Lane genuinely lacks carries none, and
+    the panel says nothing rather than drawing an empty section.
+    """
+    import glob, json, pathlib as _p
+    from normalise import root_variants
+    lane_path = corpus.ROOT / "build" / "lane" / "entries.json"
+    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
+    if not shards or not lane_path.exists():
+        pytest.skip("payload or Lane build not present")
+    lane = json.loads(lane_path.read_text(encoding="utf-8"))
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(_p.Path(f).read_text(encoding="utf-8")))
+
+    missed = [
+        e for e in entries.values()
+        if e.get("root") and not e.get("lane_root")
+        and any(v in lane for v in root_variants(str(e["root"])))
+    ]
+    assert not missed, (
+        f"{len(missed)} entries have a root Lane holds but carry no lane_root, "
+        f"e.g. {[(x.get('vocalized'), x.get('root')) for x in missed[:3]]}"
+    )
+
+def test_root_variants_reach_lanes_own_spelling():
+    """A root Lane holds under another spelling must still resolve.
+
+    Lane collapses geminates (ردد -> رد), writes a final weak radical as alif
+    maqsura (مني -> منى), and uses a bare alif where an analyser writes a hamza
+    seat (ءمو -> امو). 4,408 entries claimed a root Lane does not hold AS
+    SPELLED, and a classical shard was written for each — so the panel drew an
+    empty root section rather than the root's first article.
+    """
+    from normalise import root_variants
+    assert "رد" in root_variants("ردد")
+    assert "منى" in root_variants("مني")
+    assert "امو" in root_variants("ءمو")
+    # An exact hit must always come first, so a variant is only a fallback.
+    assert root_variants("كتم")[0] == "كتم"
+
+
+def test_no_entry_ships_a_root_lane_cannot_resolve():
+    """An unresolvable root is dropped, not shipped.
+
+    Shipping it drew a root section with nothing in it, which reads as "Lane
+    has nothing on this word" when Lane has an article under another spelling.
+    """
+    import glob, json, pathlib
+    lane_path = corpus.ROOT / "build" / "lane" / "entries.json"
+    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
+    if not shards or not lane_path.exists():
+        pytest.skip("payload or Lane build not present")
+    lane = json.loads(lane_path.read_text(encoding="utf-8"))
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(pathlib.Path(f).read_text(encoding="utf-8")))
+    bad = [e for e in entries.values()
+           if e.get("lane_root") and e["lane_root"] not in lane]
+    assert not bad, f"{len(bad)} entries ship a root Lane cannot resolve"
+
+
+def test_quick_gloss_uses_the_stem_not_the_clitic_chain():
+    """CAMeL's `gloss` decorates the stem with every clitic and case tag —
+    `with;by_+_the+concealment;silence+[def.gen.]` for a word meaning
+    concealment. `stemgloss` is the word."""
+    src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
+    assert 'a.get("stemgloss")' in src
+    assert 'gloss_for' in src

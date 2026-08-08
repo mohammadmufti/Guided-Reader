@@ -69,3 +69,67 @@ def root_key(root: str) -> str:
     """
     folded = normalise(root).translate(ROOT_EXTRA)
     return "".join(c for c in folded if "\u0621" <= c <= "\u064a")
+
+
+# Root spellings differ between a modern analyser and Lane's 1863 conventions.
+# These are the same root written two ways, not two roots:
+#
+#     ردد  /  رد     Lane collapses a geminate: two radicals, not three
+#     مني  /  منى    Lane writes a final weak radical as alif maqsura
+#     وهي  /  وهى    the same
+#     ءمو  /  امو    Lane uses a bare alif where an analyser writes a hamza
+#
+# 4,408 entries carried a root Lane does not hold AS SPELLED. A classical shard
+# was created for each, so the reader saw a root section with nothing in it —
+# worse than the honest fallback to the root's first article, because it looked
+# like Lane had nothing to say.
+def root_variants(root: str) -> list[str]:
+    """
+    The root as written, then the spellings Lane might file it under.
+
+    Ordered: the caller takes the first that exists, so an exact hit always
+    wins and a variant is only ever a fallback.
+
+    Three axes, combined. Each is the same root written two ways:
+
+      hamza seat   ء أ إ آ ا    an analyser writes `أوي`, Lane writes `اوى`
+      final weak   ي ى و        Lane prefers alif maqsura
+      geminate     ردد -> رد    Lane collapses a doubled radical
+    """
+    seats = "\u0621\u0623\u0625\u0622\u0627"          # ء أ إ آ ا
+
+    def seat_forms(r: str) -> list[str]:
+        out = [r]
+        for i, c in enumerate(r):
+            if c in seats:
+                for alt in seats:
+                    if alt != c:
+                        cand = r[:i] + alt + r[i + 1:]
+                        if cand not in out:
+                            out.append(cand)
+        return out
+
+    def weak_forms(r: str) -> list[str]:
+        out = [r]
+        for a in ("\u064a", "\u0649", "\u0648"):        # ي ى و
+            if r.endswith(a):
+                for b in ("\u064a", "\u0649", "\u0648"):
+                    if b != a and r[:-1] + b not in out:
+                        out.append(r[:-1] + b)
+        return out
+
+    def geminate_forms(r: str) -> list[str]:
+        out = [r]
+        if len(r) == 3 and r[1] == r[2]:
+            out.append(r[:2])
+        if len(r) == 3 and r[0] == r[1]:
+            out.append(r[1:])
+        return out
+
+    out: list[str] = []
+    for a in geminate_forms(root):
+        for b in weak_forms(a):
+            for c in seat_forms(b):
+                if c not in out:
+                    out.append(c)
+    return out

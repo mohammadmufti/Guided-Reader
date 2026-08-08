@@ -50,7 +50,7 @@ OUT = ROOT / "build" / "glossary"
 
 # Lexicography: true of the WORD, wherever it occurs.
 CARRY = (
-    "gloss_msa", "lemma", "lemmaVocalised", "root", "pos", "unvocalized",
+    "gloss_msa", "lemma", "lemmaVocalised", "glossCamel", "root", "pos", "unvocalized",
     "divergence", "technical_sense", "domain", "literal_sense",
     "classical_keywords", "lane_root", "morph_confidence", "pos_agreement",
     "din_31635", "lemma_din",

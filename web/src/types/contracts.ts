@@ -786,6 +786,13 @@ export interface PanelEntry {
    */
   morphSuspect: boolean;
   gloss: Gloss | null;
+  /**
+   * A short modern gloss from the morphological analyser, shown FIRST because it is the line a
+   * reader can use at a glance. Lane sits below and is deeper and older. Null where the analyser
+   * had nothing. Exists for words no workbook covers, which is most words in three of the four
+   * corpora.
+   */
+  glossQuick: Gloss | null;
 }
 
 /**

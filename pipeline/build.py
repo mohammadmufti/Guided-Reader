@@ -46,7 +46,7 @@ import yaml
 
 from gloss import parse_gloss
 from morphology import Recoverer
-from normalise import dediac, normalise, root_key
+from normalise import dediac, normalise, root_variants, root_key
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -87,7 +87,7 @@ SURFACE_KEEP = [
     "vocalized", "din_31635", "unvocalized", "freq", "pct", "cum_pct", "rank",
     "doc_freq", "pos", "lemma", "lemma_din", "root", "lane_root",
     "literal_sense", "technical_sense", "domain", "divergence", "overlap_score",
-    "voc_source", "morph_confidence", "pos_agreement", "layers",
+    "voc_source", "morph_confidence", "pos_agreement", "layers", "glossCamel",
 ]
 # Lane's editorial apparatus and OCR debris, which the keyword extraction picks
 # up alongside real senses. A pure frequency cutoff will not do this job:
@@ -735,6 +735,13 @@ def main() -> int:
         # against all 21,028 glosses — see gloss.py — so the panel cannot
         # accidentally render `the + prayer;salat + [fem.sg.]` at a reader.
         trimmed["gloss"] = parse_gloss(e.get("gloss_msa"))
+        # A second, shallower gloss from the analyser. Buckwalter chains in the
+        # same shape as the workbook's, so the same parser applies. It exists
+        # for words no workbook covers, which is most words in three of the
+        # four corpora.
+        _gc = e.get("glossCamel") or (
+            analyses.get(str(e.get("vocalized"))) or {}).get("glossCamel")
+        trimmed["glossQuick"] = parse_gloss(_gc)
         # Isnad names should read as a person, not a failed lexical lookup.
         trimmed["isName"] = e["unvocalized"] in names
         # Where the analysis lost the stem, try to get it back from the corpus
@@ -839,7 +846,32 @@ def main() -> int:
         # A derived lexicon has no Lane linkage: `lane_root` is computed by
         # lexicon.py from the workbook. Absent is a legitimate state, not a
         # missing field — the entry simply has no classical apparatus.
-        lr = e.get("lane_root")
+        # Resolve the root against Lane's own spelling before using it. An
+        # unresolved root still produced a classical shard, so the panel showed
+        # an empty root section rather than the root's first article — 4,408
+        # entries, 82% of them a geminate, a final weak radical, or a hamza
+        # seat written the other way.
+        # `lane_root` is the workbook's own validated key. Where there is
+        # none — a minted entry, or a workbook row Lane had no article for
+        # under the spelling the workbook used — fall back to the analyser's
+        # root and let the variants below resolve it. 337 entries had a root
+        # Lane holds and no `lane_root` to reach it with, almost all of them
+        # hamza-initial: `ءهل` where Lane files `اهل`.
+        # Three sources, in order of authority: the workbook's own validated
+        # key, the entry's root, then the analyser's. The third matters more
+        # than it looks — a workbook row can carry no root at all and get one
+        # from the analysis, and 220 entries reached the lookup with `root:
+        # None` for exactly that reason while the analysis had `ءوي` ready.
+        lr = (e.get("lane_root") or e.get("root")
+              or (analyses.get(str(e.get("vocalized"))) or {}).get("root"))
+        if lr and lr not in lane_by_root:
+            lr = next((v for v in root_variants(lr) if v in lane_by_root), None)
+        # ALWAYS write it back, not only when a variant was needed. The shipped
+        # root must be the one the lookup actually used, or absent: the client
+        # keys the classical and lane shards by it, and a root with no shard
+        # draws an empty section. Writing it only in the variant branch left an
+        # entry with a resolved `laneEntry` and a null root to reach it by.
+        trimmed["lane_root"] = lr
         trimmed["laneEntry"] = None
         if lr and lr in lane_by_root:
             # exact tier (ة preserved) for BOTH candidates before either
@@ -872,7 +904,10 @@ def main() -> int:
                     break
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
-            entry = {f: e[f] for f in CLASSICAL_FIELDS}
+            # `.get`: a minted entry has a Lane root but none of the
+            # workbook's classical apparatus. Absent is a legitimate
+            # state — the root still opens its article.
+            entry = {f: e.get(f) for f in CLASSICAL_FIELDS}
             entry["keywords"] = [
                 k
                 for k in (
@@ -882,8 +917,11 @@ def main() -> int:
                 if len(k) > 2 and k.isalpha()
                 and k not in LANE_NOISE and k not in ENGLISH_STOPWORDS
             ]
+            # A derived lexicon indexes `roots` as root -> [match_id, ...],
+            # where the workbook's is root -> row. Only the workbook shape
+            # carries these counts.
             root_row = lexicon["roots"].get(lr)
-            if root_row:
+            if isinstance(root_row, dict):
                 entry["nLemmas"] = root_row.get("n_lemmas")
                 entry["topLemmas"] = root_row.get("top_lemmas")
                 entry["rootFreq"] = root_row.get("freq")
@@ -935,7 +973,10 @@ def main() -> int:
     # every corpus would carry all 5,160 roots including the ~65% it never
     # touches, and adding a text would mean re-running lane.py with a widened
     # root list — exactly the coupling a shared lexical source is meant to remove.
-    used_roots = {e["lane_root"] for e in lexicon["surface"].values() if e.get("lane_root")}
+    # From the SHIPPED entries, not the source lexicon: a root resolved to
+    # Lane's own spelling appears only on the trimmed entry, and shipping a
+    # payload that omits it is what the orphan check catches.
+    used_roots = {e["lane_root"] for e in surface_lookup.values() if e.get("lane_root")}
     lane_payload = {
         root: {
             "root": root,

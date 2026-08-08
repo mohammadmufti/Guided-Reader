@@ -302,6 +302,7 @@ class Lexicon:
             "lemma": analysis.get("lemma"),
             # Vocalised, for the Lane headword lookup. See build.py.
             "lemmaVocalised": analysis.get("lemmaVocalised"),
+            "glossCamel": analysis.get("glossCamel"),
             "root": analysis.get("root"),
             # The key the classical apparatus is looked up by. A workbook entry
             # carries it already; a minted one did not, so a corpus without a
@@ -1394,6 +1395,15 @@ def main() -> int:
                     "pos": lex.entry[mid]["pos"],
                     "lemma": lex.entry[mid]["lemma"],
                     "root": lex.entry[mid]["root"],
+                    # The Lane lookup key, and the vocalised lemma it is looked
+                    # up by. Omitting them here was invisible: `build.py`
+                    # OVERWRITES the derived entry with this one, nulling every
+                    # key it does not carry. So a minted entry arrived at the
+                    # trim with `lane_root: None` even though the derived
+                    # lexicon held it, and no minted word ever reached Lane.
+                    "lane_root": lex.entry[mid].get("lane_root"),
+                    "lemmaVocalised": lex.entry[mid].get("lemmaVocalised"),
+                    "glossCamel": lex.entry[mid].get("glossCamel"),
                     "fromWitness": True,
                     # Enrichment from a sibling corpus. Carried explicitly so
                     # the interface can say WHERE a gloss came from: it belongs
