@@ -69,3 +69,48 @@ def root_key(root: str) -> str:
     """
     folded = normalise(root).translate(ROOT_EXTRA)
     return "".join(c for c in folded if "\u0621" <= c <= "\u064a")
+
+
+# Root spellings differ between a modern analyser and Lane's 1863 conventions.
+# These are the same root written two ways, not two roots:
+#
+#     ردد  /  رد     Lane collapses a geminate: two radicals, not three
+#     مني  /  منى    Lane writes a final weak radical as alif maqsura
+#     وهي  /  وهى    the same
+#     ءمو  /  امو    Lane uses a bare alif where an analyser writes a hamza
+#
+# 4,408 entries carried a root Lane does not hold AS SPELLED. A classical shard
+# was created for each, so the reader saw a root section with nothing in it —
+# worse than the honest fallback to the root's first article, because it looked
+# like Lane had nothing to say.
+def root_variants(root: str) -> list[str]:
+    """
+    The root as written, then the spellings Lane might file it under.
+
+    Ordered: the caller takes the first that exists, so an exact hit always
+    wins and a variant is only ever a fallback.
+    """
+    out: list[str] = [root]
+
+    def add(r: str) -> None:
+        if r and r not in out:
+            out.append(r)
+
+    # Geminate: a doubled final or initial radical, written once by Lane.
+    if len(root) == 3 and root[1] == root[2]:
+        add(root[:2])
+    if len(root) == 3 and root[0] == root[1]:
+        add(root[1:])
+
+    # Final weak radical: ي, ى and و are one position written three ways.
+    for a, b in (("ي", "ى"), ("ى", "ي"), ("و", "ى"), ("ي", "و"), ("ى", "و")):
+        if root.endswith(a):
+            add(root[:-1] + b)
+
+    # Hamza seats. `root_key` folds every seat to bare hamza; Lane writes alif.
+    for src, dst in (("\u0621", "\u0627"), ("\u0621", "\u0623"),
+                     ("\u0627", "\u0621")):
+        for r in list(out):
+            add(r.replace(src, dst))
+
+    return out

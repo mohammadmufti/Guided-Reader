@@ -416,3 +416,49 @@ def test_lane_root_reaches_most_tokens():
     assert with_root / len(entries) > 0.7, (
         f"only {100*with_root/len(entries):.0f}% of entries carry a Lane root"
     )
+
+
+def test_root_variants_reach_lanes_own_spelling():
+    """A root Lane holds under another spelling must still resolve.
+
+    Lane collapses geminates (ردد -> رد), writes a final weak radical as alif
+    maqsura (مني -> منى), and uses a bare alif where an analyser writes a hamza
+    seat (ءمو -> امو). 4,408 entries claimed a root Lane does not hold AS
+    SPELLED, and a classical shard was written for each — so the panel drew an
+    empty root section rather than the root's first article.
+    """
+    from normalise import root_variants
+    assert "رد" in root_variants("ردد")
+    assert "منى" in root_variants("مني")
+    assert "امو" in root_variants("ءمو")
+    # An exact hit must always come first, so a variant is only a fallback.
+    assert root_variants("كتم")[0] == "كتم"
+
+
+def test_no_entry_ships_a_root_lane_cannot_resolve():
+    """An unresolvable root is dropped, not shipped.
+
+    Shipping it drew a root section with nothing in it, which reads as "Lane
+    has nothing on this word" when Lane has an article under another spelling.
+    """
+    import glob, json, pathlib
+    lane_path = corpus.ROOT / "build" / "lane" / "entries.json"
+    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
+    if not shards or not lane_path.exists():
+        pytest.skip("payload or Lane build not present")
+    lane = json.loads(lane_path.read_text(encoding="utf-8"))
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(pathlib.Path(f).read_text(encoding="utf-8")))
+    bad = [e for e in entries.values()
+           if e.get("lane_root") and e["lane_root"] not in lane]
+    assert not bad, f"{len(bad)} entries ship a root Lane cannot resolve"
+
+
+def test_quick_gloss_uses_the_stem_not_the_clitic_chain():
+    """CAMeL's `gloss` decorates the stem with every clitic and case tag —
+    `with;by_+_the+concealment;silence+[def.gen.]` for a word meaning
+    concealment. `stemgloss` is the word."""
+    src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
+    assert 'a.get("stemgloss")' in src
+    assert 'gloss_for' in src

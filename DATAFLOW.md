@@ -109,6 +109,20 @@ Two numbers bound what the lookup can reach:
   root are linked. A fold-match against every headword and cited form in that
   root would reach 82.2%, so the tiered lookup already does better.
 
+### Root spelling
+
+An analyser and Lane spell some roots differently. The lookup tries the root as
+written, then Lane's conventions:
+
+- A geminate root, written once by Lane: `ردد` becomes `رد`.
+- A final weak radical, written as alif maqsura: `مني` becomes `منى`.
+- A hamza seat, written as a bare alif: `ءمو` becomes `امو`.
+
+An exact hit always wins. A root that resolves to nothing is DROPPED and not
+shipped: an unresolvable root still produced a classical shard, so the panel
+drew an empty root section, which reads as "Lane has nothing on this word" when
+Lane has an article under another spelling. 4,408 entries were in that state.
+
 ### What the reader actually opens
 
 The reader opens Lane by ROOT. Where a word has no headword of its own, it
@@ -171,6 +185,23 @@ differently still match.
 **The join key is not shown to the reader.** See section 6.
 
 ---
+
+## 4b. Two glosses
+
+The panel shows two, in this order.
+
+1. **The quick gloss.** From the analyser's `stemgloss` field: short, modern,
+   and present for 81% of entries. `stemgloss` and not `gloss`, because the
+   latter decorates the stem with every clitic and case tag —
+   `with;by_+_the+concealment;silence+[def.gen.]` for a word that means
+   *concealment*.
+2. **The curated gloss**, where the workbook has one. 57% of entries.
+
+Lane sits below both, and is deeper and older.
+
+The quick gloss exists for words no workbook covers, which is most words in
+three of the four corpora. Token coverage: 98.4% for al-Tajrīd, 90.8% for the
+Muwaṭṭaʾ, 77.6% for Nawawī's Forty, 99.6% for Shāh Walī Allāh.
 
 ## 5. Enrich
 

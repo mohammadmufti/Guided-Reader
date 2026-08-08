@@ -869,6 +869,16 @@ class PanelEntry(TypedDict):
         ),
     ]
     gloss: Gloss | None
+    glossQuick: Annotated[
+        Gloss | None,
+        Doc(
+            "A short modern gloss from the morphological analyser, shown FIRST "
+            "because it is the line a reader can use at a glance. Lane sits "
+            "below and is deeper and older. Null where the analyser had "
+            "nothing. Exists for words no workbook covers, which is most words "
+            "in three of the four corpora."
+        ),
+    ]
 
 
 class LaneRun(TypedDict):
