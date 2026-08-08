@@ -107,7 +107,23 @@ jobs:
       - name: Fetch sources
         run: |
           python pipeline/fetch.py --corpus lane
-          python pipeline/fetch.py --corpus tajrid
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40; do
+            python pipeline/fetch.py --corpus "$c"
+          done
+
+      # SEGMENT BEFORE ANALYSING. `analyse.py` reads every corpus's
+      # records.json so that a word in one book that al-Tajrid does not
+      # contain still gets a lemma, a root and a part of speech.
+      #
+      # It ran BEFORE segmentation, so no records.json existed, the loop found
+      # nothing, and it silently analysed the workbook alone — exactly the
+      # behaviour it was changed to stop. The corpora looked correct locally
+      # because segmentation happens first by hand.
+      - name: Segment every corpus
+        run: |
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40; do
+            python pipeline/segment.py --corpus "$c"
+          done
 
       - name: Ingest Lane
         if: steps.lane-cache.outputs.cache-hit != 'true'
@@ -132,7 +148,6 @@ jobs:
 
       - name: Run the pipeline
         run: |
-          python pipeline/segment.py --corpus tajrid
           # MUST come after segment (it reads records.json) and before build
           # (which applies the context overrides). Ordering it after build
           # produced a payload with no contextRoot at all, silently — the
@@ -152,15 +167,11 @@ jobs:
       # likely to rot unnoticed.
       - name: Segment the other corpora
         run: |
-          python pipeline/fetch.py   --corpus rawd
-          python pipeline/segment.py --corpus rawd
           # The Muwatta' exercises two things al-Tajrid and al-Rawd never do:
           # a file that states its own heading hierarchy (`### |` vs `### ||`)
           # and a numbered opener that sits on a body line rather than a
           # section line. Both were assumptions baked into segment.py until
           # this text was added.
-          python pipeline/fetch.py   --corpus muwatta
-          python pipeline/segment.py --corpus muwatta
           # Bind and build it too, end to end. Stopping a second corpus at
           # segmentation is how the hardcoded-workbook bug survived: a corpus
           # that is only ever segmented only ever proves segmentation.
@@ -176,16 +187,12 @@ jobs:
           # run there is, and the best canary — anything that only works at
           # scale, or only on a text with a curated workbook, fails here in
           # seconds rather than after a full Tajrid build.
-          python pipeline/fetch.py   --corpus nawawi40
-          python pipeline/segment.py --corpus nawawi40
           python pipeline/bind.py    --corpus nawawi40
           python pipeline/build.py   --corpus nawawi40
 
           # Shah Wali Allah's Forty. The only corpus with no OpenITI text and
           # the only one whose source arrives vowelled, so it is the sole
           # end-to-end exercise of both the JSON source path and Tier 0.
-          python pipeline/fetch.py   --corpus shahwaliullah40
-          python pipeline/segment.py --corpus shahwaliullah40
           python pipeline/bind.py    --corpus shahwaliullah40
           python pipeline/build.py   --corpus shahwaliullah40
 

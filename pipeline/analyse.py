@@ -426,10 +426,12 @@ def main() -> int:
     # a word clickable and what Lane is looked up by.
     from tokenise import tokenise as _tokenise
     corpora_dir = ROOT / "corpora"
+    seen_corpora = 0
     for cfg_path in sorted(corpora_dir.glob("*.yaml")):
         recs = BUILD / cfg_path.stem / "records.json"
         if not recs.exists():
             continue
+        seen_corpora += 1
         doc = json.loads(recs.read_text(encoding="utf-8"))
         n_before = len(forms)
         seen_forms = set(forms)
@@ -440,6 +442,22 @@ def main() -> int:
                     seen_forms.add(t["raw"])
                     forms.append(t["raw"])
         print(f"  + {len(forms) - n_before:,} forms from {cfg_path.stem}")
+
+    # REFUSE TO RUN BLIND. This stage exists to analyse the corpora, and a
+    # corpus with no records.json contributes nothing. Skipping quietly is what
+    # shipped a reader with no roots: CI ran this before segmentation, the loop
+    # above found nothing, and the workbook-only analysis looked like a normal
+    # result. Segment first.
+    if seen_corpora == 0:
+        print(
+            "\nNO CORPUS RECORDS FOUND under pipeline/build/*/records.json.\n"
+            "This stage analyses every corpus's tokens, so running it before\n"
+            "segmentation produces a workbook-only analysis and every word the\n"
+            "workbook lacks loses its root.\n"
+            "Run `python pipeline/segment.py --corpus <id>` first.\n",
+            file=sys.stderr,
+        )
+        return 1
 
     # Also analyse forms the WITNESS attests that the workbook lacks.
     #

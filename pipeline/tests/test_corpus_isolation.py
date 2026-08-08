@@ -510,3 +510,30 @@ def test_shared_lexicon_urls_are_versioned():
     assert "lexiconVersion" in src
     share = (corpus.ROOT / "share.py").read_text(encoding="utf-8")
     assert "lexiconVersion" in share and "hashlib" in share
+
+
+def test_ci_segments_before_it_analyses():
+    """`analyse.py` reads every corpus's records.json. CI ran it first.
+
+    The stage was changed to analyse each corpus's own tokens so that a word in
+    one book that al-Tajrid does not contain still gets a lemma and a root. In
+    CI it ran BEFORE segmentation, so no records.json existed, the loop found
+    nothing, and it analysed the workbook alone — the exact behaviour the
+    change removed. Every word outside al-Tajrid's vocabulary shipped with no
+    root, and the build was green throughout.
+
+    It looked correct locally because segmentation is done by hand first.
+    """
+    wf = (corpus.ROOT.parent / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
+    seg = wf.index("Segment every corpus")
+    ana = wf.index("Analyse morphology")
+    assert seg < ana, "segmentation must come before the analyser in CI"
+
+
+def test_the_analyser_refuses_to_run_blind():
+    """A stage that silently does less than it claims is worse than one that
+    stops. With no corpus records present, the workbook-only result looked
+    like a normal run."""
+    src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
+    assert "NO CORPUS RECORDS FOUND" in src
+    assert "seen_corpora == 0" in src
