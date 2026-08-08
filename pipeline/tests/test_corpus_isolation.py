@@ -356,8 +356,11 @@ def test_lane_headwords_beat_cited_forms():
     """
     src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
     assert "for take_headwords in (True, False):" in src
-    # And the vocalised candidate must be tried before the (often bare) lemma.
-    assert 'for candidate in (e.get("vocalized"), e.get("lemma")):' in src
+    # And the candidates must run vocalised-lemma, then form, then bare lemma.
+    # A bare candidate cannot use the vocalised tier, which is the tier that
+    # separates entries sharing a spelling.
+    assert 'for candidate in (_lv, e.get("vocalized"), e.get("lemma")):' in src
+    assert 'lemmaVocalised' in src
 
 
 def test_rajul_opens_the_noun_not_the_verb():

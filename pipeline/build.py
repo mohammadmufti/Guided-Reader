@@ -847,10 +847,22 @@ def main() -> int:
             # not shadow an exact hit on the vocalised form
             for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
                                (hw_folded, normalise)):
-                # VOCALISED FIRST. The lemma is frequently bare — `رجل` for
-                # `رَجُلٌ` — and a bare candidate cannot tell six entries apart.
-                # The vocalised form carries the vowels that distinguish them.
-                for candidate in (e.get("vocalized"), e.get("lemma")):
+                # Order matters, and each step is a different question.
+                #
+                # 1. `lemmaVocalised` — the analyser's vocalised lemma, with
+                #    clitics stripped. `بَعَثَكَ` gives `بَعَث`, which IS a Lane
+                #    headword; the inflected form is not, and the bare lemma
+                #    `بعث` cannot use the vocalised tier at all.
+                # 2. `vocalized` — the form as this text writes it. Right when
+                #    the word is already in its dictionary shape.
+                # 3. `lemma` — bare, and last, because six entries under one
+                #    root can share a bare spelling.
+                # A workbook entry has no `lemmaVocalised` of its own — the
+                # spreadsheet never held one — so fall back to the analyser's,
+                # keyed by the form. This is what lets al-Tajrid benefit too.
+                _lv = (e.get("lemmaVocalised")
+                       or (analyses.get(str(e.get("vocalized"))) or {}).get("lemmaVocalised"))
+                for candidate in (_lv, e.get("vocalized"), e.get("lemma")):
                     if candidate:
                         node = index.get((lr, key(str(candidate))))
                         if node:

@@ -75,17 +75,50 @@ root in this order:
 
 It never chooses by alphabet. It records which basis it used, in `rootBasis`.
 
-### A known limit
+### What it reads
 
-**`analyse.py` reads the workbook, not the corpus.** Its input is al-Tajrīd's
-22,464 workbook forms, plus the readings that the Bukhārī witness attests.
+`analyse.py` reads three things:
 
-A word that appears in another corpus and not in al-Tajrīd is therefore never
-analysed. Measured on the Muwaṭṭaʾ: 10,208 tokens bind to nothing, and 111 of
-them have an analysis.
+1. al-Tajrīd's 22,464 workbook forms.
+2. The readings the Bukhārī witness attests.
+3. **Every token of every corpus.**
 
-A sample of 300 of those unbound forms shows what this costs. CAMeL finds a root
-for 264 of them, and that root has a Lane entry. The pipeline does not ask.
+Item 3 was added after a measurement. The stage once read the workbook alone,
+which belongs to al-Tajrīd. A word in another book that al-Tajrīd does not
+contain was therefore never analysed. On the Muwaṭṭaʾ, 10,208 tokens bound to
+nothing, and 111 of them had an analysis.
+
+The stage now analyses 99,110 forms instead of 27,481. It finds a root for
+93.4% of them.
+
+The stage also records `lemmaVocalised`, the vocalised lemma CAMeL states in
+its `lex` field. Clitics are stripped in it: `بَعَثَكَ` gives `بَعَث`. 91.1% of
+analysed forms carry one.
+
+### A remaining limit, measured
+
+A root is not an article. Lane holds an article per headword, and an inflected
+form is not a headword.
+
+Two numbers bound what the lookup can reach:
+
+- **Half of all entries have no Lane root.** 79% carry a root; 50% carry one
+  that Lane has an article for. Lane does not hold every root, and a proper
+  noun or a particle often has none.
+- **The lookup is near its ceiling for the rest.** 85.0% of entries with a Lane
+  root are linked. A fold-match against every headword and cited form in that
+  root would reach 82.2%, so the tiered lookup already does better.
+
+Token coverage of Lane is therefore 44.7% for al-Tajrīd, 27.1% for the
+Muwaṭṭaʾ, and 15.6% for Nawawī's Forty.
+
+Adding `lemmaVocalised` moved these by half a point. It helps less than expected
+for two reasons. CAMeL's `lex` is itself unvocalised for some words — `جاز`, not
+`جَازَ` — so it cannot use the vocalised tier either. And Lane's article
+inventory is form-specific: the `بعث` root is headed by the noun `بَعْثٌ`, and
+no form-I verb headword exists there to match a verb lemma against.
+
+The remaining gap is Lane's own structure, not the lookup.
 
 ---
 
