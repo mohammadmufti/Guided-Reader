@@ -380,3 +380,39 @@ def test_rajul_opens_the_noun_not_the_verb():
     assert all(e["laneEntry"] == "n14929" for e in rajul), (
         f"expected the noun's article n14929, got {[e['laneEntry'] for e in rajul]}"
     )
+
+
+def test_minted_entries_reach_lane():
+    """A minted entry must carry the key its Lane article is found by.
+
+    `build.py` OVERWRITES a derived-lexicon entry with the one in minted.json,
+    nulling every field that file does not carry. minted.json had a fixed
+    field list without `lane_root`, so an entry arrived at the trim with
+    `lane_root: None` even though the derived lexicon held it — and no minted
+    word ever reached Lane. Silent, because both files looked right on their
+    own.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    writer = src[src.index('(out / "minted.json").write_text'):]
+    writer = writer[:writer.index("encoding=\"utf-8\",")]
+    for field in ("lane_root", "lemmaVocalised"):
+        assert field in writer, f"minted.json drops {field}"
+
+
+def test_lane_root_reaches_most_tokens():
+    """The reader opens Lane by ROOT, and falls back to the root's first
+    article when a word has no headword of its own — `كِتْمَان` is discussed
+    inside `كَتَمَ` and is not a headword. So what matters is how many tokens
+    carry a root Lane holds, not how many match a headword exactly.
+    """
+    import glob, json, pathlib
+    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
+    if not shards:
+        pytest.skip("payload not built")
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(pathlib.Path(f).read_text(encoding="utf-8")))
+    with_root = sum(1 for e in entries.values() if e.get("lane_root"))
+    assert with_root / len(entries) > 0.7, (
+        f"only {100*with_root/len(entries):.0f}% of entries carry a Lane root"
+    )

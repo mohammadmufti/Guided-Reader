@@ -872,7 +872,10 @@ def main() -> int:
                     break
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
-            entry = {f: e[f] for f in CLASSICAL_FIELDS}
+            # `.get`: a minted entry has a Lane root but none of the
+            # workbook's classical apparatus. Absent is a legitimate
+            # state — the root still opens its article.
+            entry = {f: e.get(f) for f in CLASSICAL_FIELDS}
             entry["keywords"] = [
                 k
                 for k in (
@@ -882,8 +885,11 @@ def main() -> int:
                 if len(k) > 2 and k.isalpha()
                 and k not in LANE_NOISE and k not in ENGLISH_STOPWORDS
             ]
+            # A derived lexicon indexes `roots` as root -> [match_id, ...],
+            # where the workbook's is root -> row. Only the workbook shape
+            # carries these counts.
             root_row = lexicon["roots"].get(lr)
-            if root_row:
+            if isinstance(root_row, dict):
                 entry["nLemmas"] = root_row.get("n_lemmas")
                 entry["topLemmas"] = root_row.get("top_lemmas")
                 entry["rootFreq"] = root_row.get("freq")

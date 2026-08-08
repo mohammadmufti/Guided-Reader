@@ -109,8 +109,25 @@ Two numbers bound what the lookup can reach:
   root are linked. A fold-match against every headword and cited form in that
   root would reach 82.2%, so the tiered lookup already does better.
 
-Token coverage of Lane is therefore 44.7% for al-Tajrīd, 27.1% for the
-Muwaṭṭaʾ, and 15.6% for Nawawī's Forty.
+### What the reader actually opens
+
+The reader opens Lane by ROOT. Where a word has no headword of its own, it
+shows the first article under that root and says so. `كِتْمَان` is discussed
+inside the article on `كَتَمَ` and is not a headword anywhere, so an exact match
+can never succeed and the root is what matters.
+
+Tokens that reach a Lane root:
+
+| Corpus | Reaches a Lane root |
+|---|--:|
+| al-Tajrīd | 89.8% |
+| al-Muwaṭṭaʾ | 82.2% |
+| Nawawī's Forty | 73.2% |
+| Shāh Walī Allāh | 92.6% |
+
+Tokens whose own form matches a headword exactly are fewer: 44.7%, 27.1% and
+15.6% for the first three. That number describes Lane's article inventory, not
+this pipeline.
 
 Adding `lemmaVocalised` moved these by half a point. It helps less than expected
 for two reasons. CAMeL's `lex` is itself unvocalised for some words — `جاز`, not
