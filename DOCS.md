@@ -36,6 +36,7 @@ document, so it uses STE for one kind and not the other.
 | `DEPLOY.md` | How a build reaches the site. |
 | `ADDENDUM-adding-sources.md` | The fields a corpus config takes. |
 | `CORPORA.md` | What each text is, and where it came from. |
+| `DATAFLOW.md` | One word, from a remote file to the screen. |
 | `DOCS.md` | This page. |
 
 **STE does not apply** to documents that argue a case. These record why a
@@ -69,6 +70,7 @@ a wrong reading is that it wrote down why.
 | --- | --- |
 | `README.md` | What the project is. How to run it. |
 | `CORPORA.md` | All four texts. |
+| `DATAFLOW.md` | Every stage, and every change made to the text. |
 | `PIPELINE.md` | Stage commands. |
 | `DEPLOY.md` | CI and GitHub Pages. |
 | `ADDENDUM-adding-sources.md` | Corpus config fields. |

@@ -643,12 +643,31 @@ def main() -> int:
     hw_voc: dict[tuple[str, str], str] = {}
     hw_exact: dict[tuple[str, str], str] = {}
     hw_folded: dict[tuple[str, str], str] = {}
+    # HEADWORDS FIRST, FORMS SECOND — in two passes over every root.
+    #
+    # A headword is what an article is ABOUT. A `forms` entry is a word the
+    # article happens to cite while discussing something else. Indexing both in
+    # one pass let a cited form claim a key before the headword that owns it,
+    # and `setdefault` then kept the wrong one.
+    #
+    # `رجل` is the case that showed it. Lane's article on the verb `رَجِلَ`
+    # (n14921) cites the form `رَجُلَ`, whose voc_key is `رَجُل`. The noun
+    # `رَجُلٌ` (n14929) has exactly that headword. The verb article was
+    # indexed first, took the key, and every occurrence of the commonest noun
+    # in the corpus pointed at a verb about walking on foot.
+    #
+    # There are 48 entries under this root and six share the bare spelling, so
+    # the bare tiers cannot separate them either. Only the headword pass can.
     for root, payload in lane.items():
-        entries = payload.get("entries", [])
-        lane_by_root[root] = entries
-        for e in entries:
-            for form in [e.get("headword")] + (e.get("forms") or []):
-                if form:
+        lane_by_root[root] = payload.get("entries", [])
+    for take_headwords in (True, False):
+        for root, payload in lane.items():
+            for e in payload.get("entries", []):
+                forms = ([e.get("headword")] if take_headwords
+                         else (e.get("forms") or []))
+                for form in forms:
+                    if not form:
+                        continue
                     hw_voc.setdefault((root, voc_key(str(form))), e["nodeid"])
                     hw_exact.setdefault((root, dediac(str(form))), e["nodeid"])
                     hw_folded.setdefault((root, normalise(form)), e["nodeid"])
@@ -828,7 +847,10 @@ def main() -> int:
             # not shadow an exact hit on the vocalised form
             for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
                                (hw_folded, normalise)):
-                for candidate in (e.get("lemma"), e.get("vocalized")):
+                # VOCALISED FIRST. The lemma is frequently bare — `رجل` for
+                # `رَجُلٌ` — and a bare candidate cannot tell six entries apart.
+                # The vocalised form carries the vowels that distinguish them.
+                for candidate in (e.get("vocalized"), e.get("lemma")):
                     if candidate:
                         node = index.get((lr, key(str(candidate))))
                         if node:

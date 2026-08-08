@@ -100,10 +100,12 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
     seen_in: dict[str, list[str]] = collections.defaultdict(list)
     conflicts: list[str] = []
 
+    carried: set[str] = set()
     if previous is not None and previous.exists():
         for shard in sorted(previous.glob("surface-*.json")):
             for mid, row in json.loads(shard.read_text(encoding="utf-8")).items():
                 entries.setdefault(mid, dict(row))
+                carried.add(mid)
                 seen_in[mid].append("(already shared)")
 
     for corpus_dir in corpora:
@@ -113,6 +115,19 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
                 existing = entries.get(mid)
                 if existing is None:
                     entries[mid] = dict(row)
+                    continue
+                if mid in carried:
+                    # A freshly built corpus REPLACES what was carried forward.
+                    # The carry-forward exists so that a corpus which was not
+                    # rebuilt keeps its entries; it must not stop a corpus that
+                    # WAS rebuilt from correcting one.
+                    #
+                    # This blocked a real fix. Lane linkage moved from the wrong
+                    # article to the right one, al-Tajrid was rebuilt, and the
+                    # shared set kept the old pointer because merging only ever
+                    # filled absent fields.
+                    entries[mid] = dict(row)
+                    carried.discard(mid)
                     continue
                 for field, val in row.items():
                     cur = existing.get(field)
