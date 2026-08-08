@@ -399,24 +399,39 @@ def test_minted_entries_reach_lane():
         assert field in writer, f"minted.json drops {field}"
 
 
-def test_lane_root_reaches_most_tokens():
-    """The reader opens Lane by ROOT, and falls back to the root's first
-    article when a word has no headword of its own — `كِتْمَان` is discussed
-    inside `كَتَمَ` and is not a headword. So what matters is how many tokens
-    carry a root Lane holds, not how many match a headword exactly.
+def test_every_resolvable_root_reaches_lane():
+    """An invariant, not a percentage.
+
+    The share of entries carrying a Lane root moves with corpus composition and
+    with which corpora a given build produced — it read 76% on one machine and
+    69% on CI for the same code. A threshold pinned to either number tests the
+    build order, not the linkage.
+
+    What must always hold: if an entry has a root, and that root resolves to
+    Lane under any of Lane's own spellings, then the entry must carry
+    `lane_root`. An entry whose root Lane genuinely lacks carries none, and
+    the panel says nothing rather than drawing an empty section.
     """
-    import glob, json, pathlib
+    import glob, json, pathlib as _p
+    from normalise import root_variants
+    lane_path = corpus.ROOT / "build" / "lane" / "entries.json"
     shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
-    if not shards:
-        pytest.skip("payload not built")
+    if not shards or not lane_path.exists():
+        pytest.skip("payload or Lane build not present")
+    lane = json.loads(lane_path.read_text(encoding="utf-8"))
     entries = {}
     for f in shards:
-        entries.update(json.loads(pathlib.Path(f).read_text(encoding="utf-8")))
-    with_root = sum(1 for e in entries.values() if e.get("lane_root"))
-    assert with_root / len(entries) > 0.7, (
-        f"only {100*with_root/len(entries):.0f}% of entries carry a Lane root"
-    )
+        entries.update(json.loads(_p.Path(f).read_text(encoding="utf-8")))
 
+    missed = [
+        e for e in entries.values()
+        if e.get("root") and not e.get("lane_root")
+        and any(v in lane for v in root_variants(str(e["root"])))
+    ]
+    assert not missed, (
+        f"{len(missed)} entries have a root Lane holds but carry no lane_root, "
+        f"e.g. {[(x.get('vocalized'), x.get('root')) for x in missed[:3]]}"
+    )
 
 def test_root_variants_reach_lanes_own_spelling():
     """A root Lane holds under another spelling must still resolve.

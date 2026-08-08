@@ -89,28 +89,47 @@ def root_variants(root: str) -> list[str]:
 
     Ordered: the caller takes the first that exists, so an exact hit always
     wins and a variant is only ever a fallback.
+
+    Three axes, combined. Each is the same root written two ways:
+
+      hamza seat   ء أ إ آ ا    an analyser writes `أوي`, Lane writes `اوى`
+      final weak   ي ى و        Lane prefers alif maqsura
+      geminate     ردد -> رد    Lane collapses a doubled radical
     """
-    out: list[str] = [root]
+    seats = "\u0621\u0623\u0625\u0622\u0627"          # ء أ إ آ ا
 
-    def add(r: str) -> None:
-        if r and r not in out:
-            out.append(r)
+    def seat_forms(r: str) -> list[str]:
+        out = [r]
+        for i, c in enumerate(r):
+            if c in seats:
+                for alt in seats:
+                    if alt != c:
+                        cand = r[:i] + alt + r[i + 1:]
+                        if cand not in out:
+                            out.append(cand)
+        return out
 
-    # Geminate: a doubled final or initial radical, written once by Lane.
-    if len(root) == 3 and root[1] == root[2]:
-        add(root[:2])
-    if len(root) == 3 and root[0] == root[1]:
-        add(root[1:])
+    def weak_forms(r: str) -> list[str]:
+        out = [r]
+        for a in ("\u064a", "\u0649", "\u0648"):        # ي ى و
+            if r.endswith(a):
+                for b in ("\u064a", "\u0649", "\u0648"):
+                    if b != a and r[:-1] + b not in out:
+                        out.append(r[:-1] + b)
+        return out
 
-    # Final weak radical: ي, ى and و are one position written three ways.
-    for a, b in (("ي", "ى"), ("ى", "ي"), ("و", "ى"), ("ي", "و"), ("ى", "و")):
-        if root.endswith(a):
-            add(root[:-1] + b)
+    def geminate_forms(r: str) -> list[str]:
+        out = [r]
+        if len(r) == 3 and r[1] == r[2]:
+            out.append(r[:2])
+        if len(r) == 3 and r[0] == r[1]:
+            out.append(r[1:])
+        return out
 
-    # Hamza seats. `root_key` folds every seat to bare hamza; Lane writes alif.
-    for src, dst in (("\u0621", "\u0627"), ("\u0621", "\u0623"),
-                     ("\u0627", "\u0621")):
-        for r in list(out):
-            add(r.replace(src, dst))
-
+    out: list[str] = []
+    for a in geminate_forms(root):
+        for b in weak_forms(a):
+            for c in seat_forms(b):
+                if c not in out:
+                    out.append(c)
     return out

@@ -115,8 +115,17 @@ An analyser and Lane spell some roots differently. The lookup tries the root as
 written, then Lane's conventions:
 
 - A geminate root, written once by Lane: `ردد` becomes `رد`.
-- A final weak radical, written as alif maqsura: `مني` becomes `منى`.
-- A hamza seat, written as a bare alif: `ءمو` becomes `امو`.
+- A final weak radical: ي, ى and و are one position written three ways.
+- A hamza seat: ء, أ, إ, آ and ا are one position written five ways. An
+  analyser writes `أوي` where Lane files `اوى`.
+
+The three combine, so `أوي` yields fifteen candidates and `كتم` yields one.
+
+The root itself comes from three places, in order: the workbook's validated
+key, the entry's root, then the analyser's. The third is not a formality — a
+workbook row can carry no root at all and take one from the analysis later,
+and 220 entries reached the lookup with a null root while the analysis had one
+ready.
 
 An exact hit always wins. A root that resolves to nothing is DROPPED and not
 shipped: an unresolvable root still produced a classical shard, so the panel
@@ -134,10 +143,15 @@ Tokens that reach a Lane root:
 
 | Corpus | Reaches a Lane root |
 |---|--:|
-| al-Tajrīd | 89.8% |
-| al-Muwaṭṭaʾ | 82.2% |
-| Nawawī's Forty | 73.2% |
-| Shāh Walī Allāh | 92.6% |
+| al-Tajrīd | 83.7% |
+| al-Muwaṭṭaʾ | 76.9% |
+| Nawawī's Forty | 70.8% |
+| Shāh Walī Allāh | 90.9% |
+
+These read lower than an earlier measurement of the same thing. That measurement
+counted entries which shipped a root Lane could not resolve, and the panel drew
+an empty section for each. Those are now dropped, so the figure is smaller and
+true.
 
 Tokens whose own form matches a headword exactly are fewer: 44.7%, 27.1% and
 15.6% for the first three. That number describes Lane's article inventory, not

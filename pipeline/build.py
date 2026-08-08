@@ -851,13 +851,27 @@ def main() -> int:
         # an empty root section rather than the root's first article — 4,408
         # entries, 82% of them a geminate, a final weak radical, or a hamza
         # seat written the other way.
-        lr = e.get("lane_root")
+        # `lane_root` is the workbook's own validated key. Where there is
+        # none — a minted entry, or a workbook row Lane had no article for
+        # under the spelling the workbook used — fall back to the analyser's
+        # root and let the variants below resolve it. 337 entries had a root
+        # Lane holds and no `lane_root` to reach it with, almost all of them
+        # hamza-initial: `ءهل` where Lane files `اهل`.
+        # Three sources, in order of authority: the workbook's own validated
+        # key, the entry's root, then the analyser's. The third matters more
+        # than it looks — a workbook row can carry no root at all and get one
+        # from the analysis, and 220 entries reached the lookup with `root:
+        # None` for exactly that reason while the analysis had `ءوي` ready.
+        lr = (e.get("lane_root") or e.get("root")
+              or (analyses.get(str(e.get("vocalized"))) or {}).get("root"))
         if lr and lr not in lane_by_root:
             lr = next((v for v in root_variants(lr) if v in lane_by_root), None)
-            # The SHIPPED root must be the resolved one, or absent: the client
-            # keys the classical and lane shards by it, and a root with no
-            # shard draws an empty section.
-            trimmed["lane_root"] = lr
+        # ALWAYS write it back, not only when a variant was needed. The shipped
+        # root must be the one the lookup actually used, or absent: the client
+        # keys the classical and lane shards by it, and a root with no shard
+        # draws an empty section. Writing it only in the variant branch left an
+        # entry with a resolved `laneEntry` and a null root to reach it by.
+        trimmed["lane_root"] = lr
         trimmed["laneEntry"] = None
         if lr and lr in lane_by_root:
             # exact tier (ة preserved) for BOTH candidates before either
