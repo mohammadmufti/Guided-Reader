@@ -82,14 +82,23 @@ It never chooses by alphabet. It records which basis it used, in `rootBasis`.
 1. al-Tajrīd's 22,464 workbook forms.
 2. The readings the Bukhārī witness attests.
 3. **Every token of every corpus.**
+4. **Every reading of every corpus's witness.**
+
+Item 4 is not a duplicate of item 2. A corpus without a workbook takes its
+whole inventory from its witness, so the form a reader SEES is a vocalised
+witness reading, and the entry for it is looked up by that form. Reading only
+al-Tajrīd's witness left every other corpus's vocalised forms unanalysed:
+Nawawī showed no root for `الصَّلَاةَ` and `عَظِيمٍ`, whose bare forms were
+analysed and whose vocalised ones were not.
+
+The stage reads 104,137 forms. It finds a root for 90% and a gloss for 91%.
 
 Item 3 was added after a measurement. The stage once read the workbook alone,
 which belongs to al-Tajrīd. A word in another book that al-Tajrīd does not
 contain was therefore never analysed. On the Muwaṭṭaʾ, 10,208 tokens bound to
 nothing, and 111 of them had an analysis.
 
-The stage now analyses 99,110 forms instead of 27,481. It finds a root for
-93.4% of them.
+Segmentation must run first. See "Build order" in `PIPELINE.md`.
 
 The stage also records `lemmaVocalised`, the vocalised lemma CAMeL states in
 its `lex` field. Clitics are stripped in it: `بَعَثَكَ` gives `بَعَث`. 91.1% of

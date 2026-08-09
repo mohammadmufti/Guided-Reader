@@ -52,6 +52,8 @@ from normalise import normalise, root_key  # noqa: E402
 
 import re  # noqa: E402
 
+ARABIC_LETTER = re.compile(r"[\u0621-\u064a]")
+
 MARKS = "\u064B-\u0652\u0670"
 _GROUPS = re.compile(rf"([^\s{MARKS}])([{MARKS}]*)")
 
@@ -486,6 +488,39 @@ def main() -> int:
                             seen.add(tok)
                             forms.append(tok)
         print(f"  workbook forms + witness readings: {len(forms):,}", file=sys.stderr)
+
+    # ---- and every OTHER corpus's witness, unrestricted --------------------
+    #
+    # The restriction above is right for al-Tajrid: its inventory comes from a
+    # workbook, and the witness only widens the readings of words the workbook
+    # already knows.
+    #
+    # It is wrong for every other corpus, because their inventory IS the
+    # witness. Each token's displayed surface is a vocalised witness form, and
+    # `mint_from_witness` looks the analysis up BY THAT FORM. A form that was
+    # never analysed produces an entry with no lemma and no root — so Nawawi
+    # showed "no root" for الصَّلَاةَ and عَظِيمٍ, whose bare forms were
+    # analysed and whose vocalised ones were not.
+    from bind import WitnessIndex
+    seen_all = set(forms)
+    for cfg_path in sorted((ROOT / "corpora").glob("*.yaml")):
+        if cfg_path.stem == args.corpus:
+            continue
+        try:
+            other = load_config(cfg_path.stem)
+            wit = source_path(other, "vocalisation_reference", required=False)
+        except ConfigError:
+            continue
+        if wit is None or not wit.exists():
+            continue
+        n_before = len(forms)
+        for row in WitnessIndex._read(wit):
+            for tok in str(row).split():
+                tok = tok.strip("()[]{}«».,،؛:؟!\"'")
+                if tok and tok not in seen_all and ARABIC_LETTER.search(tok):
+                    seen_all.add(tok)
+                    forms.append(tok)
+        print(f"  + {len(forms) - n_before:,} witness readings from {cfg_path.stem}")
 
     if args.limit:
         forms = forms[: args.limit]

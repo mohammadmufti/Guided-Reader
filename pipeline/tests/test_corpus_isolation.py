@@ -537,3 +537,22 @@ def test_the_analyser_refuses_to_run_blind():
     src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
     assert "NO CORPUS RECORDS FOUND" in src
     assert "seen_corpora == 0" in src
+
+
+def test_every_corpus_witness_is_analysed():
+    """A displayed surface must have been analysed, or it shows no root.
+
+    A corpus without a workbook takes its whole inventory from its witness, and
+    each token's SHOWN form is a vocalised witness reading. `mint_from_witness`
+    looks the analysis up by that form. The stage read only al-Tajrid's
+    witness, and restricted even that to keys the workbook already knew — right
+    for al-Tajrid, whose inventory is the workbook, and wrong for every corpus
+    whose inventory IS the witness.
+
+    Nawawi showed "no root" for الصَّلَاةَ, عَظِيمٍ and يَسَّرَهُ. Their bare
+    forms were analysed; the vocalised ones the reader actually sees were not.
+    """
+    src = (corpus.ROOT / "analyse.py").read_text(encoding="utf-8")
+    assert "witness readings from" in src, \
+        "analyse.py must read every corpus's witness, not only --corpus's"
+    assert "WitnessIndex._read" in src, "must handle CSV and JSON witnesses alike"
