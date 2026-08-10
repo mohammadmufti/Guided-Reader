@@ -193,10 +193,23 @@ export function Reader() {
           >
             بحث
           </Link>
+          {/* A text with no kitab structure has nothing to browse. Shah Wali
+              Allah's Forty is one continuous sequence, and the drawer opened on
+              an empty list. Disabled rather than hidden, so the control does
+              not move between books. */}
           <button
             type="button"
             onClick={() => setBrowserOpen(true)}
-            className="rounded-md border border-(--color-rule) px-2.5 py-1.5 text-sm transition-colors hover:bg-(--color-rule)"
+            disabled={index.tree.length === 0}
+            title={
+              index.tree.length === 0
+                ? "This text has no kitab divisions"
+                : undefined
+            }
+            className="rounded-md border border-(--color-rule) px-2.5 py-1.5 text-sm
+                       transition-colors hover:bg-(--color-rule)
+                       disabled:cursor-default disabled:opacity-40
+                       disabled:hover:bg-transparent"
             lang="ar"
           >
             الكتب والأبواب
@@ -515,6 +528,25 @@ function PageView({
             <div className="flex items-center justify-between px-3 pb-2">
               <span className="ps-2 text-xs text-(--color-ink-muted)" lang="ar">
                 تفاصيل الكلمة
+              </span>
+              {/* Same control as the desktop column's. The sheet header has
+                  room, and a phone is where a reader is most likely to want
+                  the entries larger. */}
+              <span className="me-auto flex items-center gap-0.5">
+                {([-1, 1] as const).map((by) => (
+                  <button
+                    key={by}
+                    type="button"
+                    onClick={() => nudgePanel(by)}
+                    aria-label={by === 1 ? "تكبير نص التفاصيل" : "تصغير نص التفاصيل"}
+                    disabled={by === 1 ? panelStep >= 5 : panelStep <= 1}
+                    className="flex h-9 w-9 items-center justify-center rounded-md
+                               border border-(--color-rule) text-sm
+                               text-(--color-ink-muted) disabled:opacity-35"
+                  >
+                    {by === 1 ? "+" : "−"}
+                  </button>
+                ))}
               </span>
               <button
                 type="button"

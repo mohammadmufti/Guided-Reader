@@ -48,7 +48,7 @@ export function BookBrowser({ index, open, onClose, currentKitab }: Props) {
         type="button"
         aria-label="إغلاق"
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/30"
+        className="absolute inset-0 h-full w-full cursor-default bg-black/40 backdrop-blur-[2px]"
       />
       <div
         ref={panelRef}
@@ -56,8 +56,13 @@ export function BookBrowser({ index, open, onClose, currentKitab }: Props) {
         aria-modal="true"
         aria-label="الكتب والأبواب"
         tabIndex={-1}
+        // `--color-surface` DOES NOT EXIST. It never has: the palette defines
+        // `--color-paper` and `--color-raised`, so this resolved to nothing and
+        // the drawer was transparent, with the hadith showing through the list
+        // of books. The backdrop blur is belt and braces for the shadow's edge.
         className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col
-                   border-s border-(--color-rule) bg-(--color-surface) shadow-2xl"
+                   border-s border-(--color-rule) bg-(--color-raised)
+                   shadow-2xl backdrop-blur-sm"
       >
         <header className="flex items-baseline justify-between border-b border-(--color-rule) px-5 py-4">
           <h2 className="text-lg" lang="ar">
