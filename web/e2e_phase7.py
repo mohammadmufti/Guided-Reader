@@ -129,8 +129,21 @@ def main() -> int:
             # Detect the CLASSICAL SECTION by its Arabic title — unique to it.
             # Matching on "lane's lexicon" broke when the analyser-provenance
             # copy legitimately mentioned Lane for a word with no entry.
-            if "المعنى الكلاسيكي" in body:
+            # Detected by a data attribute, not by its title: the Arabic title
+            # was dropped when the section began naming its source in English,
+            # and matching the words "Lane's Lexicon" catches provenance copy
+            # for words that have no entry.
+            lane_section = page.locator("[data-section=lane]")
+            if lane_section.count():
                 found_lane = True
+                # The entry is COLLAPSED by default — one dictionary among
+                # several to come, and a reader should choose what to open.
+                toggle = lane_section.locator("button[aria-expanded]").first
+                if toggle.count() and toggle.get_attribute("aria-expanded") == "false":
+                    toggle.click()
+                    page.wait_for_timeout(200)
+                body = page.locator("aside").inner_text()
+                low = body.lower()
                 check("Lane entry names whose entry it is",
                       "own entry" in low or "under this root" in low, body[:80])
                 check("Lane sources are explained rather than left as bare letters",

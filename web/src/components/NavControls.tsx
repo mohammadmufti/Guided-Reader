@@ -52,18 +52,22 @@ function Step({
   labelEn,
   arrow,
   side,
+  compact = false,
 }: {
   to: number | null;
   labelAr: string;
   labelEn: string;
   arrow: string;
   side: "prev" | "next";
+  /** Header size: no number, tighter box, so it sits beside the other controls. */
+  compact?: boolean;
 }) {
   // The corpus comes from the route, so a link built here points at the
   // book the reader is actually in.
   const { corpus = "tajrid" } = useParams();
   const shared =
-    "inline-flex items-center gap-2 rounded-md border border-(--color-rule) px-3 py-2 text-sm";
+    "inline-flex items-center rounded-md border border-(--color-rule) text-sm " +
+    (compact ? "gap-1 px-2 py-1.5" : "gap-2 px-3 py-2");
   if (to === null) {
     return (
       <span
@@ -85,8 +89,40 @@ function Step({
     >
       {side === "next" && <span aria-hidden="true">{arrow}</span>}
       <span lang="ar">{labelAr}</span>
-      <span className="tabular-nums text-(--color-ink-muted)">{to}</span>
+      {!compact && (
+        <span className="tabular-nums text-(--color-ink-muted)">{to}</span>
+      )}
       {side === "prev" && <span aria-hidden="true">{arrow}</span>}
     </Link>
+  );
+}
+
+/**
+ * The same two controls, header-sized.
+ *
+ * They lived only in the footer, which is fine until a word panel runs long —
+ * then moving to the next hadith means scrolling past a Lane article to reach
+ * a button. Navigation belongs where the other navigation is, beside the book
+ * browser.
+ *
+ * Next stays on the LEFT. Arabic runs right to left, so forward is leftward;
+ * see the note at the top of this file.
+ */
+export function NavCompact({
+  prevNumber,
+  nextNumber,
+}: {
+  prevNumber: number | null;
+  nextNumber: number | null;
+}) {
+  return (
+    // `dir="ltr"` on the row, so source order IS screen order. The header is
+    // rtl, which mirrored the pair and put next on the right — the footer nav
+    // escapes this because it positions by grid track rather than by flow.
+    // Each label keeps its own `lang="ar"`, so only the boxes are placed ltr.
+    <span className="inline-flex items-center gap-1.5" dir="ltr">
+      <Step to={nextNumber} labelAr="التالي" labelEn="Next" arrow="←" side="next" compact />
+      <Step to={prevNumber} labelAr="السابق" labelEn="Previous" arrow="→" side="prev" compact />
+    </span>
   );
 }

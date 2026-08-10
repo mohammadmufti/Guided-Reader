@@ -6,7 +6,7 @@ import CorpusPicker from "@/components/CorpusPicker";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useSettings } from "@/hooks/useSettings";
 import { useDragDismiss } from "@/hooks/useDragDismiss";
-import { NavControls } from "@/components/NavControls";
+import { NavCompact } from "@/components/NavControls";
 import AboutBook from "@/components/AboutBook";
 import AudioButton from "@/components/AudioButton";
 import { JumpTo } from "@/components/JumpTo";
@@ -214,6 +214,8 @@ export function Reader() {
           >
             الكتب والأبواب
           </button>
+          {/* Navigation beside the browser, which is also navigation. */}
+          <NavCompact prevNumber={near.prev} nextNumber={near.next} />
           <JumpTo ref={jumpRef} index={index} />
         </div>
       </header>
@@ -245,16 +247,15 @@ export function Reader() {
               using — not stacked beneath it, where the eye has to travel past
               the navigation to find them. Info button, picker and Switch sit
               together between the two arrows. */}
-          <NavControls
-            prevNumber={near.prev}
-            nextNumber={near.next}
-            centre={
-              <CorpusPicker
-                onSwitch={switchCorpus}
-                before={<AboutBook corpus={index.corpus} />}
-              />
-            }
-          />
+          {/* The arrows moved to the header — see NavCompact. What stays here
+              is the book picker, which is a deliberate act rather than
+              something reached for every few seconds. */}
+          <div className="flex items-center justify-center">
+            <CorpusPicker
+              onSwitch={switchCorpus}
+              before={<AboutBook corpus={index.corpus} />}
+            />
+          </div>
 
           <p className="mt-3 text-center text-xs text-(--color-ink-muted)" dir="ltr">
             <Link to={`/${corpus}/about`} className="underline underline-offset-2">
@@ -658,9 +659,14 @@ function CrossRefs({
   if (!link) {
     return <span className="tabular-nums">{refs.join(", ")}</span>;
   }
+  // The LABEL is part of the link, not text beside it. A bare underlined
+  // number is a small target and reads as decoration; "Bukhari 4508" reads as
+  // a place to go. With several numbers the label leads and each number is its
+  // own link, since they point at different hadith.
+  const single = refs.length === 1;
   return (
     <span className="tabular-nums">
-      {link.label}{" "}
+      {!single && `${link.label} `}
       {refs.map((n, i) => (
         <span key={n}>
           {i > 0 && ", "}
@@ -672,7 +678,7 @@ function CrossRefs({
             aria-label={`${link.label} ${n}, opens in a new tab`}
             className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
           >
-            {n}
+            {single ? `${link.label} ${n}` : n}
           </a>
         </span>
       ))}

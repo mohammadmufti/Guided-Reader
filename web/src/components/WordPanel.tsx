@@ -477,6 +477,8 @@ function Classical({
   laneEntry: LaneEntry | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Collapsed by default. See the headword button below.
+  const [entryOpen, setEntryOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const keywords = classical?.keywords ?? [];
   if (!lane && keywords.length === 0) return null;
@@ -487,7 +489,7 @@ function Classical({
   const others = (lane?.entries ?? []).filter((e) => e.nodeid !== shown?.nodeid);
 
   return (
-    <Section title="المعنى الكلاسيكي" subtitle="Lane's Lexicon">
+    <Section subtitle="Lane's Lexicon" testId="lane">
       {keywords.length > 0 && (
         <ul className="mb-3 flex flex-wrap gap-1.5" dir="ltr">
           {keywords.map((k) => (
@@ -500,7 +502,26 @@ function Classical({
 
       {shown && (
         <>
-          <p className="mb-2 flex items-baseline gap-2">
+          {/* The headword line IS the control. Collapsed by default: a Lane
+              article can run to a dozen senses, and this panel will carry more
+              than one dictionary before long — a reader should choose what to
+              open rather than scroll past everything.
+
+              The control stays ABOVE what it reveals, like the "other entries"
+              toggle below, so the thing you pressed does not move. */}
+          <button
+            type="button"
+            onClick={() => setEntryOpen((v) => !v)}
+            aria-expanded={entryOpen}
+            className="mb-2 flex w-full items-baseline gap-2 text-start"
+          >
+            <span
+              className="text-(--color-ink-muted) transition-transform"
+              aria-hidden="true"
+              style={{ transform: entryOpen ? "rotate(90deg)" : "none" }}
+            >
+              ›
+            </span>
             <span className="arabic text-xl" lang="ar" dir="rtl">
               {shown.headword}
             </span>
@@ -508,9 +529,9 @@ function Classical({
               {laneEntry ? "this word's own entry" : "first entry under this root"}
               {lane?.page ? ` · p. ${lane.page}` : ""}
             </span>
-          </p>
+          </button>
 
-          <ol className="space-y-2" dir="ltr">
+          <ol className={`space-y-2 ${entryOpen ? "" : "hidden"}`} dir="ltr">
             {visible.map((sense, i) => (
               <li key={i} className="panel-scaled leading-relaxed">
                 {sense.label && (
@@ -525,7 +546,7 @@ function Classical({
             ))}
           </ol>
 
-          {senses.length > 2 && (
+          {entryOpen && senses.length > 2 && (
             <button
               type="button"
               onClick={() => setExpanded((e) => !e)}
@@ -535,7 +556,7 @@ function Classical({
             >
               {expanded
                 ? "Show fewer senses"
-                : `Show all ${senses.length} senses of this entry`}
+                : `Show all ${senses.length} Lane senses of this entry`}
             </button>
           )}
         </>
@@ -550,7 +571,7 @@ function Classical({
             className="text-xs text-(--color-ink-muted) underline underline-offset-2"
             dir="ltr"
           >
-            {showAll ? "Hide" : `${others.length} other entries under `}
+            {showAll ? "Hide" : `${others.length} other Lane entries under `}
             {!showAll && (
               <span className="arabic" lang="ar" dir="rtl">
                 {entry.lane_root}
@@ -1003,17 +1024,24 @@ function Section({
   title,
   subtitle,
   children,
+  testId,
 }: {
-  title: string;
+  // Optional: a section whose source has no Arabic name of its own carries the
+  // English one alone. Lane's Lexicon is one, and there will be more.
+  title?: string;
   subtitle?: string;
   children: React.ReactNode;
+  /** Stable hook for the browser gates. */
+  testId?: string;
 }) {
   return (
-    <section>
+    <section data-section={testId}>
       <h3 className="mb-1.5 flex items-baseline gap-2">
-        <span className="text-xs text-(--color-ink-muted)" lang="ar">
-          {title}
-        </span>
+        {title && (
+          <span className="text-xs text-(--color-ink-muted)" lang="ar">
+            {title}
+          </span>
+        )}
         {subtitle && (
           <span className="text-[0.65rem] uppercase tracking-wide text-(--color-ink-muted)" dir="ltr">
             {subtitle}

@@ -112,7 +112,9 @@ def main() -> int:
         check("last hadith renders", heading_number(page) == last)
         check(
             "next is disabled at the end",
-            page.locator("nav [aria-disabled=true]").count() >= 1,
+            # The arrows moved to the header, beside the book browser: a long
+            # word panel made the footer ones a scroll away.
+            page.locator("header [aria-disabled=true]").count() >= 1,
         )
         page.screenshot(path=str(SHOTS / "phase5-hadith-last.png"))
 
