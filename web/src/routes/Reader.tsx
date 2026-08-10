@@ -219,6 +219,8 @@ export function Reader() {
             onSelect={select}
             index={index}
             harakat={settings.harakat}
+            panelStep={settings.panelStep}
+            nudgePanel={settings.nudgePanel}
           />
         )}
       </div>
@@ -296,12 +298,16 @@ function PageView({
   onSelect,
   index,
   harakat,
+  panelStep,
+  nudgePanel,
 }: {
   page: Page;
   selection: Selection | null;
   onSelect: (recordId: string | null, i: number | null) => void;
   index: IndexFile;
   harakat: boolean;
+  panelStep: number;
+  nudgePanel: (by: 1 | -1) => void;
 }) {
   const { main, additions } = page;
 
@@ -537,6 +543,32 @@ function PageView({
             choosing another word, and neither is discoverable. Same X, same
             hit target, floated at the top of the column. Hidden on a phone,
             where the sheet header above already carries one. */}
+        {/* Text size for the panel's own entries, beside the close control.
+            Separate from the matn's size: a reader who needs a Lane article
+            bigger does not necessarily want the hadith bigger too. The setting
+            is stored, so it survives the next word, the next hadith and the
+            next book. */}
+        {activeToken !== null && (
+          <div className="absolute end-12 top-2 z-10 hidden items-center gap-0.5 lg:flex">
+            {([-1, 1] as const).map((by) => (
+              <button
+                key={by}
+                type="button"
+                onClick={() => nudgePanel(by)}
+                aria-label={by === 1 ? "تكبير نص التفاصيل" : "تصغير نص التفاصيل"}
+                title={by === 1 ? "Larger panel text" : "Smaller panel text"}
+                disabled={by === 1 ? panelStep >= 5 : panelStep <= 1}
+                className="flex h-8 w-8 items-center justify-center rounded-md border
+                           border-(--color-rule) text-sm text-(--color-ink-muted)
+                           transition-colors hover:bg-(--color-rule)
+                           hover:text-(--color-ink) disabled:cursor-default
+                           disabled:opacity-35 disabled:hover:bg-transparent"
+              >
+                {by === 1 ? "+" : "−"}
+              </button>
+            ))}
+          </div>
+        )}
         {activeToken !== null && (
           <button
             type="button"

@@ -65,7 +65,18 @@ class Slot:
         text = RE_FEATURES.sub(" ", text)
         text = re.sub(r"\s+", " ", text).strip()
         self.empty = text == "___" or not text
-        self.senses = [] if self.empty else [s.strip() for s in text.split(";") if s.strip()]
+        # Buckwalter writes a multi-word sense with underscores for the spaces:
+        # `kneeling_down`, `make_a_pilgrimage`. They are spacing, not part of
+        # the word, and a reader should not be shown the encoding. The workbook
+        # was already written with spaces; the analyser's glosses are not, so
+        # this only shows up on those.
+        #
+        # A sense that IS a single underscore is a placeholder and stays empty.
+        self.senses = (
+            [] if self.empty
+            else [t for t in (s.strip().replace("_", " ").strip()
+                              for s in text.split(";")) if t]
+        )
 
     def is_clitic(self) -> bool:
         if self.empty:

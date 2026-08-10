@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ArStep = 1 | 2 | 3 | 4 | 5;
+/** Size of the WORD PANEL's body text, independent of the matn's. */
+export type PanelStep = 1 | 2 | 3 | 4 | 5;
 export type Theme = "system" | "light" | "dark";
 export type Face = "scheherazade" | "amiri" | "noto";
 
@@ -14,6 +16,10 @@ const KEY = "tajrid.settings.v1";
 
 export interface Settings {
   step: ArStep;
+  // Separate from `step`. The matn is set large to be read at a distance; the
+  // panel is reference text, and a reader who needs a Lane entry bigger does
+  // not necessarily want the hadith bigger too.
+  panelStep: PanelStep;
   harakat: boolean;
   theme: Theme;
   face: Face;
@@ -21,6 +27,7 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   step: 3,
+  panelStep: 2,
   harakat: true,
   theme: "system",
   face: "scheherazade",
@@ -35,11 +42,13 @@ function read(): Settings {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<Settings>;
     const step = parsed.step;
+    const ps = parsed.panelStep;
     const theme = parsed.theme;
     const face = parsed.face;
     return {
       face: face === "amiri" || face === "noto" || face === "scheherazade" ? face : "scheherazade",
       step: step === 1 || step === 2 || step === 3 || step === 4 || step === 5 ? step : 3,
+      panelStep: ps === 1 || ps === 2 || ps === 3 || ps === 4 || ps === 5 ? ps : 2,
       harakat: parsed.harakat !== false,
       theme: theme === "light" || theme === "dark" ? theme : "system",
     };
@@ -58,6 +67,7 @@ export function useSettings() {
 
   useEffect(() => {
     document.documentElement.dataset["arStep"] = String(settings.step);
+    document.documentElement.dataset["panelStep"] = String(settings.panelStep);
     document.documentElement.dataset["arFace"] = settings.face;
     // "system" removes the attribute entirely so the prefers-color-scheme media
     // query decides. That also means no flash: the correct palette is applied
@@ -77,6 +87,16 @@ export function useSettings() {
 
   const setStep = useCallback(
     (step: ArStep) => setSettings((s) => ({ ...s, step })),
+    [],
+  );
+  // Clamped rather than wrapped: a reader pressing + repeatedly wants the
+  // largest size, not a jump back to the smallest.
+  const nudgePanel = useCallback(
+    (by: 1 | -1) =>
+      setSettings((s) => ({
+        ...s,
+        panelStep: Math.min(5, Math.max(1, s.panelStep + by)) as PanelStep,
+      })),
     [],
   );
   const toggleHarakat = useCallback(
@@ -103,7 +123,7 @@ export function useSettings() {
     [],
   );
 
-  return { ...settings, setStep, toggleHarakat, cycleTheme, cycleFace };
+  return { ...settings, setStep, nudgePanel, toggleHarakat, cycleTheme, cycleFace };
 }
 
 // Harakat, tanwin, shadda, sukun, superscript alef, tatweel — the same set the

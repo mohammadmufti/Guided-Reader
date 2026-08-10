@@ -64,3 +64,18 @@ def test_clitic_chain_is_kept():
     p = parse_gloss("and + for + him/it to + cause;bring about")
     assert p["senses"] == ["cause", "bring about"]
     assert [s["senses"] for s in p["before"]] == [["and"], ["for"], ["him/it to"]]
+
+
+def test_underscores_are_spacing_not_letters():
+    """Buckwalter writes a multi-word sense with underscores.
+
+    `kneeling_down`, `make_a_pilgrimage`. That is the encoding of a space, and
+    a reader should never see it. The workbook was written with real spaces, so
+    this only showed up once the analyser's glosses started being displayed.
+    """
+    assert parse_gloss("kneeling_down;genuflection")["senses"] == [
+        "kneeling down", "genuflection"]
+    assert parse_gloss("make_a_pilgrimage;confute")["senses"] == [
+        "make a pilgrimage", "confute"]
+    # A bare placeholder stays empty rather than becoming a space.
+    assert parse_gloss("___") is None or parse_gloss("___")["senses"] == []

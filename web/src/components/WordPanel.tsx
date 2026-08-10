@@ -166,7 +166,7 @@ function Meaning({
       )}
       <ul className="flex flex-wrap gap-x-2 gap-y-1" dir="ltr">
         {gloss.senses.map((s, i) => (
-          <li key={s} className="text-base">
+          <li key={s} className="panel-scaled">
             {s}
             {i < gloss.senses.length - 1 && (
               <span className="text-(--color-ink-muted)">,</span>
@@ -289,7 +289,7 @@ function RootAndLemma({
         // on and the two ran into each other. A flex row places them by box
         // rather than by text flow, and the gap holds whichever way they read.
         <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="arabic text-xl" lang="ar" dir="rtl">
+          <span className="arabic panel-scaled-ar" lang="ar" dir="rtl">
             {lemma}
           </span>
           {!rec && entry.lemma_din && (
@@ -308,7 +308,7 @@ function RootAndLemma({
         // yasmaʿu, yasmiʿu or yasmuʿu — so the pair is how the wazn is stated,
         // and the pattern beside it states it outright.
         <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="arabic text-lg" lang="ar" dir="rtl">
+          <span className="arabic panel-scaled-ar" lang="ar" dir="rtl">
             {entry.verb.perfect} — {entry.verb.imperfect}
           </span>
           {entry.verb.pattern && (
@@ -509,7 +509,7 @@ function Classical({
 
           <ol className="space-y-2" dir="ltr">
             {visible.map((sense, i) => (
-              <li key={i} className="text-sm leading-relaxed">
+              <li key={i} className="panel-scaled leading-relaxed">
                 {sense.label && (
                   <span className="me-1.5 rounded bg-(--color-rule) px-1 text-[0.65rem] text-(--color-ink-muted)">
                     {sense.label}

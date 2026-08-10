@@ -107,6 +107,22 @@
 :root[data-ar-step="4"] { --ar-size: 2.125rem; --ar-leading: 1.98; }
 :root[data-ar-step="5"] { --ar-size: 2.5rem;   --ar-leading: 1.92; }
 
+/* The word panel's own scale, set independently of the matn's. Headings and
+   labels keep their size; this drives the entries a reader actually squints
+   at — a Lane article, a verb pair, a gloss. `em`-based so nested marks and
+   transliterations scale with their line. */
+:root[data-panel-step="1"] { --panel-size: 0.8125rem; --panel-ar: 1.0rem;  }
+:root[data-panel-step="2"] { --panel-size: 0.875rem;  --panel-ar: 1.15rem; }
+:root[data-panel-step="3"] { --panel-size: 1rem;      --panel-ar: 1.35rem; }
+:root[data-panel-step="4"] { --panel-size: 1.1875rem; --panel-ar: 1.6rem;  }
+:root[data-panel-step="5"] { --panel-size: 1.375rem;  --panel-ar: 1.9rem;  }
+
+/* Applied by opt-in, not to the whole panel: the section titles and the
+   provenance notes stay put, so growing the text does not push the structure
+   off the screen. */
+.panel-scaled      { font-size: var(--panel-size); line-height: 1.75; }
+.panel-scaled-ar   { font-size: var(--panel-ar);   line-height: 2; }
+
 /* The reading face is a preference, like size and vowel marks. */
 :root[data-ar-face="amiri"] { --font-arabic: "Amiri", serif; }
 :root[data-ar-face="scheherazade"] { --font-arabic: "Scheherazade New", serif; }
