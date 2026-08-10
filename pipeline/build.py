@@ -88,7 +88,7 @@ SURFACE_KEEP = [
     "doc_freq", "pos", "lemma", "lemma_din", "root", "lane_root",
     "literal_sense", "technical_sense", "domain", "divergence", "overlap_score",
     "voc_source", "morph_confidence", "pos_agreement", "layers", "glossCamel",
-    "segments",
+    "segments", "verb", "lemmaVocalised",
 ]
 # Lane's editorial apparatus and OCR debris, which the keyword extraction picks
 # up alongside real senses. A pure frequency cutoff will not do this job:
@@ -748,6 +748,16 @@ def main() -> int:
         trimmed["segments"] = (
             e.get("segments")
             or (analyses.get(str(e.get("vocalized"))) or {}).get("segments"))
+        # The two citation forms of a verb, and the scale they set.
+        trimmed["verb"] = (
+            e.get("verb")
+            or (analyses.get(str(e.get("vocalized"))) or {}).get("verb"))
+        # The lemma WITH its harakat. `lemma` is bare — it is the join key —
+        # and showing it stripped is showing a student a word without its
+        # vowels, which is the one thing this reader exists to avoid.
+        trimmed["lemmaVocalised"] = (
+            e.get("lemmaVocalised")
+            or (analyses.get(str(e.get("vocalized"))) or {}).get("lemmaVocalised"))
         # Isnad names should read as a person, not a failed lexical lookup.
         trimmed["isName"] = e["unvocalized"] in names
         # Where the analysis lost the stem, try to get it back from the corpus

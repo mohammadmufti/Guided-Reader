@@ -224,3 +224,30 @@ def test_mismatched_skeletons_leave_the_source_alone():
     """No position-by-position correspondence, so nothing is transferred."""
     from vocalisation import transfer_marks
     assert transfer_marks("كتاب", "كُتُبٌ") == "كتاب"
+
+
+def test_the_verb_pair_carries_its_vowels():
+    """A lemma without harakat tells a student nothing.
+
+    `سمع` could be samiʿa or sammaʿa, and the panel showed exactly that: the
+    bare join key. Two separate faults — `lemmaVocalised` was computed and
+    never shipped, and the panel read `lemma` first.
+
+    The imperfect also needs its mood vowel. CAMeL's `diac` gives the stem
+    (`يَسْمَع`) and the whole use of citing the pair is the scale, so the
+    indicative ending is added after a plain consonant and withheld after a
+    weak one — `يَصْلِي` takes none.
+    """
+    from analyse import build_verb_forms
+    forms = build_verb_forms()
+    for lex, perfect, imperfect in [
+        ("سَمِع", "سَمِعَ", "يَسْمَعُ"),
+        ("كَتَب", "كَتَبَ", "يَكْتُبُ"),
+        ("قال", "قالَ", "يَقُولُ"),      # the longest form, not the jussive يَقُل
+        ("صَلَى", "صَلَى", "يَصْلِي"),   # defective: no added ending
+    ]:
+        got = forms(lex)
+        if got is None:
+            pytest.skip("generation database not installed")
+        assert got["perfect"] == perfect, f"{lex}: {got['perfect']!r}"
+        assert got["imperfect"] == imperfect, f"{lex}: {got['imperfect']!r}"

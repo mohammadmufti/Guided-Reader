@@ -703,6 +703,20 @@ class GlossSlot(TypedDict):
     pos: str | None
 
 
+class VerbForms(TypedDict):
+    """
+    A verb's two citation forms, and the scale they set.
+
+    One form does not fix the scale: samiʿa could be yasmaʿu, yasmiʿu or
+    yasmuʿu. Citing the pair is how the wazn is stated, and `pattern` states it
+    directly — `يَ1ْ2َ3` for yafʿalu.
+    """
+
+    perfect: str
+    imperfect: str
+    pattern: str | None
+
+
 class CliticSegment(TypedDict):
     """
     One stretch of a word: a proclitic, the stem, or a pronoun enclitic.
@@ -895,6 +909,14 @@ class PanelEntry(TypedDict):
         ),
     ]
     gloss: Gloss | None
+    lemmaVocalised: Annotated[
+        str | None,
+        Doc("The lemma with its harakat. `lemma` is the bare join key.")
+    ]
+    verb: Annotated[
+        VerbForms | None,
+        Doc("Perfect and imperfect, for a verb. Null otherwise."),
+    ]
     segments: Annotated[
         list[CliticSegment] | None,
         Doc(
@@ -1015,6 +1037,7 @@ EXPORTED: list[type] = [
     ShardConfig,
     BindingTally,
     CliticSegment,
+    VerbForms,
     AudioTrack,
     IndexCounts,
     IndexFile,

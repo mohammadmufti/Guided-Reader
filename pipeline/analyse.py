@@ -329,6 +329,66 @@ def merge_roots(camel_roots: list[str], arr_root: str | None,
     return None, [], None
 
 
+def build_verb_forms():
+    """
+    lemma -> (perfect, imperfect, wazn), for verbs.
+
+    Two citation forms, because one does not fix the scale: samiʿa could be
+    yasmaʿu, yasmiʿu or yasmuʿu, and knowing which is the whole point of citing
+    a verb as a pair.
+
+    The generation database is a SECOND open of the same CAMeL data
+    (`builtin_db(..., "g")`, about 35,337 lemmas). It runs once here, not per
+    word.
+
+    A wrinkle worth recording: the imperfect generates under mood `u` only.
+    `i`, `s` and `j` all return nothing, so asking for the plain indicative is
+    the one call that works.
+    """
+    try:
+        from camel_tools.morphology.database import MorphologyDB
+        from camel_tools.morphology.generator import Generator
+        gen = Generator(MorphologyDB.builtin_db("calima-msa-r13", "g"))
+    except Exception as exc:                       # pragma: no cover
+        print(f"  (no generation database: {exc}; verb pairs will be absent)")
+        return lambda lex: None
+
+    base = {"pos": "verb", "per": "3", "gen": "m", "num": "s", "vox": "a"}
+    cache: dict[str, dict | None] = {}
+
+    def forms(lex: str) -> dict | None:
+        if lex in cache:
+            return cache[lex]
+        out = None
+        try:
+            perf = gen.generate(lex, {**base, "asp": "p", "mod": "i"})
+            impf = gen.generate(lex, {**base, "asp": "i", "mod": "u"})
+        except Exception:
+            perf = impf = []
+        # The LONGEST, not the first alphabetically. The generator offers both
+        # the jussive-shaped stem and the full one — `يَقُل` beside `يَقُول` —
+        # and the shorter is not the citation form.
+        def pick(rows):
+            forms = {r["diac"] for r in rows if r.get("diac")}
+            return max(sorted(forms), key=len) if forms else None
+        p_, i_ = pick(perf), pick(impf)
+        # The indicative ending. CAMeL's `diac` gives the stem without the mood
+        # vowel — `يَسْمَع`, where a student needs `يَسْمَعُ`, because the whole
+        # use of the pair is to show the scale. Added only after a plain
+        # consonant: a defective verb ends in its own weak letter (`يَصْلِي`)
+        # and takes none.
+        if i_ and i_[-1] not in "\u0627\u0648\u064a\u0649" and not (
+                "\u064b" <= i_[-1] <= "\u0652"):
+            i_ += "\u064f"
+        if p_ and i_:
+            pat = next((r.get("pattern") for r in impf if r.get("pattern")), None)
+            out = {"perfect": p_, "imperfect": i_, "pattern": pat}
+        cache[lex] = out
+        return out
+
+    return forms
+
+
 def build_analyser():
     import arramooz.arabicdictionary as ad
     import qalsadi.lemmatizer as ql
@@ -417,6 +477,8 @@ def build_analyser():
                 return r
         return None
 
+    verb_forms = build_verb_forms()
+
     def analyse(form: str) -> dict | None:
         camel_lex: list[str] = []
         camel_seg: list = []
@@ -446,6 +508,9 @@ def build_analyser():
             "glossCamel": (camel_lex[1] or None) if len(camel_lex) > 1 else None,
             # Clitic boundaries, as letter counts. See `clitic_segments`.
             "segments": camel_seg[0] if camel_seg else None,
+            # The two citation forms of a verb, and the scale they set.
+            "verb": (verb_forms(camel_lex[0])
+                     if camel_lex and pos == "verb" else None),
             "pos": pos if pos not in ("all", "") else None,
             "root": root,
             "rootAlternatives": alternatives,

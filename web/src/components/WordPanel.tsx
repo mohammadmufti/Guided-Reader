@@ -230,8 +230,12 @@ function RootAndLemma({
     ana?.root ??
     rec?.root ??
     null;
+  // Vocalised first. `lemma` is the bare join key, and a lemma shown without
+  // its harakat is the one thing this reader exists to avoid — سمع tells a
+  // student nothing about whether it is samiʿa or sammaʿa.
   const lemma =
     token.contextLemma ??
+    entry.lemmaVocalised ??
     (entry.lemma && !entry.morphSuspect ? entry.lemma : (ana?.lemma ?? rec?.lemma ?? null));
   const source: "context" | "analysers-agree" | "workbook" | "analyser" | "corpus" | null =
     token.contextRoot
@@ -295,6 +299,26 @@ function RootAndLemma({
               style={{ unicodeBidi: "isolate" }}
             >
               {entry.lemma_din}
+            </span>
+          )}
+        </p>
+      )}
+      {entry.verb && (
+        // Both citation forms. One does not fix the scale — samiʿa could be
+        // yasmaʿu, yasmiʿu or yasmuʿu — so the pair is how the wazn is stated,
+        // and the pattern beside it states it outright.
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="arabic text-lg" lang="ar" dir="rtl">
+            {entry.verb.perfect} — {entry.verb.imperfect}
+          </span>
+          {entry.verb.pattern && (
+            <span
+              className="arabic text-sm text-(--color-ink-muted)"
+              lang="ar"
+              dir="rtl"
+              title="The scale (wazn) of the imperfect"
+            >
+              {entry.verb.pattern}
             </span>
           )}
         </p>

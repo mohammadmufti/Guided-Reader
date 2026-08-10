@@ -607,6 +607,17 @@ export interface CliticSegment {
   letters: number;
 }
 
+/**
+ * A verb's two citation forms, and the scale they set. One form does not fix the scale: samiʿa
+ * could be yasmaʿu, yasmiʿu or yasmuʿu. Citing the pair is how the wazn is stated, and
+ * `pattern` states it directly — `يَ1ْ2َ3` for yafʿalu.
+ */
+export interface VerbForms {
+  perfect: string;
+  imperfect: string;
+  pattern: string | null;
+}
+
 /** One recitation of one record. */
 export interface AudioTrack {
   label: string | null;
@@ -804,6 +815,10 @@ export interface PanelEntry {
    */
   morphSuspect: boolean;
   gloss: Gloss | null;
+  /** The lemma with its harakat. `lemma` is the bare join key. */
+  lemmaVocalised: string | null;
+  /** Perfect and imperfect, for a verb. Null otherwise. */
+  verb: VerbForms | null;
   /**
    * Clitic boundaries for this form, as letter counts in order. Null where the analyser could
    * not segment it safely, and the word is then shown whole. About 92% of forms segment.
