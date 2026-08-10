@@ -129,7 +129,7 @@ def build_camel():
     from camel_tools.morphology.database import MorphologyDB
     from camel_tools.utils.dediac import dediac_ar
 
-    az = Analyzer(MorphologyDB.builtin_db("calima-msa-r13"))
+    az = Analyzer(camel_db())
 
     def recover(root: str, lex: str | None) -> str | None:
         if "#" not in root:
@@ -329,6 +329,26 @@ def merge_roots(camel_roots: list[str], arr_root: str | None,
     return None, [], None
 
 
+_CAMEL_DB = None
+
+
+def camel_db():
+    """
+    The CAMeL morphology database, opened ONCE for both analysis and generation.
+
+    `builtin_db` with flags `"ag"` serves an Analyzer and a Generator from the
+    same tables. Opening it twice — once bare for analysis, once with `"g"` —
+    loaded a second copy of the same 339 MB and took the stage to 702 MB peak
+    for no gain. The runner has less headroom than this machine, so the second
+    copy was a plausible way to fail there and not here.
+    """
+    global _CAMEL_DB
+    if _CAMEL_DB is None:
+        from camel_tools.morphology.database import MorphologyDB
+        _CAMEL_DB = MorphologyDB.builtin_db("calima-msa-r13", "ag")
+    return _CAMEL_DB
+
+
 def build_verb_forms():
     """
     lemma -> (perfect, imperfect, wazn), for verbs.
@@ -337,18 +357,16 @@ def build_verb_forms():
     yasmaʿu, yasmiʿu or yasmuʿu, and knowing which is the whole point of citing
     a verb as a pair.
 
-    The generation database is a SECOND open of the same CAMeL data
-    (`builtin_db(..., "g")`, about 35,337 lemmas). It runs once here, not per
-    word.
+    Generation shares the analyser's database — see `camel_db`. It runs once
+    here, not per word.
 
     A wrinkle worth recording: the imperfect generates under mood `u` only.
     `i`, `s` and `j` all return nothing, so asking for the plain indicative is
     the one call that works.
     """
     try:
-        from camel_tools.morphology.database import MorphologyDB
         from camel_tools.morphology.generator import Generator
-        gen = Generator(MorphologyDB.builtin_db("calima-msa-r13", "g"))
+        gen = Generator(camel_db())
     except Exception as exc:                       # pragma: no cover
         print(f"  (no generation database: {exc}; verb pairs will be absent)")
         return lambda lex: None

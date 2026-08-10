@@ -143,3 +143,18 @@ def test_the_khattab_class_is_closed():
         assert root_key(got["root"]) == root_key(want), \
             f"{form}: {got['root']} (basis {got.get('rootBasis')}), wanted {want}"
         assert got.get("rootBasis"), f"{form}: choice carries no basis"
+
+
+def test_the_morphology_database_is_opened_once():
+    """Analysis and generation share one open, not two copies of the same data.
+
+    `builtin_db(..., "ag")` serves an Analyzer and a Generator from the same
+    tables. Opening it twice — bare for analysis, then "g" for generation —
+    loaded a second copy: 339 MB, then 332 MB again, for no gain. The runner
+    has less headroom than a workstation, so a duplicate of that size is a
+    plausible way to fail there and not here.
+    """
+    src = (BUILD.parent / "analyse.py").read_text(encoding="utf-8")
+    assert src.count("builtin_db(") == 1, "the database must be opened in one place"
+    assert '"calima-msa-r13", "ag"' in src
+    assert src.count("camel_db()") >= 2, "both callers must share it"
