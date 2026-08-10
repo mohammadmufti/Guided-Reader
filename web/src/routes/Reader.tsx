@@ -472,7 +472,11 @@ function PageView({
           transition: sheet.dragging ? "none" : "transform 0.25s ease-out",
         }}
         className={
-          "lg:order-1 lg:static lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
+          // `lg:relative` rather than `lg:static`: the close button is absolutely
+          // positioned in the column's top corner and needs this element as its
+          // containing block. On a phone the sheet is already `fixed`, which
+          // establishes one.
+          "lg:order-1 lg:relative lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
           "lg:bg-(--color-raised) lg:p-5 lg:shadow-sm " +
           // Half the screen, no more: at 68vh the sheet owned the phone and the
           // text became a sliver. dvh, not vh, so the browser chrome
@@ -527,6 +531,36 @@ function PageView({
               </button>
             </div>
           </div>
+        )}
+        {/* On a desktop the panel is a column beside the text, so it never
+            traps anyone — but there was no way to dismiss it except Escape or
+            choosing another word, and neither is discoverable. Same X, same
+            hit target, floated at the top of the column. Hidden on a phone,
+            where the sheet header above already carries one. */}
+        {activeToken !== null && (
+          <button
+            type="button"
+            onClick={() => onSelect(null, null)}
+            aria-label="إغلاق تفاصيل الكلمة"
+            title="Close (Esc)"
+            className="absolute end-2 top-2 z-10 hidden h-10 w-10 items-center
+                       justify-center rounded-md text-(--color-ink-muted)
+                       transition-colors hover:bg-(--color-rule)
+                       hover:text-(--color-ink) lg:flex"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
         )}
         <WordPanel
           index={index}
