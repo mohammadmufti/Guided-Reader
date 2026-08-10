@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type {
+  CliticSegment,
   IndexFile,
   HadithFile,
   Token,
@@ -247,6 +248,7 @@ function RootAndLemma({
 
   return (
     <Section title="الجذر واللفظ" subtitle="Root and lemma">
+      <WordBreakdown surface={token.surface} segments={entry.segments} />
       {root ? (
         <div className="flex items-baseline gap-3">
           <span className="arabic text-2xl tracking-[0.35em]" lang="ar" dir="rtl">
@@ -1001,5 +1003,86 @@ function Note({ children }: { children: React.ReactNode }) {
     <p className="text-xs leading-relaxed text-(--color-ink-muted)" dir="ltr">
       {children}
     </p>
+  );
+}
+
+/**
+ * The word, split into what is attached and what is the word.
+ *
+ * Colours by KIND ONLY — prefix, stem, attached pronoun. Not by which prefix:
+ * the analyser labels the types, and gets them wrong in plain cases, reading
+ * the emphatic lam of `إِنَّ الأمرَ لَيَسيرٌ` as a preposition. A colour that
+ * says "something is attached here" is true; one that says "this is the lam of
+ * purpose" would sometimes not be.
+ *
+ * The letters are the SOURCE's. `segments` carries counts, never text, so this
+ * splits the word already on screen rather than substituting the analyser's
+ * spelling. Marks travel with the letter they sit on.
+ */
+function WordBreakdown({
+  surface,
+  segments,
+}: {
+  surface: string;
+  segments: CliticSegment[] | null;
+}) {
+  if (!segments || segments.length < 2) return null;
+
+  const MARK = /[\u064b-\u0652\u0670\u0640]/;
+  const chunks: { kind: string; text: string }[] = [];
+  let i = 0;
+  for (const seg of segments) {
+    let taken = 0;
+    let text = "";
+    while (i < surface.length) {
+      const ch = surface[i] as string;
+      const isMark = MARK.test(ch);
+      if (!isMark && taken >= seg.letters) break;
+      if (!isMark) taken += 1;
+      text += ch;
+      i += 1;
+    }
+    chunks.push({ kind: seg.kind, text });
+  }
+  // Anything left over means the counts and the word disagreed. Say nothing
+  // rather than colour the word wrongly.
+  if (i < surface.length) return null;
+
+  const style: Record<string, string> = {
+    prefix: "text-(--color-accent)",
+    stem: "text-(--color-ink)",
+    enclitic: "text-(--color-accent)",
+  };
+  const label: Record<string, string> = {
+    prefix: "prefix",
+    stem: "the word",
+    enclitic: "attached pronoun",
+  };
+
+  return (
+    <div className="mb-3">
+      <p className="arabic text-2xl leading-loose" lang="ar" dir="rtl">
+        {chunks.map((c, n) => (
+          <span
+            key={n}
+            className={
+              (style[c.kind] ?? "") +
+              (c.kind === "stem"
+                ? ""
+                : " underline decoration-dotted underline-offset-4")
+            }
+            title={label[c.kind] ?? c.kind}
+          >
+            {c.text}
+          </span>
+        ))}
+      </p>
+      <p className="text-xs text-(--color-ink-muted)" dir="ltr">
+        {chunks
+          .map((c) => label[c.kind] ?? c.kind)
+          .filter((v, n, a) => a.indexOf(v) === n)
+          .join(" · ")}
+      </p>
+    </div>
   );
 }

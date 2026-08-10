@@ -303,6 +303,7 @@ class Lexicon:
             # Vocalised, for the Lane headword lookup. See build.py.
             "lemmaVocalised": analysis.get("lemmaVocalised"),
             "glossCamel": analysis.get("glossCamel"),
+            "segments": analysis.get("segments"),
             "root": analysis.get("root"),
             # The key the classical apparatus is looked up by. A workbook entry
             # carries it already; a minted one did not, so a corpus without a
@@ -1404,6 +1405,7 @@ def main() -> int:
                     "lane_root": lex.entry[mid].get("lane_root"),
                     "lemmaVocalised": lex.entry[mid].get("lemmaVocalised"),
                     "glossCamel": lex.entry[mid].get("glossCamel"),
+                    "segments": lex.entry[mid].get("segments"),
                     "fromWitness": True,
                     # Enrichment from a sibling corpus. Carried explicitly so
                     # the interface can say WHERE a gloss came from: it belongs

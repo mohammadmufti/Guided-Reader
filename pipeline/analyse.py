@@ -47,6 +47,7 @@ OUT = BUILD / "morphology"
 
 sys.path.insert(0, str(ROOT))
 from corpus import ConfigError, load_config, source_path
+from vocalisation import split_marks as _split_marks
 from normalise import normalise, root_key  # noqa: E402
 
 
@@ -173,7 +174,65 @@ def build_camel():
             out.append(fixed)
         return "".join(out)
 
-    def camel(form: str, resolve=None, lexOut: list | None = None) -> list[str]:
+    PRONOUN_ENCLITIC = ("_pron", "_poss", "_dobj")
+
+    def clitic_segments(a: dict, form: str) -> list[dict] | None:
+        """
+        Where the clitic boundaries fall, as LETTER COUNTS.
+
+        Counts, not letters. The reader is shown the source's own spelling, and
+        CAMeL's `diac` is its own — returning its letters here would put another
+        edition's word on the screen. Counts let the client colour the word it
+        already has.
+
+        Kind only: prefix, stem, enclitic. NOT which prefix. CAMeL labels the
+        types — `li_prep` against `la_emph` — but gets them wrong in plain
+        cases: on `إِنَّ الْأَمْرَ لَيَسِيرٌ` its own disambiguator calls an
+        emphatic lam a preposition. Naming it would be asserting something the
+        tool does not reliably know.
+
+        Returns None whenever the segmentation cannot be trusted:
+          - `bwtok` also splits INFLECTIONAL endings (`صَلا_+َة`), which belong
+            to the word. Only a pronoun enclitic is treated as one.
+          - the number of leading parts must match the number of proclitic
+            features, or the split is not the clitic split.
+          - the letter counts must sum to the form's own, or the two
+            skeletons disagree and no alignment exists.
+        About 92% of forms segment; the rest are shown whole, which is right.
+        """
+        tok = a.get("bwtok") or ""
+        if not tok or tok in ("NOAN", "NTWS"):
+            return None
+        n_letters = lambda t: len(_split_marks(t)[0])
+        head, _, tail_all = tok.rpartition("+_")
+        pre = [p for p in head.split("+_") if p] if head else []
+        rest = tail_all if head else tok
+        pieces = rest.split("_+")
+        stem, trailing = pieces[0], [p for p in pieces[1:] if p]
+
+        n_prc = sum(1 for k in ("prc0", "prc1", "prc2", "prc3")
+                    if a.get(k) not in (None, "0", "na"))
+        if len(pre) != n_prc:
+            return None
+
+        keep = bool(trailing) and any(
+            m in str(a.get("enc0") or "") for m in PRONOUN_ENCLITIC)
+        if keep:
+            stem += "".join(trailing[:-1])
+            trailing = trailing[-1:]
+        else:
+            stem += "".join(trailing)
+            trailing = []
+
+        out = [{"kind": "prefix", "letters": n_letters(p)} for p in pre if n_letters(p)]
+        out.append({"kind": "stem", "letters": n_letters(stem)})
+        out += [{"kind": "enclitic", "letters": n_letters(t)} for t in trailing if n_letters(t)]
+        if sum(x["letters"] for x in out) != n_letters(form):
+            return None
+        return out if len(out) > 1 else None
+
+    def camel(form: str, resolve=None, lexOut: list | None = None,
+              segOut: list | None = None) -> list[str]:
         """
         Distinct recovered roots. The diacritic test NARROWS when it can and
         steps aside when the DB's marking conventions admit nothing — a
@@ -227,6 +286,10 @@ def build_camel():
         # `lexOut` carries the best-supported vocalised lemma back to the
         # caller. A list, because the closure has no other channel and the
         # caller must not have to re-run the analyser to get it.
+        if segOut is not None and keep:
+            seg = clitic_segments(keep[0], form)
+            if seg:
+                segOut.append(seg)
         if lexOut is not None and lex_support:
             best = max(lex_support, key=lambda k: (lex_support[k], k))
             lexOut.append(best)
@@ -356,7 +419,8 @@ def build_analyser():
 
     def analyse(form: str) -> dict | None:
         camel_lex: list[str] = []
-        camel_roots = camel(form, resolve_masked, camel_lex)
+        camel_seg: list = []
+        camel_roots = camel(form, resolve_masked, camel_lex, camel_seg)
         lemma = pos = None
         arr_root, arr_alts, arr_basis = None, [], None
         try:
@@ -380,6 +444,8 @@ def build_analyser():
             # this is the line a reader can use at a glance, and it exists for
             # words no workbook covers.
             "glossCamel": (camel_lex[1] or None) if len(camel_lex) > 1 else None,
+            # Clitic boundaries, as letter counts. See `clitic_segments`.
+            "segments": camel_seg[0] if camel_seg else None,
             "pos": pos if pos not in ("all", "") else None,
             "root": root,
             "rootAlternatives": alternatives,

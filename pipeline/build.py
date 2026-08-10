@@ -88,6 +88,7 @@ SURFACE_KEEP = [
     "doc_freq", "pos", "lemma", "lemma_din", "root", "lane_root",
     "literal_sense", "technical_sense", "domain", "divergence", "overlap_score",
     "voc_source", "morph_confidence", "pos_agreement", "layers", "glossCamel",
+    "segments",
 ]
 # Lane's editorial apparatus and OCR debris, which the keyword extraction picks
 # up alongside real senses. A pure frequency cutoff will not do this job:
@@ -742,6 +743,11 @@ def main() -> int:
         _gc = e.get("glossCamel") or (
             analyses.get(str(e.get("vocalized"))) or {}).get("glossCamel")
         trimmed["glossQuick"] = parse_gloss(_gc)
+        # Clitic boundaries for this form, as letter counts. Absent where the
+        # analyser could not segment it safely, and the word is shown whole.
+        trimmed["segments"] = (
+            e.get("segments")
+            or (analyses.get(str(e.get("vocalized"))) or {}).get("segments"))
         # Isnad names should read as a person, not a failed lexical lookup.
         trimmed["isName"] = e["unvocalized"] in names
         # Where the analysis lost the stem, try to get it back from the corpus

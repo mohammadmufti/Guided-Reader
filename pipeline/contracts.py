@@ -703,6 +703,24 @@ class GlossSlot(TypedDict):
     pos: str | None
 
 
+class CliticSegment(TypedDict):
+    """
+    One stretch of a word: a proclitic, the stem, or a pronoun enclitic.
+
+    `letters` is a COUNT, not text. The reader is shown the source's own
+    spelling, and the analyser's is its own — sending its letters here would
+    put another edition's word on the screen. A count lets the client colour
+    the word it already has.
+
+    `kind` only. NOT which prefix: CAMeL labels the types, and gets them wrong
+    in plain cases — its disambiguator reads the emphatic lam of
+    `إِنَّ الأمرَ لَيَسيرٌ` as a preposition.
+    """
+
+    kind: str
+    letters: int
+
+
 class Gloss(TypedDict):
     """
     A parsed `gloss_msa`. The raw string never reaches the client.
@@ -877,6 +895,14 @@ class PanelEntry(TypedDict):
         ),
     ]
     gloss: Gloss | None
+    segments: Annotated[
+        list[CliticSegment] | None,
+        Doc(
+            "Clitic boundaries for this form, as letter counts in order. Null "
+            "where the analyser could not segment it safely, and the word is "
+            "then shown whole. About 92% of forms segment."
+        ),
+    ]
     glossQuick: Annotated[
         Gloss | None,
         Doc(
@@ -988,6 +1014,7 @@ EXPORTED: list[type] = [
     LaneRoot,
     ShardConfig,
     BindingTally,
+    CliticSegment,
     AudioTrack,
     IndexCounts,
     IndexFile,

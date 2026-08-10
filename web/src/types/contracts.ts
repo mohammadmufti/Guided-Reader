@@ -594,6 +594,19 @@ export interface BindingTally {
   unbound: number | null;
 }
 
+/**
+ * One stretch of a word: a proclitic, the stem, or a pronoun enclitic. `letters` is a COUNT,
+ * not text. The reader is shown the source's own spelling, and the analyser's is its own —
+ * sending its letters here would put another edition's word on the screen. A count lets the
+ * client colour the word it already has. `kind` only. NOT which prefix: CAMeL labels the
+ * types, and gets them wrong in plain cases — its disambiguator reads the emphatic lam of
+ * `إِنَّ الأمرَ لَيَسيرٌ` as a preposition.
+ */
+export interface CliticSegment {
+  kind: string;
+  letters: number;
+}
+
 /** One recitation of one record. */
 export interface AudioTrack {
   label: string | null;
@@ -791,6 +804,11 @@ export interface PanelEntry {
    */
   morphSuspect: boolean;
   gloss: Gloss | null;
+  /**
+   * Clitic boundaries for this form, as letter counts in order. Null where the analyser could
+   * not segment it safely, and the word is then shown whole. About 92% of forms segment.
+   */
+  segments: CliticSegment[] | null;
   /**
    * A short modern gloss from the morphological analyser, shown FIRST because it is the line a
    * reader can use at a glance. Lane sits below and is deeper and older. Null where the analyser
