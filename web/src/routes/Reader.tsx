@@ -498,6 +498,21 @@ function PageView({
           // establishes one.
           "lg:order-1 lg:relative lg:block lg:rounded-lg lg:border lg:border-(--color-rule) " +
           "lg:bg-(--color-raised) lg:p-5 lg:shadow-sm " +
+          // STICKY, WITH ITS OWN SCROLL. The panel is a column beside a text
+          // that can run for pages: scrolling the page to read the matn used to
+          // carry the word panel away with it, and a long Lane article could
+          // not be read at all without losing your place in the hadith.
+          //
+          // `sticky` keeps the top of the panel in view as the page moves;
+          // capping its height and letting it scroll internally means a long
+          // entry scrolls inside the box. `overscroll-contain` stops that inner
+          // scroll from continuing into the page once it reaches the end, which
+          // is the behaviour that makes the two feel separate rather than
+          // chained. The phone sheet already has all of this.
+          // `self-start` matters: a grid item stretches to the row height by
+          // default, and a full-height box has nothing to stick to.
+          "lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100dvh-2rem)] " +
+          "lg:overflow-y-auto lg:overscroll-contain " +
           // Half the screen, no more: at 68vh the sheet owned the phone and the
           // text became a sliver. dvh, not vh, so the browser chrome
           // collapsing does not push the sheet over the cap.
