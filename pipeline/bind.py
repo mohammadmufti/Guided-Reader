@@ -71,6 +71,10 @@ GENITIVE_TRIGGERS = {
 ACCUSATIVE_TRIGGERS = {normalise(w) for w in "إن أن كأن لكن لعل ليت إنما".split()}
 
 RETRIEVAL_DF_CEILING = 400   # ignore tokens appearing in more rows than this
+# How much of an addition's own text the cited hadith must contain before a
+# link is emitted. Not a similarity score: a measurement of presence.
+CROSSREF_CONTAINMENT = 0.90
+
 MIN_COVERAGE = 0.35          # below this the retrieved row is not the counterpart
 ANCHOR_BLOCK = 2             # matching blocks this short do not pin down position
 WITNESS_BLOCK = 3            # blocks this long are trusted to correct the lexicon
@@ -352,6 +356,28 @@ class WitnessIndex:
     """Content retrieval over a fully-diacritised witness edition."""
 
     @staticmethod
+    def _read_numbered(path: Path) -> tuple[list[str], list[int | None]]:
+        """
+        Rows, and the hadith number each carries — None where the source has none.
+
+        A single-column CSV has no numbers. The sunnah.com-derived JSON does,
+        in `idInBook`, and that number is what a cross-reference link resolves
+        with.
+        """
+        if path.suffix.lower() == ".json":
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            items = doc["hadiths"] if isinstance(doc, dict) else doc
+            rows, nums = [], []
+            for h in items:
+                if h.get("arabic"):
+                    rows.append(str(h["arabic"]))
+                    n = h.get("idInBook")
+                    nums.append(int(n) if n is not None else None)
+            return rows, nums
+        rows = WitnessIndex._read(path)
+        return rows, [None] * len(rows)
+
+    @staticmethod
     def _read(path: Path) -> list[str]:
         """
         One vocalised unit per row, from CSV or JSON.
@@ -367,8 +393,18 @@ class WitnessIndex:
             return [str(h["arabic"]) for h in items if h.get("arabic")]
         return pd.read_csv(path).iloc[:, 0].astype(str).tolist()
 
-    def __init__(self, path: Path) -> None:
-        rows = self._read(path)
+    def __init__(self, path: Path | list[Path]) -> None:
+        # SEVERAL SOURCES, ONE INDEX. al-Tajrid is witnessed by a vocalised
+        # Bukhari CSV, which carries no hadith numbers, and by a numbered
+        # sunnah.com-derived Bukhari, which does. Merging them means retrieval
+        # picks the better row of the two AND the winner can say which hadith
+        # it is — the zawa'id needed both and neither source gave both.
+        paths = path if isinstance(path, list) else [path]
+        rows, self.numbers = [], []
+        for one in paths:
+            r, n = self._read_numbered(one)
+            rows += r
+            self.numbers += n
         self.forms = [
             [STRIP_EDGE.sub("", t) for t in s.split() if ARABIC.search(t)] for s in rows
         ]
@@ -384,8 +420,25 @@ class WitnessIndex:
                 if df[w] <= RETRIEVAL_DF_CEILING:
                     self.postings[w].append(i)
 
-    def retrieve(self, query: list[str]) -> tuple[int | None, float]:
+    def retrieve(self, query: list[str], numbered_only: bool = False
+                 ) -> tuple[int | None, float]:
+        """
+        `numbered_only` restricts the answer to rows that carry a hadith number.
+
+        Two different questions are asked of this index. "Which row best attests
+        this text" wants every row, and the unnumbered edition usually wins it —
+        it is the one al-Tajrid was abridged from. "Which hadith IS this" can
+        only be answered by a numbered row, and asking it of the merged index
+        returned a number for 5 of 88 additions rather than 80.
+        """
         scores: dict[int, float] = collections.defaultdict(float)
+        # `getattr`: the determinism tests build an index by hand to control
+        # exactly what is in it, and an unconditional attribute read here broke
+        # them. A hand-built index has no numbers, which is the same thing as
+        # every row being unnumbered.
+        numbered = getattr(self, "numbers", None)
+        if numbered is None:
+            numbered_only = False
         # `sorted`, not bare `set`. Set iteration order over strings depends on
         # PYTHONHASHSEED, and float `+=` is not associative, so the same query
         # summed in a different order lands on a different value in the last
@@ -398,6 +451,8 @@ class WitnessIndex:
         # a number you cannot reproduce is not a measurement.
         for w in sorted(set(query)):
             for i in self.postings.get(w, ()):
+                if numbered_only and numbered[i] is None:
+                    continue
                 scores[i] += self.idf[w]
         if not scores:
             return None, 0.0
@@ -491,12 +546,17 @@ def bind_corpus(
     witness_idx: WitnessIndex | None,
     corrections: tuple[dict, dict] = ({}, {}),
     strip: tuple[re.Pattern[str], ...] = (),
+    aside_layer: str | None = None,
 ) -> tuple[dict, dict]:
     bound: dict[str, dict] = {}
     tally = collections.Counter()
     tally_matn = collections.Counter()
     reasons = collections.Counter()
-    retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": []}
+    retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": [],
+                 "crossrefs_added": 0}
+    # record id -> [hadith number]. Carried on the BINDING, because bind writes
+    # bindings.json and never rewrites records.json.
+    inferred_refs: dict[str, list[int]] = {}
     ref_agree = {"checked": 0, "consistent": 0}
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
@@ -576,6 +636,27 @@ def bind_corpus(
                 retrieval["low_coverage"] += 1
             else:
                 retrieval["coverages"].append(coverage)
+
+                # ---- a cross-reference for an addition ---------------------
+                #
+                # al-Diya's zawa'id are in Bukhari; al-Zabidi left them out.
+                # They carry no `(بخاري: N)` note, because that note is the
+                # editor's own and he wrote it only for the matn.
+                #
+                # The claim is CONTAINMENT, not identity: that this hadith
+                # contains this text. A reader can check it, and it is the only
+                # claim the data supports — asking instead "is this the hadith
+                # the editor would have cited" scored 78%, because Bukhari
+                # repeats a matn across chapters and its isnad swamps the
+                # comparison. Containment on these runs at a median of 1.000.
+                if aside_layer and rec["layer"] == aside_layer and not rec.get("crossRefs"):
+                    nrow, _ = witness_idx.retrieve(keys, numbered_only=True)
+                    if nrow is not None:
+                        present = len(set(keys) & set(witness_idx.norm[nrow]))
+                        if present / max(len(set(keys)), 1) >= CROSSREF_CONTAINMENT:
+                            inferred_refs[rec["id"]] = [witness_idx.numbers[nrow]]
+                            retrieval["crossrefs_added"] += 1
+
                 # Which keys appear in this Bukhari row with more than one
                 # vocalisation? For those, a short matching block does not
                 # actually pin down WHICH occurrence we aligned to.
@@ -613,7 +694,27 @@ def bind_corpus(
                         # the alignment is not an addition to the evidence, it
                         # is the evidence, so mint on any matched position and
                         # let the block length govern CONFIDENCE instead.
-                        if size >= WITNESS_BLOCK or not lex.curated:
+                        # NOT from the cross-reference witness. That index is a
+                        # DIFFERENT EDITION, consulted only to place an
+                        # addition; minting its readings put them in the shared
+                        # inventory, where they became rival candidates for
+                        # matn tokens that previously had exactly one. Tier 1
+                        # on the matn fell from 97.2% to 95.7% — a change to
+                        # the whole corpus, paid for a feature that touches 88
+                        # records.
+                        #
+                        # Its vowelling is still shown on the addition itself,
+                        # below. What it does not do is vote on other words.
+                        # A numbered row comes from the cross-reference
+                        # edition, which is consulted to PLACE an addition and
+                        # must not vote on the inventory: minting its readings
+                        # made them rival candidates for matn tokens that had
+                        # exactly one, and Tier 1 on the matn fell from 97.2%
+                        # to 95.7%. Its vowelling still reaches the addition it
+                        # was retrieved for.
+                        from_primary = witness_idx.numbers[row] is None
+                        if from_primary and (
+                                size >= WITNESS_BLOCK or not lex.curated):
                             lex.mint_from_witness(keys[i], witness)
 
                         # Tier 0 is never overwritten -- but a witness that
@@ -863,6 +964,8 @@ def bind_corpus(
             if rec["layer"] == "matn":
                 tally_matn[tier] += 1
         bound[rec["id"]] = {"leading": leading, "tokens": out}
+        if rec["id"] in inferred_refs:
+            bound[rec["id"]]["crossRefsInferred"] = inferred_refs[rec["id"]]
 
     reasons.update(repairs)
     reasons["Tier 1 unopposed but unwitnessed"] = unopposed
@@ -1294,7 +1397,23 @@ def main() -> int:
     else:
         lex = Lexicon()
 
-    witness_idx = WitnessIndex(witness_file) if witness_file else None
+    # A second, NUMBERED witness where the corpus declares one. Optional: a
+    # corpus without it behaves exactly as before.
+    extra = source_path(cfg, "cross_reference_witness", required=False)
+    # TWO INDICES, NOT ONE MERGED. The numbered Bukhari is a different edition
+    # of the same book, and letting it compete for the matn cost 1.4 points of
+    # Tier 2 — its rows won often enough to displace the edition al-Tajrid was
+    # actually abridged from. It is consulted for the ADDITIONS only, which the
+    # primary witness covers poorly and which need a number besides.
+    # ONE MERGED INDEX. Retrieval then picks the better row of the two, which
+    # is what the additions needed: 48.9% aligned to 66.0%. Choosing an index
+    # per record instead scored 42.5% — worse than either alone, because the
+    # forced choice discards a better row from the other source.
+    #
+    # What must NOT merge is the INVENTORY. See the minting guard below.
+    aside_layer = cfg["segmentation"]["layer_names"].get("aside")
+    witness_files = [f for f in (witness_file, extra) if f]
+    witness_idx = WitnessIndex(witness_files) if witness_files else None
     if witness_idx is not None and workbook is None and not lex.have_analyses:
         print(
             "WARNING: no build/morphology/analyses.json, and this corpus has no\n"
@@ -1320,7 +1439,8 @@ def main() -> int:
               f"(no workbook; this is the candidate inventory)\n")
 
     bound, stats = bind_corpus(
-        records, lex, witness_idx, strip=inline_strip_patterns(cfg)
+        records, lex, witness_idx, strip=inline_strip_patterns(cfg),
+        aside_layer=aside_layer,
     )
     if witness_idx is None:
         stats["retrieval"]["skipped"] = True

@@ -585,7 +585,12 @@ def main() -> int:
             "kitab": rec["kitab"], "bab": rec["bab"], "pages": rec["pages"],
             "leading": b["leading"],
             "zawaidNote": rec["zawaidNote"],
-            "crossRefs": rec["crossRefs"],
+            # The editor's own `(بخاري: N)` note, or — for an addition he did
+            # not annotate — the hadith the binder found contains its text.
+            # Marked separately so the reader can tell whose claim it is.
+            "crossRefs": rec["crossRefs"] or b.get("crossRefsInferred") or [],
+            "crossRefsInferred": bool(
+                not rec["crossRefs"] and b.get("crossRefsInferred")),
             "prev": rec["prev"], "next": rec["next"],
             "audio": next(
                 (audio_by_number[n] for n in rec["numbersCovered"]

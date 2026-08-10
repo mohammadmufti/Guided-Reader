@@ -37,6 +37,21 @@ sources:
     path: Tajrid_frequency_tables.xlsx
     filename: Tajrid_frequency_tables.xlsx
 
+  # A SECOND Bukhari, carrying hadith numbers. The CSV above is a single
+  # column and cannot say which hadith a row is, so al-Diya's 88 zawa'id —
+  # which al-Zabidi left out but which are in Bukhari — had no way to link
+  # anywhere. This one is numbered, and it is also more completely vowelled,
+  # so it improves the readings as well as supplying the reference.
+  cross_reference_witness:
+    kind: http
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/the_9_books/bukhari.json
+    filename: bukhari_numbered.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference and to resolve a hadith number; no text from it is
+      redistributed in the payload.
+
   vocalisation_reference:
     kind: http
     # Fully-diacritised Sahih al-Bukhari, the Phase 3 Tier-2 alignment target.

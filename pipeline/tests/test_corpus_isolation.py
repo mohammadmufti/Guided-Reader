@@ -556,3 +556,32 @@ def test_every_corpus_witness_is_analysed():
     assert "witness readings from" in src, \
         "analyse.py must read every corpus's witness, not only --corpus's"
     assert "WitnessIndex._read" in src, "must handle CSV and JSON witnesses alike"
+
+
+def test_the_cross_reference_witness_does_not_vote_on_the_inventory():
+    """It places an addition. It must not mint readings for other words.
+
+    The numbered Bukhari is a DIFFERENT EDITION of the same book, carried so
+    al-Diya's zawa'id can be located and linked. Minting its readings put them
+    in the shared inventory, where they became rival candidates for matn tokens
+    that previously had exactly one — Tier 1 on the matn fell from 97.2% to
+    95.7%, a change to the whole corpus paid for a feature touching 88 records.
+
+    A numbered row identifies that edition, so the guard reads off the row.
+    """
+    src = (corpus.ROOT / "bind.py").read_text(encoding="utf-8")
+    assert "from_primary = witness_idx.numbers[row] is None" in src
+    assert "if from_primary and (" in src
+
+
+def test_an_inferred_reference_is_marked_as_ours():
+    """The editor's citation and the binder's match are different claims.
+
+    `(بخاري: N)` is al-Diya's own attribution. An addition's number is ours:
+    the binder found a hadith whose text CONTAINS it, at 90% of content words
+    or better. It must not read identically to his in the payload or on screen.
+    """
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    assert '"crossRefsInferred"' in src
+    reader = (corpus.ROOT.parent / "web/src/routes/Reader.tsx").read_text(encoding="utf-8")
+    assert "inferred={add.crossRefsInferred}" in reader

@@ -24,8 +24,8 @@ dictionary entry in one of several ways, and the panel always tells you which.
 
 | How the reading was arrived at | Share | Accuracy |
 |---|--:|--:|
-| Transferred from a vocalised Bukhārī edition at the aligned word | 49.5% | high |
-| One entry matched, and its vowelling was witnessed | 45.8% | not in doubt |
+| Transferred from a vocalised Bukhārī edition at the aligned word | 49.3% | high |
+| One entry matched, and its vowelling was witnessed | 46.1% | not in doubt |
 | Inferred from the same phrase elsewhere in the book | 2.1% | **97.2%** |
 | The most frequent reading of that spelling — a guess | 1.5% | **71.3%** |
 | One entry matched, but its vowelling was itself a guess | 1.1% | consonants certain, vowels not |

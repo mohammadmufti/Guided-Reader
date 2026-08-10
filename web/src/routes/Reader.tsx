@@ -437,7 +437,11 @@ function PageView({
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
             {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
             {main.crossRefs.length > 0 && (
-              <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
+              <CrossRefs
+                refs={main.crossRefs}
+                link={index.corpus.referenceLink}
+                inferred={main.crossRefsInferred}
+              />
             )}
 
           </span>
@@ -461,11 +465,26 @@ function PageView({
             {/* Whose addition, and that it is not the original — from the
                 corpus, not from this file. It named al-Diya' al-Daghistani for
                 every text that has additions, which by now is two. */}
-            {index.corpus.asideNote && (
-              <p className="mb-3 text-xs text-(--color-ink-muted)" lang="ar">
-                {index.corpus.asideNote}
-              </p>
-            )}
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {index.corpus.asideNote && (
+                <p className="text-xs text-(--color-ink-muted)" lang="ar">
+                  {index.corpus.asideNote}
+                </p>
+              )}
+              {/* Where the addition is found in Bukhari. al-Zabidi left these
+                  out, so the editor wrote no `(بخاري: N)` note for them and
+                  the reader had no way through. The reference is ours, not
+                  his, and says so. */}
+              {add.crossRefs.length > 0 && (
+                <span className="text-xs text-(--color-ink-muted)" dir="ltr">
+                  <CrossRefs
+                    refs={add.crossRefs}
+                    link={index.corpus.referenceLink}
+                    inferred={add.crossRefsInferred}
+                  />
+                </span>
+              )}
+            </div>
             {/* A zawa'id addition is an unnumbered hadith, not decoration.
                 Its words were left inert in Phase 5, before the panel existed,
                 and stayed that way — 6,063 tokens a reader could see but not
@@ -667,9 +686,12 @@ function PageView({
 function CrossRefs({
   refs,
   link,
+  inferred = false,
 }: {
   refs: number[];
   link: { label: string; labelAr: string; url: string } | null;
+  /** Found by the binder rather than stated by the editor. */
+  inferred?: boolean;
 }) {
   if (!link) {
     return <span className="tabular-nums">{refs.join(", ")}</span>;
@@ -679,8 +701,15 @@ function CrossRefs({
   // a place to go. With several numbers the label leads and each number is its
   // own link, since they point at different hadith.
   const single = refs.length === 1;
+  // WHOSE CLAIM IS THIS. The editor's `(بخاري: N)` is his attribution and the
+  // reason the matn carries a number at all. An addition's number is ours: the
+  // binder found a hadith containing the text, measured, and that is a weaker
+  // and different claim. It must not read identically to his.
+  const note = inferred
+    ? " — يوافق نصه / matches this text"
+    : "";
   return (
-    <span className="tabular-nums">
+    <span className="tabular-nums" title={inferred ? "Found by matching the text, not cited by the editor" : undefined}>
       {!single && `${link.label} `}
       {refs.map((n, i) => (
         <span key={n}>
@@ -697,6 +726,11 @@ function CrossRefs({
           </a>
         </span>
       ))}
+      {note && (
+        <span className="text-(--color-ink-muted)" lang="ar">
+          {note}
+        </span>
+      )}
     </span>
   );
 }
