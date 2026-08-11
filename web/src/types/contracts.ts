@@ -51,12 +51,6 @@ export interface CorpusAbout {
   description: string[];
   /** Where the text and apparatus come from. */
   sources: AboutSource[];
-  /**
-   * True where `crossRefs` was found by the binder rather than stated by the editor. al-Diya's
-   * additions carry no `(بخاري: N)` note, so theirs are inferred: the claim is that the cited
-   * hadith CONTAINS this text, measured at 90% of its content words or better.
-   */
-  crossRefsInferred: boolean;
   /** Recitation links; playback is planned, links ship now. */
   audio: CorpusAudio | null;
 }
@@ -482,7 +476,6 @@ export interface HadithFile {
   leading: string;
   zawaidNote: string | null;
   crossRefs: number[];
-  crossRefsInferred: boolean;
   tokens: Token[];
   prev: string | null;
   next: string | null;

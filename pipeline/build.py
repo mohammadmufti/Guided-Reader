@@ -585,12 +585,10 @@ def main() -> int:
             "kitab": rec["kitab"], "bab": rec["bab"], "pages": rec["pages"],
             "leading": b["leading"],
             "zawaidNote": rec["zawaidNote"],
-            # The editor's own `(بخاري: N)` note, or — for an addition he did
-            # not annotate — the hadith the binder found contains its text.
-            # Marked separately so the reader can tell whose claim it is.
-            "crossRefs": rec["crossRefs"] or b.get("crossRefsInferred") or [],
-            "crossRefsInferred": bool(
-                not rec["crossRefs"] and b.get("crossRefsInferred")),
+            # Always the editor's own. al-Zabidi writes `(بخاري: N)` on the
+            # matn and al-Diya a bare `(N)` on his additions; segment.py reads
+            # both. Nothing here is inferred.
+            "crossRefs": rec["crossRefs"],
             "prev": rec["prev"], "next": rec["next"],
             "audio": next(
                 (audio_by_number[n] for n in rec["numbersCovered"]

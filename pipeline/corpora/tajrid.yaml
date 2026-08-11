@@ -113,6 +113,10 @@ segmentation:
 
   # Editorial apparatus, excluded from the text and from the token count.
   editorial_reference: '\(\s*بخاري\s*:\s*([\d\s،,و\u2013-]+?)\s*\)'
+  # al-Diya cites his additions as a bare `(4509)` after the report, where
+  # al-Zabidi writes `(بخاري: N)`. Applied to the aside layer only: a bare
+  # number in the matn is not a citation.
+  aside_reference: '\((\d{1,5})\)'
 
   # Where an editorial cross-reference points. al-Tajrid cites Sahih al-Bukhari
   # by the standard numbering, which runs to 7,563 — the same range our extracted

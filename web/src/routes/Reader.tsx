@@ -437,11 +437,7 @@ function PageView({
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
             {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
             {main.crossRefs.length > 0 && (
-              <CrossRefs
-                refs={main.crossRefs}
-                link={index.corpus.referenceLink}
-                inferred={main.crossRefsInferred}
-              />
+              <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
             )}
 
           </span>
@@ -477,11 +473,7 @@ function PageView({
                   his, and says so. */}
               {add.crossRefs.length > 0 && (
                 <span className="text-xs text-(--color-ink-muted)" dir="ltr">
-                  <CrossRefs
-                    refs={add.crossRefs}
-                    link={index.corpus.referenceLink}
-                    inferred={add.crossRefsInferred}
-                  />
+                  <CrossRefs refs={add.crossRefs} link={index.corpus.referenceLink} />
                 </span>
               )}
             </div>
@@ -686,12 +678,9 @@ function PageView({
 function CrossRefs({
   refs,
   link,
-  inferred = false,
 }: {
   refs: number[];
   link: { label: string; labelAr: string; url: string } | null;
-  /** Found by the binder rather than stated by the editor. */
-  inferred?: boolean;
 }) {
   if (!link) {
     return <span className="tabular-nums">{refs.join(", ")}</span>;
@@ -701,13 +690,8 @@ function CrossRefs({
   // a place to go. With several numbers the label leads and each number is its
   // own link, since they point at different hadith.
   const single = refs.length === 1;
-  // WHOSE CLAIM IS THIS. The editor's `(بخاري: N)` is his attribution; an
-  // addition's number is ours, found by matching the text. The distinction is
-  // kept in the title attribute and in `crossRefsInferred` on the payload,
-  // not as visible text: on screen the link is doing the work, and a trailing
-  // gloss beside every one of 79 references is noise.
   return (
-    <span className="tabular-nums" title={inferred ? "Found by matching the text, not cited by the editor" : undefined}>
+    <span className="tabular-nums">
       {!single && `${link.label} `}
       {refs.map((n, i) => (
         <span key={n}>

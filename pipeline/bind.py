@@ -71,10 +71,6 @@ GENITIVE_TRIGGERS = {
 ACCUSATIVE_TRIGGERS = {normalise(w) for w in "إن أن كأن لكن لعل ليت إنما".split()}
 
 RETRIEVAL_DF_CEILING = 400   # ignore tokens appearing in more rows than this
-# How much of an addition's own text the cited hadith must contain before a
-# link is emitted. Not a similarity score: a measurement of presence.
-CROSSREF_CONTAINMENT = 0.90
-
 MIN_COVERAGE = 0.35          # below this the retrieved row is not the counterpart
 ANCHOR_BLOCK = 2             # matching blocks this short do not pin down position
 WITNESS_BLOCK = 3            # blocks this long are trusted to correct the lexicon
@@ -420,25 +416,9 @@ class WitnessIndex:
                 if df[w] <= RETRIEVAL_DF_CEILING:
                     self.postings[w].append(i)
 
-    def retrieve(self, query: list[str], numbered_only: bool = False
-                 ) -> tuple[int | None, float]:
-        """
-        `numbered_only` restricts the answer to rows that carry a hadith number.
-
-        Two different questions are asked of this index. "Which row best attests
-        this text" wants every row, and the unnumbered edition usually wins it —
-        it is the one al-Tajrid was abridged from. "Which hadith IS this" can
-        only be answered by a numbered row, and asking it of the merged index
-        returned a number for 5 of 88 additions rather than 80.
-        """
+    def retrieve(self, query: list[str]) -> tuple[int | None, float]:
         scores: dict[int, float] = collections.defaultdict(float)
-        # `getattr`: the determinism tests build an index by hand to control
-        # exactly what is in it, and an unconditional attribute read here broke
-        # them. A hand-built index has no numbers, which is the same thing as
-        # every row being unnumbered.
-        numbered = getattr(self, "numbers", None)
-        if numbered is None:
-            numbered_only = False
+
         # `sorted`, not bare `set`. Set iteration order over strings depends on
         # PYTHONHASHSEED, and float `+=` is not associative, so the same query
         # summed in a different order lands on a different value in the last
@@ -451,8 +431,6 @@ class WitnessIndex:
         # a number you cannot reproduce is not a measurement.
         for w in sorted(set(query)):
             for i in self.postings.get(w, ()):
-                if numbered_only and numbered[i] is None:
-                    continue
                 scores[i] += self.idf[w]
         if not scores:
             return None, 0.0
@@ -552,11 +530,7 @@ def bind_corpus(
     tally = collections.Counter()
     tally_matn = collections.Counter()
     reasons = collections.Counter()
-    retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": [],
-                 "crossrefs_added": 0}
-    # record id -> [hadith number]. Carried on the BINDING, because bind writes
-    # bindings.json and never rewrites records.json.
-    inferred_refs: dict[str, list[int]] = {}
+    retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": []}
     ref_agree = {"checked": 0, "consistent": 0}
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
@@ -637,25 +611,6 @@ def bind_corpus(
             else:
                 retrieval["coverages"].append(coverage)
 
-                # ---- a cross-reference for an addition ---------------------
-                #
-                # al-Diya's zawa'id are in Bukhari; al-Zabidi left them out.
-                # They carry no `(بخاري: N)` note, because that note is the
-                # editor's own and he wrote it only for the matn.
-                #
-                # The claim is CONTAINMENT, not identity: that this hadith
-                # contains this text. A reader can check it, and it is the only
-                # claim the data supports — asking instead "is this the hadith
-                # the editor would have cited" scored 78%, because Bukhari
-                # repeats a matn across chapters and its isnad swamps the
-                # comparison. Containment on these runs at a median of 1.000.
-                if aside_layer and rec["layer"] == aside_layer and not rec.get("crossRefs"):
-                    nrow, _ = witness_idx.retrieve(keys, numbered_only=True)
-                    if nrow is not None:
-                        present = len(set(keys) & set(witness_idx.norm[nrow]))
-                        if present / max(len(set(keys)), 1) >= CROSSREF_CONTAINMENT:
-                            inferred_refs[rec["id"]] = [witness_idx.numbers[nrow]]
-                            retrieval["crossrefs_added"] += 1
 
                 # Which keys appear in this Bukhari row with more than one
                 # vocalisation? For those, a short matching block does not
@@ -964,8 +919,6 @@ def bind_corpus(
             if rec["layer"] == "matn":
                 tally_matn[tier] += 1
         bound[rec["id"]] = {"leading": leading, "tokens": out}
-        if rec["id"] in inferred_refs:
-            bound[rec["id"]]["crossRefsInferred"] = inferred_refs[rec["id"]]
 
     reasons.update(repairs)
     reasons["Tier 1 unopposed but unwitnessed"] = unopposed

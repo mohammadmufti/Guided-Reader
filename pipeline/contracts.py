@@ -111,15 +111,6 @@ class CorpusAbout(TypedDict):
 
     description: Annotated[list[str], Doc("Paragraphs describing the book.")]
     sources: Annotated[list[AboutSource], Doc("Where the text and apparatus come from.")]
-    crossRefsInferred: Annotated[
-        bool,
-        Doc(
-            "True where `crossRefs` was found by the binder rather than stated "
-            "by the editor. al-Diya's additions carry no `(بخاري: N)` note, so "
-            "theirs are inferred: the claim is that the cited hadith CONTAINS "
-            "this text, measured at 90% of its content words or better."
-        ),
-    ]
     audio: Annotated[
         CorpusAudio | None,
         Doc("Recitation links; playback is planned, links ship now."),
@@ -565,7 +556,6 @@ class HadithFile(TypedDict):
     ]
     zawaidNote: str | None
     crossRefs: list[int]
-    crossRefsInferred: bool
     tokens: list[Token]
     prev: str | None
     next: str | None

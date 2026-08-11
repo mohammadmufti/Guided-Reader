@@ -71,6 +71,7 @@ class Rules:
     opener_on: str
     numbering: str
     editorial_ref: re.Pattern[str] | None
+    aside_ref: re.Pattern[str] | None
     layers: dict[str, str]
     emit_curated_index: bool
 
@@ -104,6 +105,7 @@ class Rules:
             opener_on=seg.get("opener_on", "section"),
             numbering=seg.get("numbering", "edition"),
             editorial_ref=rx("editorial_reference"),
+            aside_ref=rx("aside_reference"),
             layers={
                 "body": "matn", "aside": "zawaid", "top": "heading_kitab",
                 "sub": "heading_bab", "front": "frontmatter",
@@ -127,6 +129,8 @@ def count_tokens(text: str, rules: Rules) -> int:
     """
     if rules.editorial_ref is not None:
         text = rules.editorial_ref.sub(" ", text)
+    if rules.aside_ref is not None:
+        text = rules.aside_ref.sub(" ", text)
     return sum(1 for tok in text.split() if RE_ARABIC.search(tok))
 
 
@@ -446,10 +450,24 @@ class Segmenter:
     # -- finish -------------------------------------------------------------
     def finalise(self) -> None:
         self.close()
+        aside_layer = self.rules.layers.get("aside")
         for rec in self.records:
             refs: list[int] = []
             if self.rules.editorial_ref is not None:
                 for m in self.rules.editorial_ref.finditer(rec["textRaw"]):
+                    refs += [int(n) for n in re.findall(r"\d+", m.group(1))]
+            # The ADDITIONS cite differently. al-Diya writes a bare `(4509)`
+            # after the report and then comments on it, where al-Zabidi writes
+            # `(بخاري: N)`. Same thing — the hadith in Bukhari — in a different
+            # hand, and all 88 additions carry one.
+            #
+            # This was worth finding the hard way. Not seeing it, I built a
+            # retrieval that guessed the number from the text instead: it
+            # agreed with the editor on 1 of 76 and was systematically low,
+            # landing on a neighbouring hadith in the same chapter whose
+            # wording is near-identical. The number was in the file all along.
+            if not refs and self.rules.aside_ref is not None and rec["layer"] == aside_layer:
+                for m in self.rules.aside_ref.finditer(rec["textRaw"]):
                     refs += [int(n) for n in re.findall(r"\d+", m.group(1))]
             rec["crossRefs"] = refs
 

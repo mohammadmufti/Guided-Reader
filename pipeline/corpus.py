@@ -87,5 +87,10 @@ def inline_strip_patterns(cfg: dict) -> tuple[re.Pattern[str], ...]:
     read the same pattern from `segmentation.editorial_reference`; the two are
     now one.
     """
-    pat = (cfg.get("segmentation") or {}).get("editorial_reference")
-    return (re.compile(pat),) if pat else ()
+    seg = cfg.get("segmentation") or {}
+    # BOTH citation forms. al-Zabidi writes `(بخاري: N)` on the matn and
+    # al-Diya a bare `(N)` on his additions. Each is captured as a crossRef in
+    # segment.py and must then leave the text, or the number is shown twice —
+    # once as a link and once as a token the reader can click on.
+    pats = [seg.get("editorial_reference"), seg.get("aside_reference")]
+    return tuple(re.compile(p) for p in pats if p)
