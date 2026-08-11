@@ -226,6 +226,31 @@ The quick gloss exists for words no workbook covers, which is most words in
 three of the four corpora. Token coverage: 98.4% for al-Tajrīd, 90.8% for the
 Muwaṭṭaʾ, 77.6% for Nawawī's Forty, 99.6% for Shāh Walī Allāh.
 
+### One implementation of "the same meaning"
+
+`gloss.comparable()` reduces a gloss to what it means. `gloss.says_the_same()`
+compares two. Nothing else may do this.
+
+Four differences between the two sources are conventions, not meanings:
+
+| written as | and as | |
+|---|---|---|
+| `in/by` | `in`, `by` | the workbook packs alternatives with a slash |
+| `kneeling_down` | `kneeling down` | Buckwalter writes a space as an underscore |
+| `(the) Name of` | `Name of` | brackets carry an aside |
+| `to conceal` | `conceal` | a leading `to` or `be` is a citation habit |
+
+A `+` is different again: it separates the CLITIC glosses from the stem, and
+only the last segment is the word. `بِسْمِ` arrives as `in;by_+_(the)_Name_of`,
+where `in;by` glosses the attached bi-.
+
+**This was written twice** — in Python for the comparison report, in TypeScript
+to decide whether the panel shows both glosses — and the two drifted. Only one
+of them knew about clitic chains, so duplicate glosses reappeared as soon as
+two corpora were added whose vocabulary exercised that path. The build decides
+now: `glossQuick` is null where it duplicates the curated gloss, and the panel
+only checks whether the field is there.
+
 ## 5. Enrich
 
 The binder adds meaning from two places. Neither may change a reading.

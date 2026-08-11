@@ -44,7 +44,7 @@ from pathlib import Path
 import brotli
 import yaml
 
-from gloss import parse_gloss
+from gloss import parse_gloss, says_the_same
 from morphology import Recoverer
 from normalise import dediac, normalise, root_variants, root_key
 from tokenise import tokenise
@@ -756,7 +756,17 @@ def main() -> int:
         # four corpora.
         _gc = e.get("glossCamel") or (
             analyses.get(str(e.get("vocalized"))) or {}).get("glossCamel")
-        trimmed["glossQuick"] = parse_gloss(_gc)
+        # The quick gloss ships ONLY where it says something the curated one
+        # does not. They agree on 80.8% of the entries that have both, and
+        # printing the same meaning twice teaches a reader to skip the second
+        # — which is the curated one, and the one to trust when they differ.
+        #
+        # Decided here, once, rather than in the panel: the comparison lived in
+        # the client as well, the two implementations drifted, and duplicates
+        # came back when two corpora were added.
+        _quick = parse_gloss(_gc)
+        trimmed["glossQuick"] = (
+            None if says_the_same(_quick, trimmed["gloss"]) else _quick)
         # Clitic boundaries for this form, as letter counts. Absent where the
         # analyser could not segment it safely, and the word is shown whole.
         trimmed["segments"] = (

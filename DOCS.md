@@ -108,3 +108,14 @@ warning, so the test suite pins the ones that matter.
 
 If you add a figure to a document, add a test for it, or expect it to become
 false.
+
+## Logic written twice will drift
+
+The rule for whether two glosses mean the same thing existed in Python and in
+TypeScript. Both were correct when written. One later learned about clitic
+chains and the other did not, and the panel began showing the same meaning
+twice — a bug that had already been fixed once.
+
+Where a decision must hold in the pipeline and in the reader, the pipeline
+decides and ships the answer. `glossQuick` is null when it duplicates the
+curated gloss; the reader checks whether the field is there and nothing more.

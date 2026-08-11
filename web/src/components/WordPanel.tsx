@@ -96,12 +96,12 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
           workbook covers. The curated gloss follows where there is one, and
           Lane sits below both. A reader who wants depth scrolls; a reader who
           wants the word does not have to. */}
-      {/* Two glosses, but only where they say different things. They agree on
-          80.8% of al-Tajrid's entries, and printing the same meaning twice
-          teaches a reader to stop reading the second one — which is the
-          curated one, and the one worth trusting when they DO differ.
-          The clitic and feature boxes hang off whichever is shown. */}
-      {!sameMeaning(entry.glossQuick, entry.gloss) && (
+      {/* Two glosses, but only where they say different things. The BUILD
+          decides that — `glossQuick` is null when it duplicates the curated
+          one — because comparing them here as well meant two implementations
+          of "the same meaning", and they drifted. The clitic and feature boxes
+          hang off whichever gloss is shown, so nothing is lost either way. */}
+      {entry.glossQuick && (
         <Meaning gloss={entry.glossQuick} isName={entry.isName} quick={!!entry.gloss} />
       )}
       <Meaning gloss={entry.gloss ?? entry.glossQuick} isName={entry.isName} />
@@ -1142,35 +1142,3 @@ function WordBreakdown({
   );
 }
 
-/**
- * Do two glosses say the same thing?
- *
- * Compared after normalising the conventions that differ without the meaning
- * differing: Buckwalter's underscores, the workbook's `a/b` alternatives, case,
- * brackets, and a leading "to"/"be". Raw string comparison called 40% of
- * entries different where the real figure is 18%.
- */
-function sameMeaning(a: Gloss | null, b: Gloss | null): boolean {
-  if (!a || !b) return false;
-  const norm = (g: Gloss) =>
-    new Set(
-      g.senses.flatMap((s) =>
-        s
-          .replace(/\([^)]*\)|\[[^\]]*\]/g, " ")
-          .replace(/_/g, " ")
-          .split(/[/;,]/)
-          .map((t) =>
-            t
-              .toLowerCase()
-              .replace(/[^a-z ]/g, " ")
-              .replace(/\s+/g, " ")
-              .trim()
-              .replace(/^(to|be|being) /, ""),
-          )
-          .filter(Boolean),
-      ),
-    );
-  const x = norm(a);
-  const y = norm(b);
-  return x.size === y.size && [...x].every((v) => y.has(v));
-}

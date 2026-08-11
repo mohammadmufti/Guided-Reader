@@ -8,6 +8,10 @@ by accident, which makes this the only place the parse is checked.
 
 import pytest
 
+from pathlib import Path as _Path
+
+ROOT = _Path(__file__).resolve().parent.parent
+
 from gloss import parse_gloss
 
 
@@ -79,3 +83,41 @@ def test_underscores_are_spacing_not_letters():
         "make a pilgrimage", "confute"]
     # A bare placeholder stays empty rather than becoming a space.
     assert parse_gloss("___") is None or parse_gloss("___")["senses"] == []
+
+
+def test_a_clitic_chain_is_not_a_list_of_senses():
+    """`+` separates clitic glosses from the stem, not one sense from another.
+
+    CAMeL's `stemgloss` usually gives the stem alone, but not always:
+    `بِسْمِ` comes back as `in;by_+_(the)_Name_of`, where `in;by` glosses the
+    attached bi- and only the last segment is the word. Unsplit, the chain
+    became the sense list, and a curated `in/by` sat beside a quick
+    `in, by + (the) Name of` — the same meaning, unrecognised as such.
+    """
+    assert parse_gloss("in;by_+_(the)_Name_of")["senses"] == ["(the) Name of"]
+    assert parse_gloss("to;for_+_God;Allah")["senses"] == ["God", "Allah"]
+    # A gloss with no chain is untouched.
+    assert parse_gloss("prayer;salat")["senses"] == ["prayer", "salat"]
+
+
+def test_one_implementation_decides_whether_two_glosses_agree():
+    """It was written twice and the two drifted.
+
+    Once in Python for the comparison report, once in TypeScript to decide
+    whether the panel shows both glosses. Duplicate glosses reappeared when two
+    corpora were added, because only one of the two knew about clitic chains.
+
+    The build decides now — `glossQuick` is null where it duplicates the
+    curated gloss — and the panel only checks whether the field is there.
+    """
+    from gloss import says_the_same
+    assert says_the_same(parse_gloss("prayer;salat"), parse_gloss("prayer;salat"))
+    # The workbook's `a/b` against the analyser's separate senses.
+    assert says_the_same(parse_gloss("on/above"), parse_gloss("on;above"))
+    # A real disagreement stays one.
+    assert not says_the_same(parse_gloss("be frail;be fragile"), parse_gloss("it;they;she"))
+    # And nothing to compare is not agreement.
+    assert not says_the_same(None, parse_gloss("prayer"))
+
+    panel = (ROOT.parent / "web/src/components/WordPanel.tsx").read_text(encoding="utf-8")
+    assert "sameMeaning" not in panel, "the client must not compare glosses itself"

@@ -72,6 +72,18 @@ class Slot:
         # this only shows up on those.
         #
         # A sense that IS a single underscore is a placeholder and stays empty.
+        # A `+` chain is CLITIC GLOSSES around the stem, not alternative
+        # senses. CAMeL's `stemgloss` mostly gives the stem alone, but not
+        # always: `بِسْمِ` comes back as `in;by_+_(the)_Name_of`, where
+        # `in;by` glosses the attached bi- and only `(the) Name of` is the
+        # word. Left unsplit, the whole chain became the sense list, and the
+        # panel then showed a curated `in/by` beside a quick
+        # `in, by + (the) Name of` — plainly the same meaning, and not
+        # recognised as such.
+        #
+        # The stem is the LAST segment: Buckwalter writes proclitics first.
+        if "+" in text:
+            text = text.split("+")[-1].strip()
         self.senses = (
             [] if self.empty
             else [t for t in (s.strip().replace("_", " ").strip()
@@ -136,3 +148,41 @@ def parse_gloss(raw: str | None) -> dict | None:
         "after": [s.as_dict() for s in slots[stem_index + 1 :] if not s.empty and s.senses],
         "stemPos": stem.pos,
     }
+
+
+def comparable(senses: list[str]) -> set[str]:
+    """
+    A gloss reduced to what it MEANS, for comparing two of them.
+
+    The two sources write the same meaning differently, and none of these
+    differences is a difference in meaning:
+
+      * the workbook packs alternatives into one string with a slash — `in/by`
+        where the analyser lists `in`, `by`;
+      * Buckwalter writes a multi-word sense with underscores, `kneeling_down`;
+      * brackets carry an aside, `(the) Name of`;
+      * a leading `to` or `be` is a citation habit, not a sense.
+
+    THIS IS THE ONLY IMPLEMENTATION. It was written twice — once in Python for
+    the comparison report, once in TypeScript to decide whether to show both
+    glosses in the panel — and the two drifted, which is how duplicate glosses
+    reappeared when two corpora were added. The panel now reads a flag this
+    computes.
+    """
+    out: set[str] = set()
+    for s in senses:
+        s = re.sub(r"\([^)]*\)|\[[^\]]*\]", " ", str(s))
+        for part in re.split(r"[/;,]", s.replace("_", " ")):
+            t = re.sub(r"[^a-z ]", " ", part.lower())
+            t = re.sub(r"\s+", " ", t).strip()
+            t = re.sub(r"^(to|be|being) ", "", t)
+            if t:
+                out.add(t)
+    return out
+
+
+def says_the_same(a: dict | None, b: dict | None) -> bool:
+    """Do two parsed glosses carry the same meaning? Both must exist."""
+    if not a or not b:
+        return False
+    return comparable(a.get("senses") or []) == comparable(b.get("senses") or [])
