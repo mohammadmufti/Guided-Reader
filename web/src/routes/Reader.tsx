@@ -701,13 +701,11 @@ function CrossRefs({
   // a place to go. With several numbers the label leads and each number is its
   // own link, since they point at different hadith.
   const single = refs.length === 1;
-  // WHOSE CLAIM IS THIS. The editor's `(بخاري: N)` is his attribution and the
-  // reason the matn carries a number at all. An addition's number is ours: the
-  // binder found a hadith containing the text, measured, and that is a weaker
-  // and different claim. It must not read identically to his.
-  const note = inferred
-    ? " — يوافق نصه / matches this text"
-    : "";
+  // WHOSE CLAIM IS THIS. The editor's `(بخاري: N)` is his attribution; an
+  // addition's number is ours, found by matching the text. The distinction is
+  // kept in the title attribute and in `crossRefsInferred` on the payload,
+  // not as visible text: on screen the link is doing the work, and a trailing
+  // gloss beside every one of 79 references is noise.
   return (
     <span className="tabular-nums" title={inferred ? "Found by matching the text, not cited by the editor" : undefined}>
       {!single && `${link.label} `}
@@ -726,11 +724,6 @@ function CrossRefs({
           </a>
         </span>
       ))}
-      {note && (
-        <span className="text-(--color-ink-muted)" lang="ar">
-          {note}
-        </span>
-      )}
     </span>
   );
 }
