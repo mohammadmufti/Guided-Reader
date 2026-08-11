@@ -243,6 +243,36 @@ def main() -> int:
             "document.documentElement.scrollWidth - document.documentElement.clientWidth"
         )
         check("no horizontal overflow at 320px", narrow <= 0, f"{narrow}px")
+
+        # ---- the word panel holds its place while the page scrolls ---------
+        #
+        # It is a column beside a text that can run for pages. Two things broke
+        # here before: at the very bottom of a long hadith the panel was
+        # dragged out of view, because a sticky item stops at the bottom of its
+        # grid row and the footer sits below it; and the panel kept its own
+        # scroll position between words, so choosing a word after reading a long
+        # Lane article opened the next one halfway down.
+        # A hadith long enough that the page scrolls well past one screen —
+        # a short one gives sticky nowhere to travel and the check passes
+        # without testing anything.
+        long_one = 1606
+        page.set_viewport_size({"width": 1400, "height": 800})
+        page.goto(f"{BASE}/tajrid/read/{long_one}", wait_until="networkidle")
+        page.wait_for_selector("article p.arabic-body [data-token]")
+        page.locator("article p.arabic-body [data-token]").first.click()
+        page.wait_for_timeout(600)
+
+        page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+        page.wait_for_timeout(400)
+        top = page.evaluate("document.querySelector('aside').getBoundingClientRect().top")
+        check("panel stays in view at the foot of a long hadith", top > 0, f"top={top:.0f}px")
+
+        page.evaluate("document.querySelector('aside').scrollTo(0, 400)")
+        page.wait_for_timeout(200)
+        page.locator("article p.arabic-body [data-token]").nth(8).click()
+        page.wait_for_timeout(600)
+        rest = page.evaluate("document.querySelector('aside').scrollTop")
+        check("panel returns to the top for a new word", rest == 0, f"scrollTop={rest}")
         page.screenshot(path=str(SHOTS / "phase5-mobile.png"), full_page=False)
 
         browser.close()

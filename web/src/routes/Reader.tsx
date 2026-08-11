@@ -325,6 +325,12 @@ function PageView({
 }) {
   const { main, additions } = page;
 
+  // Back to the top on every new word. The panel keeps its scroll position
+  // otherwise, so choosing a word after reading a long Lane article opened the
+  // next one halfway down — past the reading, the root and the gloss, which is
+  // exactly the part a reader wants first.
+  const panelRef = useRef<HTMLElement>(null);
+
   // Which record is the selection in, and which token?
   const activeRecord =
     selection === null
@@ -333,6 +339,12 @@ function PageView({
         ? main
         : (additions.find((a) => a.id === selection.recordId) ?? null);
   const activeToken = activeRecord?.tokens[selection!.index] ?? null;
+
+  // Keyed on the record AND the index, so moving between two words of the same
+  // hadith resets too — not only moving between hadith.
+  useEffect(() => {
+    panelRef.current?.scrollTo({ top: 0 });
+  }, [selection?.recordId, selection?.index, main.id]);
   const indexIn = (recordId: string) =>
     selection !== null && (selection.recordId ?? main.id) === recordId
       ? selection.index
@@ -355,7 +367,14 @@ function PageView({
           above it. Desktop is untouched: the panel is a side column there. */}
       <article
         className={
-          "lg:order-2" + (activeToken !== null ? " max-lg:pb-[55dvh]" : "")
+          // A sticky item stops travelling at the bottom of its grid area, and
+          // the area is the row — which ends where the article ends. Padding
+          // the ARTICLE lengthens the row so the panel holds through the last
+          // screen of a long hadith. It cannot fix the very bottom on its own,
+          // because padding grows the row and the document by the same amount;
+          // that part is the panel's height, below.
+          "lg:order-2 lg:pb-40" +
+          (activeToken !== null ? " max-lg:pb-[55dvh]" : "")
         }
       >
         <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-(--color-rule) pb-3">
@@ -493,7 +512,13 @@ function PageView({
       </article>
 
       <aside
-        ref={sheet.ref}
+        ref={(el) => {
+          // Two owners: the phone sheet's drag gesture needs the node, and so
+          // does the scroll reset below. A callback ref serves both without
+          // either having to know about the other.
+          (sheet.ref as React.MutableRefObject<HTMLElement | null>).current = el;
+          (panelRef as React.MutableRefObject<HTMLElement | null>).current = el;
+        }}
         aria-label="تفاصيل الكلمة"
         // Follows the finger while dragging; springs back (or settles) with a
         // short ease when released. Both are inert on desktop, where offset is
@@ -522,7 +547,12 @@ function PageView({
           // chained. The phone sheet already has all of this.
           // `self-start` matters: a grid item stretches to the row height by
           // default, and a full-height box has nothing to stick to.
-          "lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100dvh-2rem)] " +
+          // The cap leaves room for the FOOTER. At full scroll the footer is on
+          // screen, and a panel of `100dvh-2rem` plus its 1rem offset is taller
+          // than what remains — so the row ran out and the panel was dragged
+          // up out of view. Sized to fit beside the footer instead, which is
+          // the one place padding could never help.
+          "lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100dvh-10rem)] " +
           "lg:overflow-y-auto lg:overscroll-contain " +
           // Half the screen, no more: at 68vh the sheet owned the phone and the
           // text became a sliver. dvh, not vh, so the browser chrome
