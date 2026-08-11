@@ -66,6 +66,7 @@ class Rules:
     heading_top_prefixes: tuple[str, ...]
     front_prefixes: tuple[str, ...]
     aside_section_prefixes: tuple[str, ...]
+    unnumbered_body_is_aside: bool
     number_asides: bool
     section_levels: dict[str, str] | None
     opener_on: str
@@ -100,6 +101,8 @@ class Rules:
             heading_top_prefixes=tuple(seg.get("heading_top_prefixes", [])),
             front_prefixes=tuple(seg.get("front_prefixes", [])),
             aside_section_prefixes=tuple(seg.get("aside_section_prefixes", [])),
+            unnumbered_body_is_aside=bool(
+                seg.get("unnumbered_body_is_aside", False)),
             number_asides=bool(seg.get("number_asides", False)),
             section_levels=seg.get("section_levels"),
             opener_on=seg.get("opener_on", "section"),
@@ -438,6 +441,27 @@ class Segmenter:
                 assert self.current is not None
                 self.current["numbersCovered"] = numbers
                 return
+
+        # A further paragraph on a record that ALREADY HAS TEXT is a note on
+        # it, not a new one. In Bulugh these are the takhrij lines — `أخرجه
+        # الثلاثة`, `رواه الترمذي وضعفه` — which follow each hadith and are
+        # much of what the book is for. Left as body records they were
+        # unnumbered, and an unnumbered body record is addressed by nothing and
+        # shown on no page: 121 of them were invisible.
+        #
+        # `textRaw` must be non-empty. A text that puts its number on a line of
+        # its own leaves the record empty when its own body arrives, and
+        # without this check that body is read as a note on nothing.
+        if (
+            self.rules.unnumbered_body_is_aside
+            and self.current is not None
+            and self.current.get("textRaw", "").strip()
+            and self.current["layer"] in (
+                self.rules.layers["body"], self.rules.layers["aside"])
+        ):
+            self.open(rtype="hadith", layer=self.rules.layers["aside"],
+                      number=None, text=clean)
+            return
 
         bullet = self.rules.bullet.match(clean) if self.rules.bullet else None
         if bullet:

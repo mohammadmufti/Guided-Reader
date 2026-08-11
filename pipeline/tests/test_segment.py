@@ -332,3 +332,34 @@ def test_ibn_rajabs_additions_carry_no_external_link():
     ziyada = [r for r in recs if r["layer"] == "ziyada"]
     assert ziyada
     assert all(r["number"] >= 43 for r in ziyada)
+
+
+def test_every_corpus_segments_without_residual_markers():
+    """A marker the grammar does not recognise fails the build, as it should.
+
+    Bulugh uses `### $` twice, both for a du'a quoted INSIDE a hadith with the
+    line before ending mid-sentence. Unrecognised, the words fell through as
+    stray text and segmentation exited non-zero — which is the right behaviour
+    and is why this runs over every corpus rather than the one under test.
+    """
+    import pathlib as _p, subprocess, sys
+    pipeline_dir = _p.Path(__file__).resolve().parent.parent
+    corpora = sorted(c.stem for c in (pipeline_dir / "corpora").glob("*.yaml"))
+    for cid in corpora:
+        # `lane` is reference data — a dictionary, not a text — and declares no
+        # `sources.text` to segment.
+        import yaml as _yaml
+        cfg = _yaml.safe_load((pipeline_dir / "corpora" / f"{cid}.yaml").read_text(encoding="utf-8"))
+        if "text" not in (cfg.get("sources") or {}):
+            continue
+        src = pipeline_dir / "cache" / cid
+        if not src.exists():
+            continue
+        r = subprocess.run(
+            [sys.executable, str(pipeline_dir / "segment.py"), "--corpus", cid],
+            capture_output=True, text=True,
+        )
+        assert r.returncode == 0, f"{cid}: segment.py exited {r.returncode}\n{r.stdout[-600:]}"
+        assert "residual markers   NONE" in r.stdout, \
+            f"{cid}: unrecognised markers remain\n" + \
+            next((l for l in r.stdout.splitlines() if "residual" in l), "")

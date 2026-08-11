@@ -56,7 +56,12 @@ sources:
 # ---------------------------------------------------------------------------
 segmentation:
   section: '^###\s*\|\s*(.*)$'
-  paragraph: '^#\s(.*)$'
+  # `### $` too. OpenITI marks a quoted passage that way, and this edition uses
+  # it twice — both times for a du'a quoted INSIDE a hadith, with the line
+  # before it ending mid-sentence (`أنه كان إذا قام إلى الصلاة قال`). The words
+  # belong to the matn, so they are read as an ordinary paragraph rather than
+  # left to fall through as an unrecognised marker, which failed the build.
+  paragraph: '^(?:###\s*\$\s*:?|#)\s(.*)$'
   continuation: '^~~(.*)$'
   strip:
     - name: manuscript_marker
@@ -84,8 +89,11 @@ segmentation:
     label: "sunnah.com"
     labelAr: "سنة.كوم"
     url: "https://sunnah.com/bulugh:{n}"
+  # The takhrij note after each hadith is a note ON it — see segment.py.
+  unnumbered_body_is_aside: true
   layer_names:
     body: matn
+    aside: takhrij
     top: heading_kitab
     sub: heading_bab
     front: frontmatter
