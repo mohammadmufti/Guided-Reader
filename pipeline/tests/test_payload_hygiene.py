@@ -156,3 +156,39 @@ def test_lane_entry_matches_the_lemma_it_claims(surface):
     hw = next(e["headword"] for e in lane["هجر"]["entries"]
               if e["nodeid"] == hij["laneEntry"])
     assert hw == "هِجْرَةٌ", f"هجرته points at {hw}, not هِجْرَةٌ"
+
+
+def test_no_shipped_entry_carries_two_glosses_that_agree():
+    """Measured on the BUILT PAYLOAD, over every corpus.
+
+    This defect has been fixed three times and returned twice, because every
+    check for it ran against hand-written strings. A parser bug that only
+    certain vocabulary triggers is invisible to a fixture and obvious in the
+    payload — the Shama'il's `لَيْسَ` arrives as `not_+_he;it_(he;it_is_not)`,
+    which no fixture happened to contain.
+
+    So this reads what shipped. If an entry carries both glosses and they say
+    the same thing, a reader sees the same meaning printed twice, and the
+    second one — the curated one, the one to trust when they differ — is the
+    one they learn to skip.
+    """
+    import glob
+    from gloss import says_the_same
+
+    shards = glob.glob(str(DATA / "lexicon" / "surface-*.json"))
+    if not shards:
+        pytest.skip("payload not built")
+    entries = {}
+    for f in shards:
+        entries.update(json.loads(Path(f).read_text(encoding="utf-8")))
+
+    same = [
+        (e.get("vocalized"), e["gloss"]["senses"], e["glossQuick"]["senses"])
+        for e in entries.values()
+        if e.get("gloss") and e.get("glossQuick")
+        and says_the_same(e["glossQuick"], e["gloss"])
+    ]
+    assert not same, (
+        f"{len(same)} entries ship two glosses that mean the same thing, "
+        f"e.g. {same[:3]}"
+    )

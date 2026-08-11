@@ -81,13 +81,32 @@ class Slot:
         # `in, by + (the) Name of` — plainly the same meaning, and not
         # recognised as such.
         #
-        # The stem is the LAST segment: Buckwalter writes proclitics first.
+        # THE STEM IS THE LONGEST SEGMENT, not the last. Proclitics come first
+        # and enclitics last, so `not_+_he;it` has its stem at the end while
+        # `was;were_+_he/it` has it at the start — taking the last segment
+        # blindly returned the attached pronoun and threw the verb away.
         if "+" in text:
-            text = text.split("+")[-1].strip()
+            text = max((p.strip() for p in text.split("+")), key=len)
+        # Split on `;` only OUTSIDE brackets. `he;it_(he;it_is_not)` is one
+        # sense with a parenthetical, and splitting it blindly produced
+        # `he`, `it (he`, `it is not)` — three fragments, none of them a
+        # meaning, which then failed to match the curated `he/it (he/it is
+        # not)` that says exactly the same thing.
+        parts, depth, buf = [], 0, []
+        for ch in text:
+            if ch in "([":
+                depth += 1
+            elif ch in ")]":
+                depth = max(0, depth - 1)
+            if ch == ";" and depth == 0:
+                parts.append("".join(buf))
+                buf = []
+            else:
+                buf.append(ch)
+        parts.append("".join(buf))
         self.senses = (
             [] if self.empty
-            else [t for t in (s.strip().replace("_", " ").strip()
-                              for s in text.split(";")) if t]
+            else [t for t in (s.strip().replace("_", " ").strip() for s in parts) if t]
         )
 
     def is_clitic(self) -> bool:
