@@ -1,0 +1,124 @@
+# Corpus configuration — al-Shamāʾil al-Muḥammadiyya
+#
+# Al-Tirmidhī's collection on the person of the Prophet — his appearance, his
+# habits, his manner — rather than on rulings. 402 hadith in 57 chapters, all
+# of them bāb with no kitāb above them, which is why `heading_top_prefixes` is
+# empty here and not in Bulūgh's config.
+
+id: shamail
+
+display:
+  titleAr: "الشمائل المحمدية"
+  titleEn: "al-Shamāʾil al-Muḥammadiyya"
+  authorAr: "محمد بن عيسى الترمذي"
+  author: "Muḥammad b. ʿĪsā al-Tirmidhī"
+  authorDied: "279 AH"
+  edition: "Shamela 0013037 — verify against the OpenITI header before shipping"
+  subject: "الشمائل والسيرة"
+  # Public domain: the author died in 279 AH.
+  rights: "public-domain"
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # Two OpenITI versions align equally well (median coverage 1.000 on both).
+    # This one is taken for having the marginally higher match rate, 100%
+    # against 99%, and the difference is small enough that either would do.
+    uri: https://raw.githubusercontent.com/OpenITI/0300AH/master/data/0279Tirmidhi/0279Tirmidhi.ShamailMuhammadiyya/0279Tirmidhi.ShamailMuhammadiyya.Shamela0013037-ara1
+    filename: shamail.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # 402 hadith, 87.5% of tokens vowelled — a good witness, close to Nawawī's.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/other_books/shamail_muhammadiyah.json
+    filename: shamail_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference to transfer vocalisation and to resolve the hadith
+      number; no text from it is redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK: no workbook, as for every corpus after al-Tajrīd.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  section: '^###\s*\|\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  editorial_reference: null
+  # EMPTY, unlike Bulūgh. This text has 57 bāb and no kitāb above them, so a
+  # `كتاب` prefix would promote nothing and inventing a top level would state a
+  # structure the book does not have.
+  heading_top_prefixes: []
+  numbering: edition
+  record_link:
+    # THE NUMBER COMES FROM THE WITNESS, not from this edition. Measured: our
+    # numbering agrees with sunnah.com's for 1% of records and the offset
+    # drifts, so linking with our own number would be wrong almost every time.
+    # The witness is the site's own text, so the row a record aligns to carries
+    # the number the site uses.
+    number_from_witness: true
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/shamail:{n}"
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 95.0% Tier 1+2 on matn, with every one
+  # of its 406 records matched at median coverage 1.000.
+  #
+  # Threshold set below the measurement so it catches regression rather than
+  # restating today's figure.
+  min_witnessed_matn: 90.0
+  min_retrieval_median: 0.85
+
+about:
+  description:
+    - >-
+      Al-Shamāʾil al-Muḥammadiyya — al-Tirmidhī's (d. 279 AH) collection on
+      the person of the Prophet rather than on rulings: his appearance, his
+      dress, his manner of speaking, eating and sleeping. 402 hadith across 57
+      chapters.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its own:
+      its vocalisation is transferred from a vowelled edition, and its glosses
+      are shared from al-Tajrīd, where the same word in the same reading
+      carries the same entry. The panel's provenance line says which applies
+      to each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of a Shamela edition, fetched and
+        checksummed at build time. Two OpenITI versions align equally well
+        against the vowelled witness, at a median word overlap of 1.000; this
+        one matched marginally more of its paragraphs.
+      url: https://raw.githubusercontent.com/OpenITI/0300AH/master/data/0279Tirmidhi/0279Tirmidhi.ShamailMuhammadiyya/0279Tirmidhi.ShamailMuhammadiyya.Shamela0013037-ara1
+    - label: "Vocalisation"
+      detail: >-
+        A vowelled text of the 402 hadith, scraped from sunnah.com, with 87.5%
+        of its words carrying harakāt. Used only to transfer vocalisation onto
+        the words of the primary text; none of it is redistributed here.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which
+        is keyed by the written form rather than by the book it was written
+        for. Words this text shares with al-Tajrīd inherit its scholarship;
+        words it does not are vowelled but unglossed, and say so.

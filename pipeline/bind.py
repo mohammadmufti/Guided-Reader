@@ -525,12 +525,15 @@ def bind_corpus(
     corrections: tuple[dict, dict] = ({}, {}),
     strip: tuple[re.Pattern[str], ...] = (),
     aside_layer: str | None = None,
+    link_from_witness: bool = False,
 ) -> tuple[dict, dict]:
     bound: dict[str, dict] = {}
     tally = collections.Counter()
     tally_matn = collections.Counter()
     reasons = collections.Counter()
     retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": []}
+    # record id -> the number the external site uses for it. See below.
+    link_numbers: dict[str, int] = {}
     ref_agree = {"checked": 0, "consistent": 0}
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
@@ -610,6 +613,21 @@ def bind_corpus(
                 retrieval["low_coverage"] += 1
             else:
                 retrieval["coverages"].append(coverage)
+
+                # ---- the number the EXTERNAL site uses ----------------------
+                #
+                # Not ours. Bulugh's edition numbers its hadith 1-1582 and
+                # sunnah.com numbers the same collection 1-1767; Shama'il runs
+                # to 417 against 402. Measured, our number agrees with theirs
+                # for 1% of records, and the offset drifts — so a link built
+                # from our numbering would send a reader to the wrong hadith
+                # almost every time.
+                #
+                # The witness IS the site's own text, so the row this record
+                # aligned to carries the right number by construction, and the
+                # coverage that admitted the alignment is what vouches for it.
+                if link_from_witness and witness_idx.numbers[row] is not None:
+                    link_numbers[rec["id"]] = witness_idx.numbers[row]
 
 
                 # Which keys appear in this Bukhari row with more than one
@@ -919,6 +937,57 @@ def bind_corpus(
             if rec["layer"] == "matn":
                 tally_matn[tier] += 1
         bound[rec["id"]] = {"leading": leading, "tokens": out}
+        if rec["id"] in link_numbers:
+            bound[rec["id"]]["recordLinkNumber"] = link_numbers[rec["id"]]
+
+    # ---- the external numbering must not run backwards --------------------
+    #
+    # Both sides number the same collection in the same order, so as our number
+    # rises theirs must not fall. Retrieval is per record and knows nothing of
+    # its neighbours, so a short or formulaic hadith occasionally matches an
+    # unrelated row: Bulugh had our #114 pointing at their #1, with the records
+    # either side pointing at #136 and #119.
+    #
+    # Keep the longest non-decreasing run and drop the rest. Dropping is right
+    # rather than repairing by interpolation — a link we cannot vouch for
+    # should not exist, and a hadith with no link is honest where a plausible
+    # wrong one is not. 3.8% of Bulugh's and 0.5% of the Shama'il's.
+    if link_numbers:
+        by_ours = sorted(
+            ((r["number"], r["id"]) for r in records
+             if r.get("number") and r["id"] in link_numbers),
+            key=lambda x: x[0],
+        )
+        import bisect
+        tails: list[int] = []          # tails[k] = smallest end of a run of length k+1
+        parent: dict[int, int | None] = {}
+        ends: list[int] = []
+        for pos, (_, rid) in enumerate(by_ours):
+            v = link_numbers[rid]
+            k = bisect.bisect_right(tails, v)
+            parent[pos] = ends[k - 1] if k else None
+            if k == len(tails):
+                tails.append(v); ends.append(pos)
+            else:
+                tails[k] = v; ends[k] = pos
+        keep, node = set(), (ends[-1] if ends else None)
+        while node is not None:
+            keep.add(node)
+            node = parent[node]
+        dropped = 0
+        for pos, (_, rid) in enumerate(by_ours):
+            if pos not in keep:
+                del link_numbers[rid]
+                dropped += 1
+        # Apply it. The per-record assignment happened during the loop above,
+        # before this check could run, so filtering `link_numbers` alone left
+        # the bindings holding the values it had just rejected.
+        for rid in list(bound):
+            if "recordLinkNumber" in bound[rid] and rid not in link_numbers:
+                del bound[rid]["recordLinkNumber"]
+        if dropped:
+            print(f"  dropped {dropped:,} external links whose target ran backwards "
+                  f"({100*dropped/len(by_ours):.1f}% of those matched)")
 
     reasons.update(repairs)
     reasons["Tier 1 unopposed but unwitnessed"] = unopposed
@@ -1394,6 +1463,9 @@ def main() -> int:
     bound, stats = bind_corpus(
         records, lex, witness_idx, strip=inline_strip_patterns(cfg),
         aside_layer=aside_layer,
+        link_from_witness=bool(
+            ((cfg.get("segmentation") or {}).get("record_link") or {})
+            .get("number_from_witness")),
     )
     if witness_idx is None:
         stats["retrieval"]["skipped"] = True

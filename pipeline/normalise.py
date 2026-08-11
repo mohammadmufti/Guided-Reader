@@ -96,7 +96,11 @@ def root_variants(root: str) -> list[str]:
       final weak   ي ى و        Lane prefers alif maqsura
       geminate     ردد -> رد    Lane collapses a doubled radical
     """
-    seats = "\u0621\u0623\u0625\u0622\u0627"          # ء أ إ آ ا
+    # ئ and ؤ belong here too. A hamza sits on whichever letter carries it,
+    # and that carrier is not part of the root: `ذئب` is Lane's `ذأب`. Their
+    # absence cost exactly one entry, found by the invariant test when two
+    # new corpora brought a word the others did not have.
+    seats = "\u0621\u0623\u0625\u0622\u0627\u0626\u0624"   # ء أ إ آ ا ئ ؤ
 
     def seat_forms(r: str) -> list[str]:
         out = [r]

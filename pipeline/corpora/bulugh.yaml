@@ -1,0 +1,139 @@
+# Corpus configuration — Bulūgh al-Marām min adillat al-aḥkām
+#
+# Ibn Ḥajar al-ʿAsqalānī's collection of the hadith the jurists argue from,
+# arranged by chapter of fiqh rather than by subject of report. 1,767 hadith.
+#
+# The line grammar is al-Tajrīd's: one structural level, `### | N - ` openers,
+# kitāb and bāb headings in the same stream. That is not a coincidence — both
+# come from Shamela through OpenITI — and it is why this file is short.
+
+id: bulugh
+
+display:
+  titleAr: "بلوغ المرام من أدلة الأحكام"
+  titleEn: "Bulūgh al-Marām"
+  authorAr: "ابن حجر العسقلاني"
+  author: "Ibn Ḥajar al-ʿAsqalānī"
+  authorDied: "852 AH"
+  edition: "Shamela 0009111 — verify against the OpenITI header before shipping"
+  subject: "الحديث وأدلة الأحكام"
+  # Public domain: the author died in 852 AH.
+  rights: "public-domain"
+  # It cites nothing; it IS the citation others make.
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # CHOSEN BY MEASUREMENT, not by size. Three OpenITI versions exist; this one
+    # aligns to the vocalised witness at a median coverage of 1.000 with 99% of
+    # paragraphs matched. The `-ara3` version is more than twice as long
+    # because it carries a commentary, which is a different book.
+    #
+    # Note the repository: 0875AH, not the 0900AH that rounding the author's
+    # death date up would suggest. The OpenITI metadata gives the real path.
+    uri: https://raw.githubusercontent.com/OpenITI/0875AH/master/data/0852IbnHajarCasqalani/0852IbnHajarCasqalani.BulughMaram/0852IbnHajarCasqalani.BulughMaram.Shamela0009111-ara1
+    filename: bulugh.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # 1,767 hadith, 44.1% of tokens vowelled. THINNER THAN THE OTHERS —
+    # al-Muwaṭṭaʾ's witness runs at 98.7% and Nawawī's at 94.8% — so expect a
+    # lower Tier 2 here and more of the readings to come from the shared
+    # lexicon instead. It is what exists.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/other_books/bulugh_almaram.json
+    filename: bulugh_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference to transfer vocalisation and to resolve the hadith
+      number; no text from it is redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK. There is no workbook for this text. The inventory is
+  # minted from the witness and meaning comes from the shared glossary.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  section: '^###\s*\|\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  editorial_reference: null
+  # Two levels in one stream, told apart by their first word — the same
+  # arrangement al-Tajrīd has.
+  heading_top_prefixes: ["كتاب"]
+  numbering: edition
+  # Its hadith N is sunnah.com's bulugh:N. Same collection, same numbering.
+  record_link:
+    # THE NUMBER COMES FROM THE WITNESS, not from this edition. Measured: our
+    # numbering agrees with sunnah.com's for 1% of records and the offset
+    # drifts, so linking with our own number would be wrong almost every time.
+    # The witness is the site's own text, so the row a record aligns to carries
+    # the number the site uses.
+    number_from_witness: true
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/bulugh:{n}"
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 95.2% Tier 1+2 on matn, with 1,682 of
+  # 1,692 records matched at median coverage 1.000. Higher than expected from
+  # a witness only 44% vowelled — the shared glossary carries the rest.
+  #
+  # Threshold set below the measurement so it catches regression rather than
+  # restating today's figure.
+  min_witnessed_matn: 90.0
+  min_retrieval_median: 0.85
+
+about:
+  description:
+    - >-
+      Bulūgh al-Marām min adillat al-aḥkām — Ibn Ḥajar al-ʿAsqalānī's
+      (d. 852 AH) collection of the hadith that the jurists reason from,
+      arranged by chapter of fiqh. Each report is followed by a note on who
+      narrated it and how it was graded, which is what the book is for.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its own:
+      its vocalisation is transferred from a vowelled edition, and its glosses
+      are shared from al-Tajrīd, where the same word in the same reading
+      carries the same entry. Its witness is thinner than the other books'
+      here, so expect more words vowelled from the lexicon than from an
+      aligned reading; the panel says which for each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of a Shamela edition, fetched and
+        checksummed at build time. Chosen over the other two OpenITI versions
+        by measurement: it aligns to the vowelled witness at a median word
+        overlap of 1.000. The longest version carries a commentary and is a
+        different book.
+      url: https://raw.githubusercontent.com/OpenITI/0875AH/master/data/0852IbnHajarCasqalani/0852IbnHajarCasqalani.BulughMaram/0852IbnHajarCasqalani.BulughMaram.Shamela0009111-ara1
+    - label: "Vocalisation"
+      detail: >-
+        A partially vowelled text of the 1,767 hadith, scraped from sunnah.com.
+        44% of its words carry harakāt, against 98.7% for the Muwaṭṭaʾ's
+        witness, so it settles fewer readings. Used only to transfer
+        vocalisation; none of it is redistributed here.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon, which
+        is keyed by the written form rather than by the book it was written
+        for. Words this text shares with al-Tajrīd inherit its scholarship;
+        words it does not are vowelled but unglossed, and say so.

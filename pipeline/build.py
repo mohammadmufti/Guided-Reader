@@ -502,6 +502,7 @@ def main() -> int:
     strip = inline_strip_patterns(cfg)
     _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
     _link_layers = _rl.get("layers")
+    _link_from_witness = bool(_rl.get("number_from_witness"))
     binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")
     if recit:
@@ -574,8 +575,18 @@ def main() -> int:
             # The external link, per record. A corpus may restrict it to
             # certain layers: sunnah.com has al-Nawawi's forty-two but not Ibn
             # Rajab's additions, so those must not carry one.
+            # The external site's number where the binder resolved one from
+            # the aligned witness, ours otherwise. Never both: a corpus whose
+            # edition numbers differently from the site must not link with its
+            # own numbering, and Bulugh and the Shama'il both do.
+            # NO FALLBACK where the number comes from the witness. Falling
+            # back to ours is what the resolution exists to avoid: Bulugh's
+            # edition and sunnah.com's agree on 1% of records. A record the
+            # binder could not place, or whose placement was rejected for
+            # running backwards, gets no link at all.
             "recordLinkNumber": (
-                rec["number"]
+                (b.get("recordLinkNumber")
+                 if _link_from_witness else rec["number"])
                 if (_link_layers is None or rec["layer"] in _link_layers)
                 else None
             ),

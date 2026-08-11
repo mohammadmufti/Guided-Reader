@@ -1192,3 +1192,46 @@ def test_the_cross_reference_witness_does_not_vote_on_the_inventory():
     assert "if from_primary and (" in src
 
 
+
+
+def test_a_link_number_never_runs_backwards():
+    """Two numberings over the same collection must agree on order.
+
+    Bulugh's edition numbers its hadith 1-1582 and sunnah.com numbers the same
+    collection 1-1767; the Shama'il runs to 417 against 402. Measured, our
+    number matches theirs for 1% of records, so the link resolves through the
+    aligned witness instead — the witness IS the site's text, so the row a
+    record matched carries the number the site uses.
+
+    Retrieval is per record and knows nothing of its neighbours, so a short or
+    formulaic hadith occasionally matches an unrelated row: our #114 pointed at
+    their #1 with the records either side at #136 and #119. As our number rises
+    theirs must not fall, and a link that breaks that is dropped rather than
+    repaired — 3.6% of Bulugh's, 0.5% of the Shama'il's.
+    """
+    import glob, json, pathlib
+    for cid in ("bulugh", "shamail"):
+        files = glob.glob(str(corpus.ROOT.parent /
+                              f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
+        if not files:
+            continue
+        pairs = sorted(
+            (d["number"], d["recordLinkNumber"])
+            for d in (json.loads(pathlib.Path(f).read_text(encoding="utf-8")) for f in files)
+            if d.get("number") and d.get("recordLinkNumber")
+        )
+        assert pairs, f"{cid}: nothing linked at all"
+        back = [(a, b) for (_, pb), (a, b) in zip(pairs, pairs[1:]) if b < pb]
+        assert not back, f"{cid}: {len(back)} link numbers run backwards, e.g. {back[:3]}"
+
+
+def test_a_corpus_that_renumbers_does_not_link_with_its_own_number():
+    """The fallback is the trap. A record the binder could not place must get
+    no link, not a link built from our numbering — which for these two corpora
+    is wrong 99% of the time."""
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    assert "_link_from_witness" in src
+    for cid in ("bulugh", "shamail"):
+        cfg = corpus.load_config(cid)
+        rl = (cfg.get("segmentation") or {}).get("record_link") or {}
+        assert rl.get("number_from_witness"), f"{cid} must resolve its link number"

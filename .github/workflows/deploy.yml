@@ -107,7 +107,7 @@ jobs:
       - name: Fetch sources
         run: |
           python pipeline/fetch.py --corpus lane
-          for c in tajrid rawd muwatta nawawi40 shahwaliullah40; do
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail; do
             python pipeline/fetch.py --corpus "$c"
           done
 
@@ -121,7 +121,7 @@ jobs:
       # because segmentation happens first by hand.
       - name: Segment every corpus
         run: |
-          for c in tajrid rawd muwatta nawawi40 shahwaliullah40; do
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail; do
             python pipeline/segment.py --corpus "$c"
           done
 
@@ -195,6 +195,14 @@ jobs:
           # end-to-end exercise of both the JSON source path and Tier 0.
           python pipeline/bind.py    --corpus shahwaliullah40
           python pipeline/build.py   --corpus shahwaliullah40
+
+          # Bulugh al-Maram and the Shama'il. Both take their sunnah.com link
+          # number from the aligned witness, not from their own edition: the
+          # two numberings agree on 1% of records.
+          python pipeline/bind.py    --corpus bulugh
+          python pipeline/build.py   --corpus bulugh
+          python pipeline/bind.py    --corpus shamail
+          python pipeline/build.py   --corpus shamail
 
       # Runs LAST, after every corpus is built: it merges what they have in
       # common into one shared shard set and deletes the per-corpus copies.

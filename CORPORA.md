@@ -16,6 +16,8 @@ files use that standard and why.
 | `muwatta` | 2,654 | 73.0% | shared | OpenITI |
 | `nawawi40` | 137 | 94.0% | shared | OpenITI |
 | `shahwaliullah40` | 80 | 100.0% | shared | sunnah.com scrape |
+| `bulugh` | 1,935 | 95.2% | shared | OpenITI |
+| `shamail` | 463 | 95.0% | shared | OpenITI |
 
 "Witnessed" is the share of body tokens in Tier 0, 1 or 2. The build measures
 it. Each corpus declares its own threshold in `gates.min_witnessed_matn`.
@@ -104,6 +106,64 @@ This corpus differs from the others in three ways.
 Each hadith links to `sunnah.com/shahwaliullah40:N`.
 
 ---
+
+## Bulūgh al-Marām (`bulugh`)
+
+Ibn Ḥajar al-ʿAsqalānī (d. 852 AH) collected the hadith the jurists reason
+from, arranged by chapter of fiqh. 1,767 hadith.
+
+- **Text**: OpenITI, from a Shamela edition.
+- **Vowels**: a sunnah.com text, 44% vowelled — the thinnest witness here.
+- **Meaning**: al-Tajrīd's glosses, shared through `match_id`.
+
+Three OpenITI versions exist. This one aligns to the witness at a median
+coverage of 1.000. The longest carries a commentary and is a different book.
+
+**Its numbering is not sunnah.com's.** See "External numbering" below.
+
+---
+
+## al-Shamāʾil al-Muḥammadiyya (`shamail`)
+
+Al-Tirmidhī (d. 279 AH) collected 402 hadith on the person of the Prophet —
+his appearance, his habits, his manner — rather than on rulings.
+
+- **Text**: OpenITI, from a Shamela edition.
+- **Vowels**: a sunnah.com text, 87.5% vowelled.
+- **Meaning**: al-Tajrīd's glosses, shared through `match_id`.
+
+57 bāb and no kitāb above them, so `heading_top_prefixes` is empty. Inventing
+a top level would state a structure the book does not have.
+
+**Its numbering is not sunnah.com's.** See below.
+
+---
+
+## External numbering
+
+A corpus links each hadith to the same hadith on sunnah.com. For most books
+the two numberings agree. For two of them they do not:
+
+| Corpus | our range | sunnah.com | agreement |
+|---|---|---|--:|
+| Bulūgh al-Marām | 1–1582 | 1–1767 | 1% |
+| al-Shamāʾil | 1–417 | 1–402 | 1% |
+
+A link built from our number would therefore be wrong almost every time.
+
+These corpora set `record_link.number_from_witness`. The witness IS the site's
+own text, so the row a record aligns to carries the number the site uses, and
+the coverage that admitted the alignment is what vouches for it.
+
+One further check. Both sides number the same collection in the same order, so
+as our number rises theirs must not fall. Retrieval is per record and knows
+nothing of its neighbours, so a short or formulaic hadith occasionally matches
+an unrelated row — Bulūgh had our 114 pointing at their 1, with the records
+either side at 136 and 119.
+
+The pipeline keeps the longest non-decreasing run and DROPS the rest: 3.6% of
+Bulūgh's links and 0.5% of the Shamāʾil's. A hadith with no link is honest. A
+plausible wrong one is not.
 
 ## The text is not changed
 
