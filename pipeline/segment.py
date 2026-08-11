@@ -64,6 +64,7 @@ class Rules:
     bullet: re.Pattern[str] | None
     aside_marker: str | None
     heading_top_prefixes: tuple[str, ...]
+    heading_prefixes: tuple[str, ...]
     front_prefixes: tuple[str, ...]
     aside_section_prefixes: tuple[str, ...]
     unnumbered_body_is_aside: bool
@@ -99,6 +100,7 @@ class Rules:
             bullet=rx("aside_bullet"),
             aside_marker=seg.get("aside_marker"),
             heading_top_prefixes=tuple(seg.get("heading_top_prefixes", [])),
+            heading_prefixes=tuple(seg.get("heading_prefixes", [])),
             front_prefixes=tuple(seg.get("front_prefixes", [])),
             aside_section_prefixes=tuple(seg.get("aside_section_prefixes", [])),
             unnumbered_body_is_aside=bool(
@@ -333,6 +335,30 @@ class Segmenter:
             self.emit_heading(clean, level, depth)
             self.add_pages(pages)
             self.close()
+            return
+
+        # A "heading" that is neither an opener nor a heading is the source
+        # being wrong, and Bulugh's is wrong 126 times: mid-sentence fragments
+        # carry `### |` where the line before them ends unfinished —
+        #
+        #     ### | 2 -
+        #     # وعن أبي سعيد الخدري ... قال: «إن
+        #     ### | الماء طهور لا ينجسه شيء».
+        #
+        # Read as a heading, that split hadith 2 in half, orphaned its second
+        # clause as a bab title, and left the takhrij note attached to nothing.
+        # It belongs to the record still open, so it is appended to it.
+        #
+        # Declared by prefix, not guessed: a line is a heading when it starts
+        # the way this book's headings start, and text otherwise. A corpus
+        # that declares no prefixes keeps the old behaviour exactly.
+        if (self.rules.heading_prefixes
+                and self.current is not None
+                and self.current.get("textRaw", "").strip()
+                and not self.rules.opener.match(clean)
+                and not clean.startswith(self.rules.heading_prefixes)):
+            self.add_text(clean)
+            self.add_pages(pages)
             return
 
         opener = self.rules.opener.match(clean)

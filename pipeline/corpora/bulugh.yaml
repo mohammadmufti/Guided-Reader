@@ -77,6 +77,10 @@ segmentation:
   # Two levels in one stream, told apart by their first word — the same
   # arrangement al-Tajrīd has.
   heading_top_prefixes: ["كتاب"]
+  # What a heading in this book actually starts with. The source marks 126
+  # mid-sentence fragments as `### |` headings, and without this they split the
+  # hadith they belong to — see segment.py.
+  heading_prefixes: ["كتاب", "باب"]
   numbering: edition
   # Its hadith N is sunnah.com's bulugh:N. Same collection, same numbering.
   record_link:

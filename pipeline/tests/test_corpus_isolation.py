@@ -1235,3 +1235,46 @@ def test_a_corpus_that_renumbers_does_not_link_with_its_own_number():
         cfg = corpus.load_config(cid)
         rl = (cfg.get("segmentation") or {}).get("record_link") or {}
         assert rl.get("number_from_witness"), f"{cid} must resolve its link number"
+
+
+def test_a_link_target_contains_the_text_it_links():
+    """The strongest check available: does the cited hadith say what we say?
+
+    A link number resolved through the witness can be verified directly,
+    because the witness IS the site's text — so the row we point at must
+    contain our words. This is what a coverage threshold only approximates,
+    and it is the check that would have caught a bad link before a reader did.
+
+    Compared on DEDIACRITISED letters. The witness writes `اَللَّه` with an
+    extra alef where the source writes `الله`, and `normalise` does not fold
+    that: an earlier version of this check compared normalised tokens and
+    reported 92% of correct links as wrong.
+    """
+    import glob, json, pathlib, re
+    from normalise import dediac
+    key = lambda t: {dediac(w) for w in re.findall(r"[\u0621-\u0652\u0670]+", t)}
+    for cid in ("bulugh", "shamail"):
+        wf = corpus.ROOT / "cache" / cid / f"{cid}_vocalised.json"
+        files = glob.glob(str(corpus.ROOT.parent /
+                              f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
+        if not wf.exists() or not files:
+            continue
+        wit = {h["idInBook"]: h["arabic"]
+               for h in json.loads(wf.read_text(encoding="utf-8"))["hadiths"]}
+        good = bad = 0
+        for f in files:
+            d = json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+            n = d.get("recordLinkNumber")
+            if not n or n not in wit:
+                continue
+            ours = key("".join(t["raw"] + (t.get("punctuationAfter") or "")
+                               for t in d["tokens"]))
+            if not ours:
+                continue
+            if len(ours & key(wit[n])) / len(ours) >= 0.6:
+                good += 1
+            else:
+                bad += 1
+        assert good, f"{cid}: nothing linked"
+        rate = bad / (good + bad)
+        assert rate < 0.05, f"{cid}: {100*rate:.1f}% of links point at the wrong hadith"

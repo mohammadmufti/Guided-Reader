@@ -163,7 +163,12 @@ export async function loadPage(number: number): Promise<Page | null> {
   const additions: HadithFile[] = [];
   for (let i = pos + 1; i < order.length; i++) {
     const nextId = order[i];
-    if (!nextId || layerOf(nextId) !== "zawaid") break;
+    // The ASIDE LAYER, whatever this corpus calls it. Hardcoded to al-Tajrid's
+    // `zawaid`, it silently dropped every addition in a book that names the
+    // layer differently: Bulugh's 591 takhrij notes — who narrated each hadith
+    // and how it was graded, which is much of what that book is for — were
+    // built, shipped, and never shown.
+    if (!nextId || layerOf(nextId) !== (index.corpus.asideLayer ?? "zawaid")) break;
     additions.push(await loadRecord(nextId, index.buildId));
   }
 

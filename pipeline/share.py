@@ -199,6 +199,21 @@ def main() -> int:
         print("\n(dry run — nothing written)")
         return 0
 
+    # REFUSE A PARTIAL REBUILD. `--rebuild` discards the carried set, so every
+    # corpus must have private shards to contribute — and a corpus loses its
+    # shards the moment it is shared. Rebuilding two of six and re-sharing
+    # therefore drops the other four silently: the payload still builds, the
+    # gates still pass, and 28,727 entries with every curated gloss among them
+    # are simply gone. That has happened twice.
+    if args.rebuild:
+        empty = [d.name for d in corpora if not list((d / "lex").glob("surface-*.json"))]
+        if empty:
+            raise SystemExit(
+                "--rebuild needs every corpus built first; these have no shards "
+                "of their own:\n  " + "\n  ".join(empty) +
+                "\n\nRun pipeline/build.py for each, then share again."
+            )
+
     out = DATA / "lexicon"
     shared_counts: dict[str, int] = {}
     # Read the existing shared sets BEFORE the directory is removed below —
