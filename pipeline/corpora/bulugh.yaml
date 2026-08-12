@@ -83,18 +83,20 @@ segmentation:
   heading_prefixes: ["كتاب", "باب"]
   numbering: edition
   # Its hadith N is sunnah.com's bulugh:N. Same collection, same numbering.
-  record_link:
-    # THE NUMBER COMES FROM THE WITNESS, not from this edition. Measured: our
-    # numbering agrees with sunnah.com's for 1% of records and the offset
-    # drifts, so linking with our own number would be wrong almost every time.
-    # The witness is the site's own text, so the row a record aligns to carries
-    # the number the site uses.
-    number_from_witness: true
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
-    url: "https://sunnah.com/bulugh:{n}"
-  # The takhrij note after each hadith is a note ON it — see segment.py.
-  unnumbered_body_is_aside: true
+  # NO PER-HADITH LINK. It was built from the dataset's `idInBook`, on the
+  # assumption that this is the number in a sunnah.com URL. IT IS NOT:
+  # sunnah.com/shamail:317 serves the hadith the dataset calls 306, and the
+  # dataset's own 317 is a different report entirely.
+  #
+  # The alignment behind it is sound — a record matches its dataset row at a
+  # median coverage of 1.000, and that is what supplies the vowels. What was
+  # never verified is the step from row to URL, and it cannot be verified from
+  # this data: the dataset carries `id`, `idInBook` and `chapterId`, and none
+  # of them is the site's hadith number.
+  #
+  # A wrong link is worse than none, so there is none until the numbering is
+  # confirmed against the site itself.
+  record_link: null
   layer_names:
     body: matn
     aside: takhrij

@@ -1194,87 +1194,31 @@ def test_the_cross_reference_witness_does_not_vote_on_the_inventory():
 
 
 
-def test_a_link_number_never_runs_backwards():
-    """Two numberings over the same collection must agree on order.
+def test_a_link_number_is_never_invented():
+    """A corpus with no `record_link` must ship no link number.
 
-    Bulugh's edition numbers its hadith 1-1582 and sunnah.com numbers the same
-    collection 1-1767; the Shama'il runs to 417 against 402. Measured, our
-    number matches theirs for 1% of records, so the link resolves through the
-    aligned witness instead — the witness IS the site's text, so the row a
-    record matched carries the number the site uses.
+    The number is only meaningful alongside a URL to put it in. Shipping one
+    regardless left 1,983 records carrying a figure the reader would be told
+    was the external site's.
 
-    Retrieval is per record and knows nothing of its neighbours, so a short or
-    formulaic hadith occasionally matches an unrelated row: our #114 pointed at
-    their #1 with the records either side at #136 and #119. As our number rises
-    theirs must not fall, and a link that breaks that is dropped rather than
-    repaired — 3.6% of Bulugh's, 0.5% of the Shama'il's.
+    And the harder lesson behind this: `idInBook` in the sunnah.com-derived
+    datasets IS NOT the number in a sunnah.com URL. sunnah.com/shamail:317
+    serves the hadith the dataset calls 306. The alignment that number came
+    from is sound and supplies the vowels; the step from dataset row to URL
+    was never verified and cannot be from this data. Bulugh and the Shama'il
+    therefore link nowhere until it is checked against the site.
     """
     import glob, json, pathlib
     for cid in ("bulugh", "shamail"):
-        files = glob.glob(str(corpus.ROOT.parent /
-                              f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
-        if not files:
-            continue
-        pairs = sorted(
-            (d["number"], d["recordLinkNumber"])
-            for d in (json.loads(pathlib.Path(f).read_text(encoding="utf-8")) for f in files)
-            if d.get("number") and d.get("recordLinkNumber")
-        )
-        assert pairs, f"{cid}: nothing linked at all"
-        back = [(a, b) for (_, pb), (a, b) in zip(pairs, pairs[1:]) if b < pb]
-        assert not back, f"{cid}: {len(back)} link numbers run backwards, e.g. {back[:3]}"
-
-
-def test_a_corpus_that_renumbers_does_not_link_with_its_own_number():
-    """The fallback is the trap. A record the binder could not place must get
-    no link, not a link built from our numbering — which for these two corpora
-    is wrong 99% of the time."""
-    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
-    assert "_link_from_witness" in src
-    for cid in ("bulugh", "shamail"):
         cfg = corpus.load_config(cid)
-        rl = (cfg.get("segmentation") or {}).get("record_link") or {}
-        assert rl.get("number_from_witness"), f"{cid} must resolve its link number"
-
-
-def test_a_link_target_contains_the_text_it_links():
-    """The strongest check available: does the cited hadith say what we say?
-
-    A link number resolved through the witness can be verified directly,
-    because the witness IS the site's text — so the row we point at must
-    contain our words. This is what a coverage threshold only approximates,
-    and it is the check that would have caught a bad link before a reader did.
-
-    Compared on DEDIACRITISED letters. The witness writes `اَللَّه` with an
-    extra alef where the source writes `الله`, and `normalise` does not fold
-    that: an earlier version of this check compared normalised tokens and
-    reported 92% of correct links as wrong.
-    """
-    import glob, json, pathlib, re
-    from normalise import dediac
-    key = lambda t: {dediac(w) for w in re.findall(r"[\u0621-\u0652\u0670]+", t)}
-    for cid in ("bulugh", "shamail"):
-        wf = corpus.ROOT / "cache" / cid / f"{cid}_vocalised.json"
+        rl = (cfg.get("segmentation") or {}).get("record_link")
+        assert not rl, f"{cid} must not link per hadith until its numbering is verified"
         files = glob.glob(str(corpus.ROOT.parent /
                               f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
-        if not wf.exists() or not files:
-            continue
-        wit = {h["idInBook"]: h["arabic"]
-               for h in json.loads(wf.read_text(encoding="utf-8"))["hadiths"]}
-        good = bad = 0
-        for f in files:
-            d = json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
-            n = d.get("recordLinkNumber")
-            if not n or n not in wit:
-                continue
-            ours = key("".join(t["raw"] + (t.get("punctuationAfter") or "")
-                               for t in d["tokens"]))
-            if not ours:
-                continue
-            if len(ours & key(wit[n])) / len(ours) >= 0.6:
-                good += 1
-            else:
-                bad += 1
-        assert good, f"{cid}: nothing linked"
-        rate = bad / (good + bad)
-        assert rate < 0.05, f"{cid}: {100*rate:.1f}% of links point at the wrong hadith"
+        with_link = [
+            f for f in files
+            if json.loads(pathlib.Path(f).read_text(encoding="utf-8")).get("recordLinkNumber")
+        ]
+        assert not with_link, (
+            f"{cid}: {len(with_link)} records ship a link number with no link configured"
+        )

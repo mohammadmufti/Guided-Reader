@@ -141,29 +141,29 @@ a top level would state a structure the book does not have.
 
 ## External numbering
 
-A corpus links each hadith to the same hadith on sunnah.com. For most books
-the two numberings agree. For two of them they do not:
+A corpus links each hadith to the same hadith on sunnah.com where the two
+numberings are known to agree. For al-Tajrīd the editor states the Bukhārī
+number himself, and for Nawawī's Forty and Shāh Walī Allāh's the collections
+are short and the numbering is checked.
 
-| Corpus | our range | sunnah.com | agreement |
-|---|---|---|--:|
-| Bulūgh al-Marām | 1–1582 | 1–1767 | 1% |
-| al-Shamāʾil | 1–417 | 1–402 | 1% |
+**Bulūgh al-Marām and al-Shamāʾil link nowhere.** They were linked using the
+`idInBook` field of the sunnah.com-derived dataset, on the assumption that it
+is the number in a sunnah.com URL. It is not:
 
-A link built from our number would therefore be wrong almost every time.
+| | |
+|---|---|
+| `sunnah.com/shamail:317` serves | محمود بن غيلان … أم هانئ |
+| the dataset calls that hadith | `idInBook` 306 |
+| the dataset's own 317 is | a different report |
 
-These corpora set `record_link.number_from_witness`. The witness IS the site's
-own text, so the row a record aligns to carries the number the site uses, and
-the coverage that admitted the alignment is what vouches for it.
+The alignment itself is sound — a record matches its dataset row at a median
+coverage of 1.000, and that is what supplies the vowelling. What was never
+verified is the step from dataset row to URL, and it cannot be verified from
+this data: the dataset carries `id`, `idInBook` and `chapterId`, and none of
+them is the site's hadith number.
 
-One further check. Both sides number the same collection in the same order, so
-as our number rises theirs must not fall. Retrieval is per record and knows
-nothing of its neighbours, so a short or formulaic hadith occasionally matches
-an unrelated row — Bulūgh had our 114 pointing at their 1, with the records
-either side at 136 and 119.
-
-The pipeline keeps the longest non-decreasing run and DROPS the rest: 3.6% of
-Bulūgh's links and 0.5% of the Shamāʾil's. A hadith with no link is honest. A
-plausible wrong one is not.
+A wrong link is worse than none, so there is none until the numbering is
+confirmed against the site itself.
 
 ## The text is not changed
 

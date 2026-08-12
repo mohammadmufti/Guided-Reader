@@ -584,7 +584,13 @@ def main() -> int:
             # edition and sunnah.com's agree on 1% of records. A record the
             # binder could not place, or whose placement was rejected for
             # running backwards, gets no link at all.
+            # NO LINK CONFIG, NO NUMBER. A corpus that declares
+            # `record_link: null` links nowhere, and shipping a number anyway
+            # left 1,983 records pointing at a page the reader would be told
+            # was theirs. The number is only meaningful alongside a URL to put
+            # it in.
             "recordLinkNumber": (
+                None if not _rl else
                 (b.get("recordLinkNumber")
                  if _link_from_witness else rec["number"])
                 if (_link_layers is None or rec["layer"] in _link_layers)
