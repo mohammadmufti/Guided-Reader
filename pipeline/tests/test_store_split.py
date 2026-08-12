@@ -71,3 +71,38 @@ def test_a_form_entry_is_reproducible_from_the_word_alone():
         blob = json.dumps(entry, ensure_ascii=False)
         for marker in ("matn-", "zawaid-", "heading_", "frontmatter-"):
             assert marker not in blob, f"{mid} carries corpus structure: {marker}"
+
+
+def test_a_deliberate_null_survives_the_merge():
+    """`glossQuick: None` is a decision, not a gap.
+
+    build.py sets it to None wherever the analyser's gloss duplicates the
+    curated one. share.py merges entries across corpora by filling absent
+    fields — and it treated that None as absent, so a corpus that shipped the
+    gloss overwrote a corpus that had suppressed it. The shared entry then
+    carried both again.
+
+    This is why the duplicates survived three fixes: each was correct per
+    corpus, and the merge put them back. It could only show once two corpora
+    shared enough vocabulary for one to overwrite the other, which is exactly
+    what adding Bulugh and the Shama'il did — and why a single-corpus payload
+    never reproduced it.
+    """
+    import share
+
+    assert "glossQuick" in share.SUPPRESSIBLE
+
+    suppressed = {"vocalized": "لَمْ", "gloss": {"senses": ["not"]}, "glossQuick": None}
+    shipped = {"vocalized": "لَمْ", "gloss": {"senses": ["not"]},
+               "glossQuick": {"senses": ["not"]}}
+    for first, second in ((suppressed, shipped), (shipped, suppressed)):
+        existing = dict(first)
+        for field, val in second.items():
+            cur = existing.get(field)
+            if field in share.SUPPRESSIBLE and (cur is None or val is None):
+                existing[field] = None
+                continue
+            if cur in (None, "", [], {}):
+                existing[field] = val
+        assert existing["glossQuick"] is None, \
+            "a suppressed gloss came back through the merge"

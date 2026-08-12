@@ -251,6 +251,24 @@ two corpora were added whose vocabulary exercised that path. The build decides
 now: `glossQuick` is null where it duplicates the curated gloss, and the panel
 only checks whether the field is there.
 
+### A deliberate null is not a gap
+
+`share.py` merges entries that several corpora hold, filling a field from
+whichever corpus has one. That is right for a missing value and wrong for a
+chosen one.
+
+`glossQuick` is set to null wherever it duplicates the curated gloss. Treated
+as absent, a corpus that shipped the gloss overwrote a corpus that had
+suppressed it, and the shared entry carried both again.
+
+`share.SUPPRESSIBLE` lists the fields where null means "decided". Add a field
+there whenever the build may deliberately withhold it.
+
+This is worth stating plainly because the failure is invisible per corpus:
+every corpus was correct on its own, and only the merge reintroduced the
+duplicate. It could not reproduce until two corpora shared enough vocabulary
+for one to overwrite the other.
+
 ## 5. Enrich
 
 The binder adds meaning from two places. Neither may change a reading.

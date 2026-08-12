@@ -85,6 +85,11 @@ def collect_named(corpora: list[Path], stem: str, previous: Path | None) -> dict
     return merged
 
 
+# Fields a corpus may deliberately set to None. For these, None is a decision
+# and the merge must preserve it rather than treat it as an absent value.
+SUPPRESSIBLE = frozenset({"glossQuick"})
+
+
 def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, dict, list[str]]:
     """
     Merge every corpus's surface shards. Returns (entries, provenance, conflicts).
@@ -132,6 +137,20 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
                     continue
                 for field, val in row.items():
                     cur = existing.get(field)
+                    # A DELIBERATE NULL IS NOT A GAP. `glossQuick` is set to
+                    # None by build.py wherever it duplicates the curated
+                    # gloss, and filling it from another corpus undoes that
+                    # decision — the shared entry then carries both again and a
+                    # reader sees the same meaning printed twice.
+                    #
+                    # This is why the duplicates survived three fixes: each was
+                    # correct per corpus, and the merge put them back. It only
+                    # showed once two corpora shared enough vocabulary for one
+                    # to overwrite the other, which is why a single-corpus
+                    # payload never reproduced it.
+                    if field in SUPPRESSIBLE and (cur is None or val is None):
+                        existing[field] = None
+                        continue
                     if cur in (None, "", [], {}):
                         existing[field] = val
                     elif val not in (None, "", [], {}) and cur != val and field in (
