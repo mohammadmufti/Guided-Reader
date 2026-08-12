@@ -1222,3 +1222,36 @@ def test_a_link_number_is_never_invented():
         assert not with_link, (
             f"{cid}: {len(with_link)} records ship a link number with no link configured"
         )
+
+
+def test_a_chapter_link_is_matched_by_title_not_position():
+    """Two editions do not always divide a book into the same chapters.
+
+    Bulugh's ninth kitab is كتاب الطلاق, which sunnah.com does not carry as a
+    chapter of its own. A positional map is therefore off by one from there
+    on, and every later link lands in the wrong book. Matching by title maps
+    the 16 that correspond and leaves الطلاق unlinked.
+
+    Position is a fallback, and only where both texts have the same number of
+    chapters in the same order — the Shama'il's 57 against 57, where a handful
+    are titled differently without disagreeing about which chapter they are.
+    """
+    import glob, json, pathlib
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    assert "_by_title" in src and "len(_their) == _n_ours" in src
+
+    docs = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+            for f in glob.glob(str(corpus.ROOT.parent /
+                                   "web/public/data/corpora/bulugh/hadith/matn-*.json"))]
+    if not docs:
+        pytest.skip("bulugh payload not built")
+    # The chapter with no counterpart must carry no link.
+    talaq = [d for d in docs if (d.get("kitab") or {}).get("titleAr", "").strip() == "كتاب الطلاق"]
+    assert talaq, "كتاب الطلاق not found — has the text changed?"
+    assert all(d.get("chapterLinkNumber") is None for d in talaq), \
+        "a chapter with no counterpart on the site is being linked anyway"
+    # And a linked record must not use our own index where the two differ.
+    later = [d for d in docs if (d.get("kitab") or {}).get("index", 0) > 9
+             and d.get("chapterLinkNumber")]
+    assert later and all(d["chapterLinkNumber"] == d["kitab"]["index"] - 1 for d in later), \
+        "chapters after الطلاق must map one lower than our own index"

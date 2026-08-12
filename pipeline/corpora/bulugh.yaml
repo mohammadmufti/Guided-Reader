@@ -97,6 +97,16 @@ segmentation:
   # A wrong link is worse than none, so there is none until the numbering is
   # confirmed against the site itself.
   record_link: null
+  # CHAPTER LINK, matched by title. Our ninth kitab is كتاب الطلاق, which
+  # sunnah.com does not carry as a chapter of its own — so a positional map
+  # would be off by one from there on and every later link would land in the
+  # wrong book. Matching by title maps the 16 that correspond and leaves
+  # الطلاق unlinked, which is the honest result.
+  chapter_link:
+    level: kitab
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/bulugh/{n}"
   layer_names:
     body: matn
     aside: takhrij

@@ -67,7 +67,7 @@ STATS_FIELDS = [
     "freq", "doc_freq", "rank", "cum_pct", "layers", "boundFreq", "boundDocFreq",
 ]
 
-from corpus import inline_strip_patterns, load_config
+from corpus import inline_strip_patterns, load_config, source_path
 
 SCHEMA_VERSION = 6
 
@@ -500,6 +500,54 @@ def main() -> int:
     audio_by_number: dict[int, list[dict]] = {}
     cfg = load_config(args.corpus)
     strip = inline_strip_patterns(cfg)
+    # ---- chapter link: OUR heading -> THEIR chapter, matched by title ------
+    #
+    # Not by position. Bulugh's ninth kitab is كتاب الطلاق, which sunnah.com
+    # does not carry as a chapter of its own, so from there on a positional
+    # map is off by one and every link after it lands in the wrong book. And
+    # the two texts do not agree on which level is the chapter: Bulugh divides
+    # into kitab, the Shama'il only into bab.
+    #
+    # So each heading is matched to the chapter with the same title, and a
+    # heading with no counterpart simply gets no link.
+    _cl = (cfg.get("segmentation") or {}).get("chapter_link") or {}
+    _chapter_no: dict[int, int] = {}
+    _chapter_level = _cl.get("level", "kitab")
+    if _cl:
+        _wit = source_path(cfg, "vocalisation_reference", required=False)
+        if _wit and _wit.exists() and _wit.suffix.lower() == ".json":
+            _their = json.loads(_wit.read_text(encoding="utf-8")).get("chapters") or []
+            # Letters only, no spaces. The two sources differ on spacing and
+            # nothing else — `ماجاء` against `ما جاء`, `ك حل` against `كحل` —
+            # and normalise() keeps the space, so 16 of the Shama'il's 57
+            # chapters failed to match a title identical but for a gap.
+            _key = lambda t: "".join(
+                ch for ch in normalise(str(t or "")) if "\u0621" <= ch <= "\u064a")
+            _by_title = {}
+            for c in _their:
+                _by_title.setdefault(_key(c.get("arabic")), c["id"])
+            _layer = ("heading_kitab" if _chapter_level == "kitab" else "heading_bab")
+            _n_ours = sum(1 for _r in records["records"] if _r["layer"] == _layer)
+            _seen = 0
+            for _r in records["records"]:
+                if _r["layer"] != _layer:
+                    continue
+                _seen += 1
+                _hit = _by_title.get(_key(_r["textRaw"]))
+                # POSITION IS A FALLBACK, and only where the counts agree.
+                # Two editions title a chapter differently without disagreeing
+                # about which chapter it is: the Shama'il's 21st is
+                # `جلسة رسول الله` here and `جلسته` there. Where both texts
+                # have the same number of chapters in the same order, position
+                # settles those; where they do not — Bulugh has 17 kitab to
+                # their 16 — position is meaningless and only a title match
+                # counts.
+                if _hit is None and len(_their) == _n_ours and _seen <= len(_their):
+                    _hit = _their[_seen - 1]["id"]
+                if _hit is not None:
+                    _chapter_no[_seen] = _hit
+            print(f"  chapter links: {len(_chapter_no)} of {_seen} headings matched by title")
+
     _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
     _link_layers = _rl.get("layers")
     _link_from_witness = bool(_rl.get("number_from_witness"))
@@ -589,6 +637,11 @@ def main() -> int:
             # left 1,983 records pointing at a page the reader would be told
             # was theirs. The number is only meaningful alongside a URL to put
             # it in.
+            # Which of THEIR chapters this record sits in, or null.
+            "chapterLinkNumber": _chapter_no.get(
+                ((rec.get("kitab") or {}).get("index")
+                 if _chapter_level == "kitab" else (rec.get("bab") or {}).get("index"))
+            ),
             "recordLinkNumber": (
                 None if not _rl else
                 (b.get("recordLinkNumber")

@@ -400,14 +400,19 @@ function PageView({
           <AudioButton tracks={main.audio} />
           {main.kitab && (
             <span className="arabic text-sm" lang="ar">
-              {index.corpus.chapterLink ? (
-                // sunnah.com has no per-hadith anchor for this text, only a
-                // page per book — so the link goes to the kitab, which is
-                // where the reader would actually land anyway.
+              {index.corpus.chapterLink && main.chapterLinkNumber != null ? (
+                // The chapter, not the hadith: sunnah.com's per-hadith number
+                // is not derivable from the data we have, and the chapter page
+                // contains the hadith anyway.
+                //
+                // `chapterLinkNumber` comes from the BUILD, which matches our
+                // heading to theirs by title. Using our own index here would
+                // be off by one for every Bulugh kitab after الطلاق, which
+                // sunnah.com does not carry as a chapter.
                 <a
                   href={index.corpus.chapterLink.url.replace(
                     "{n}",
-                    String(main.kitab.index),
+                    String(main.chapterLinkNumber),
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -434,11 +439,27 @@ function PageView({
           )}
           {main.bab && (
             <span className="arabic text-sm text-(--color-ink-muted)" lang="ar">
+              {/* A text with no kitab divides into bab, and its chapter link
+                  hangs off that instead — otherwise it renders for no record
+                  at all. */}
               {/* The heading already names the hadith — الحديث الأول — so the
                   link goes on that, not on a bolted-on "sunnah.com 4". The
                   reader clicks the thing they are reading. Same treatment the
                   Muwatta's kitab title gets. */}
-              {index.corpus.recordLink && main.recordLinkNumber != null ? (
+              {!main.kitab && index.corpus.chapterLink && main.chapterLinkNumber != null ? (
+                <a
+                  href={index.corpus.chapterLink.url.replace(
+                    "{n}",
+                    String(main.chapterLinkNumber),
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${main.bab.titleAr} on ${index.corpus.chapterLink.label} — opens in a new tab`}
+                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+                >
+                  {main.bab.titleAr}
+                </a>
+              ) : index.corpus.recordLink && main.recordLinkNumber != null ? (
                 <a
                   href={index.corpus.recordLink.url.replace("{n}", String(main.recordLinkNumber))}
                   target="_blank"

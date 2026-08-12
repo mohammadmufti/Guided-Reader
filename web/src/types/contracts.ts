@@ -136,6 +136,12 @@ export interface CorpusRecord {
    */
   number: number | null;
   /**
+   * The external site's chapter number for this record, matched by TITLE rather than position —
+   * the two texts do not always divide into the same chapters. Null where this record's chapter
+   * has no counterpart.
+   */
+  chapterLinkNumber: number | null;
+  /**
    * The number to build `corpus.recordLink` with, or null where this record has no counterpart
    * at the external site. Ibn Rajab's ziyadat are hadith 43-50 of Nawawi's Forty here and are
    * absent from sunnah.com, so they carry no link.
@@ -460,6 +466,7 @@ export interface Token {
 export interface HadithFile {
   id: string;
   number: number | null;
+  chapterLinkNumber: number | null;
   recordLinkNumber: number | null;
   editionNumber: number | null;
   numbersCovered: number[];

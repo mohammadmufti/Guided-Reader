@@ -87,6 +87,10 @@ segmentation:
   # that contains their hadith, and the chapter title is on screen, so an
   # error would be visible rather than silent.
   chapter_link:
+    # BAB, not kitab. This text has 57 bab and no kitab above them, so the
+    # chapter IS the bab — and a link keyed on kitab would have rendered for
+    # no record at all.
+    level: bab
     label: "sunnah.com"
     labelAr: "سنة.كوم"
     url: "https://sunnah.com/shamail/{n}"

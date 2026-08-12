@@ -195,8 +195,15 @@ that differ do so only in spacing. The reader lands on the page containing
 their hadith, with the chapter title visible, so an error would show rather
 than hide.
 
-**Bulūgh links nowhere.** Its 17 kitāb headings against the dataset's 16
-chapters do not align, so even a chapter link is unverified.
+**Bulūgh links to its kitāb**, matched by title. Its ninth is `كتاب الطلاق`,
+which sunnah.com does not carry as a chapter of its own, so a positional map
+would be off by one from there on and every later link would land in the wrong
+book. 16 of 17 map; the 89 records of `كتاب الطلاق` carry no link.
+
+Position is used only as a fallback, and only where both texts have the same
+number of chapters in the same order — the Shamāʾil's 57 against 57, where a
+few are titled differently without disagreeing about which chapter they are
+(`جلسة رسول الله` against `جلسته`).
 
 ## The text is not changed
 

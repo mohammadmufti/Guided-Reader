@@ -194,6 +194,15 @@ class CorpusRecord(TypedDict):
         "Primary display number, and the ADDRESS: unique across the corpus, what "
         "`numberIndex` and the URL use. Null for headings and frontmatter."
     )]
+    chapterLinkNumber: Annotated[
+        int | None,
+        Doc(
+            "The external site's chapter number for this record, matched by "
+            "TITLE rather than position — the two texts do not always divide "
+            "into the same chapters. Null where this record's chapter has no "
+            "counterpart."
+        ),
+    ]
     recordLinkNumber: Annotated[
         int | None,
         Doc(
@@ -538,6 +547,7 @@ class HadithFile(TypedDict):
 
     id: str
     number: int | None
+    chapterLinkNumber: int | None
     recordLinkNumber: int | None
     editionNumber: int | None
     numbersCovered: list[int]
