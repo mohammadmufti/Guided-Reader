@@ -77,6 +77,19 @@ segmentation:
   # A wrong link is worse than none, so there is none until the numbering is
   # confirmed against the site itself.
   record_link: null
+  # CHAPTER LINK, verified. Our 57 bab headings and sunnah.com's 57 chapters
+  # are the same chapters in the same order: chapter 1 is
+  # `باب ما جاء في خلق رسول الله صلى الله عليه وسلم` on both, and the 29
+  # headings that differ do so only in spacing — `ماجاء` against `ما جاء`,
+  # `ك حل` against `كحل` — at the same index.
+  #
+  # This is what a per-hadith link cannot yet be. The reader lands on the page
+  # that contains their hadith, and the chapter title is on screen, so an
+  # error would be visible rather than silent.
+  chapter_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/shamail/{n}"
   layer_names:
     body: matn
     top: heading_kitab

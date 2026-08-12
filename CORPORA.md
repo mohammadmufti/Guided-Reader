@@ -162,8 +162,41 @@ verified is the step from dataset row to URL, and it cannot be verified from
 this data: the dataset carries `id`, `idInBook` and `chapterId`, and none of
 them is the site's hadith number.
 
-A wrong link is worse than none, so there is none until the numbering is
-confirmed against the site itself.
+### How sunnah.com numbers a hadith, and why the scrape loses it
+
+sunnah.com MERGES some hadith into one entry spanning two reference numbers.
+Its chapter 1 page shows an entry headed `Ash-Shama'il Al-Muhammadiyah 5, 6` —
+one entry, two numbers — whose in-book reference is Book 1, Hadith 5.
+
+That is the whole discrepancy. The Shamāʾil has **402 entries covering 417
+reference numbers**, and 417 is exactly the number of records in our text.
+The scrape keeps only the entry index (`idInBook`, 1–402) and discards the
+reference number, which is what a URL uses.
+
+Deriving one from the other needs the position of all 15 merges. Counting
+isnād chains finds 15 — the right total — but places them wrongly: it puts 7
+before entry 306 where the verified anchor requires 11. So the merges are not
+recoverable from the scrape alone.
+
+One anchor is confirmed: `sunnah.com/shamail:317` is entry 306, which is our
+record 319.
+
+To finish this, either request an API key from sunnah.com (their developer
+page asks for a GitHub issue) and read `hadithNumber` for all 402 entries, or
+harvest the 57 chapter pages, each of which lists every reference number it
+contains.
+
+### What links today
+
+**al-Shamāʾil links to its chapter.** Our 57 bāb headings and sunnah.com's 57
+chapters are the same chapters in the same order — chapter 1 is
+`باب ما جاء في خلق رسول الله صلى الله عليه وسلم` on both, and the 29 headings
+that differ do so only in spacing. The reader lands on the page containing
+their hadith, with the chapter title visible, so an error would show rather
+than hide.
+
+**Bulūgh links nowhere.** Its 17 kitāb headings against the dataset's 16
+chapters do not align, so even a chapter link is unverified.
 
 ## The text is not changed
 
