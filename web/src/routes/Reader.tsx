@@ -443,10 +443,25 @@ function PageView({
                   href={index.corpus.recordLink.url.replace("{n}", String(main.recordLinkNumber))}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={`${main.bab.titleAr} — ${index.corpus.recordLink.label}`}
+                  // SAY WHICH NUMBER IT OPENS. Where a corpus renumbers — the
+                  // Shama'il runs to 417 against sunnah.com's 402 — a reader
+                  // reading "hadith 330" lands on 317 and reasonably calls that
+                  // a mismatch. The link is right; it was silent about being a
+                  // different numbering.
+                  title={
+                    main.recordLinkNumber === main.number
+                      ? `${main.bab.titleAr} — ${index.corpus.recordLink.label}`
+                      : `${index.corpus.recordLink.label} ${main.recordLinkNumber}` +
+                        ` — this edition numbers it ${main.number}`
+                  }
                   className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
                 >
                   {main.bab.titleAr}
+                  {main.recordLinkNumber !== main.number && (
+                    <span className="ms-1 text-[0.7rem]" dir="ltr">
+                      ({index.corpus.recordLink.label} {main.recordLinkNumber})
+                    </span>
+                  )}
                 </a>
               ) : (
                 main.bab.titleAr
@@ -475,8 +490,14 @@ function PageView({
           harakat={harakat}
         />
 
-        {additions.map((add) => (
-          <section key={add.id} className="mt-9 border-t border-dashed border-(--color-rule) pt-5">
+        {/* ONE APPARATUS, not a stack. Several notes on the same hadith belong
+            together: a dashed rule between each read as unrelated fragments,
+            and the 2.25rem gap pushed the last one off the screen. The rule
+            opens the set once and the notes follow, spaced tightly. */}
+        {additions.length > 0 && (
+          <div className="mt-9 space-y-4 border-t border-dashed border-(--color-rule) pt-5">
+            {additions.map((add) => (
+          <section key={add.id}>
             {/* Whose addition, and that it is not the original — from the
                 corpus, not from this file. It named al-Diya' al-Daghistani for
                 every text that has additions, which by now is two. */}
@@ -508,7 +529,9 @@ function PageView({
               muted
             />
           </section>
-        ))}
+            ))}
+          </div>
+        )}
       </article>
 
       <aside

@@ -120,6 +120,17 @@ class Rules:
         )
 
 
+# A trailing footnote marker is not part of the sentence.
+_TRAILING_REF = re.compile(r"(?:\s*\(\d+\))+\s*$")
+_CLOSERS = ("»", ".", "؟", "!", "\u061f", ":")
+
+
+def _sentence_closed(text: str) -> bool:
+    """Did this record end a sentence, or is it waiting for the next line?"""
+    t = _TRAILING_REF.sub("", str(text).rstrip()).rstrip()
+    return t.endswith(_CLOSERS)
+
+
 def count_tokens(text: str, rules: Rules) -> int:
     """
     Count tokens the way the workbook's pipeline did.
@@ -478,10 +489,18 @@ class Segmenter:
         # `textRaw` must be non-empty. A text that puts its number on a line of
         # its own leaves the record empty when its own body arrives, and
         # without this check that body is read as a note on nothing.
+        # ONLY WHERE THE SENTENCE CLOSED. A note begins after the report ends;
+        # a continuation resumes a sentence the previous line left open. The
+        # source breaks lines mid-clause — hadith 5 ends `«إذا كان الماء قلتين`
+        # and resumes `لم يحمل الخبث»` — so a rule that fires on every second
+        # paragraph tore the matn in half and filed the rest as a footnote.
+        #
+        # 219 of Bulugh's 591 "notes" were continuations of this kind.
         if (
             self.rules.unnumbered_body_is_aside
             and self.current is not None
             and self.current.get("textRaw", "").strip()
+            and _sentence_closed(self.current["textRaw"])
             and self.current["layer"] in (
                 self.rules.layers["body"], self.rules.layers["aside"])
         ):

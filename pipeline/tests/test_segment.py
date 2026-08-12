@@ -363,3 +363,39 @@ def test_every_corpus_segments_without_residual_markers():
         assert "residual markers   NONE" in r.stdout, \
             f"{cid}: unrecognised markers remain\n" + \
             next((l for l in r.stdout.splitlines() if "residual" in l), "")
+
+
+def test_a_note_never_swallows_a_continuation():
+    """A note begins after the report ends. A continuation resumes it.
+
+    Bulugh's source breaks lines mid-clause — hadith 5 ends `«إذا كان الماء
+    قلتين` and the next line resumes `لم يحمل الخبث»`. A rule that made every
+    second paragraph a note tore the matn in half and filed the rest as a
+    footnote, which is what a reader saw: the hadith cut short and its own
+    words appearing under it as apparatus.
+
+    219 of what were counted as 591 notes were continuations of this kind.
+    """
+    import json
+    from conftest import BUILD
+    path = BUILD / "bulugh" / "records.json"
+    if not path.exists():
+        pytest.skip("bulugh records not present")
+    recs = json.loads(path.read_text(encoding="utf-8"))["records"]
+    idx = {r["id"]: i for i, r in enumerate(recs)}
+
+    from segment import _sentence_closed
+    unclosed = [
+        r["id"] for r in recs
+        if r["layer"] == "takhrij"
+        and not _sentence_closed(recs[idx[r["id"]] - 1]["textRaw"])
+    ]
+    assert not unclosed, (
+        f"{len(unclosed)} notes follow a record whose sentence never closed — "
+        f"they are continuations, e.g. {unclosed[:3]}"
+    )
+
+    # And hadith 5 specifically, which is where this was found.
+    five = next((r for r in recs if r["layer"] == "matn" and r.get("number") == 5), None)
+    if five:
+        assert "لم يحمل الخبث" in five["textRaw"], "hadith 5 lost its second clause"
