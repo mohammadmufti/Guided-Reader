@@ -1,9 +1,9 @@
 # Corpus configuration — Muwatta' Malik
 #
-# DRAFT for Phase 3. This will not bind until Phase 1 lands: `bind.py` and
-# `lexicon.py` still read al-Tajrid's workbook regardless of --corpus, so
-# running them against this corpus today silently binds the Muwatta' against
-# al-Tajrid's lexicon. Segment only until that is fixed.
+# (A header here used to warn this was a Phase 3 draft that could not bind.
+# That was true before Phase 1 made bind.py and lexicon.py corpus-aware; the
+# corpus has bound and shipped since — the gate measurements below are its
+# own. Removed 2026-08, having outlived the code it warned about.)
 #
 # RECENSION WARNING. OpenITI carries nine Muwatta' versions and they are not
 # nine digitisations of one text — they are different riwayat with different
@@ -172,7 +172,20 @@ segmentation:
   # title against the scraped dataset: 60 of 61 identical, the one difference
   # being a naming variant in the same slot (ours كتاب الجامع, theirs
   # كتاب المدينة), not a shift. `{n}` is the kitab index.
+  #
+  # `match: position`, DECLARED because it is verified. The default mode
+  # matches heading titles against the witness JSON's `chapters` array, which
+  # this corpus cannot use: its witness is a single-column CSV with no chapter
+  # metadata. When the Reader moved from our kitab index to the build-stamped
+  # `chapterLinkNumber`, that requirement silently unmapped every one of these
+  # links — the build shipped `corpus.chapterLink` with every number null.
+  # Positional stamping is exactly what the old Reader did, and it is sound
+  # HERE because the 61-to-61 correspondence was checked and is pinned by
+  # test_muwatta_chapter_indices_match_sunnah_com; a corpus that has not done
+  # that check must not copy this key (Bulugh's 17-to-16 is the counterexample
+  # — positional there puts every kitab after الطلاق in the wrong book).
   chapter_link:
+    match: position
     label: "sunnah.com"
     labelAr: "سنة.كوم"
     url: "https://sunnah.com/malik/{n}"

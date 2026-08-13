@@ -1255,3 +1255,80 @@ def test_a_chapter_link_is_matched_by_title_not_position():
              and d.get("chapterLinkNumber")]
     assert later and all(d["chapterLinkNumber"] == d["kitab"]["index"] - 1 for d in later), \
         "chapters after الطلاق must map one lower than our own index"
+
+
+def test_muwatta_chapter_links_survive_in_the_payload():
+    """The kitab link must reach the reader, not merely the config.
+
+    This regressed once without a test noticing. The Reader used to build the
+    Muwatta's link from `kitab.index` directly; when Bulugh and the Shama'il
+    made the build stamp `chapterLinkNumber` (matched by title against the
+    witness JSON's `chapters`), the Reader switched to that field for every
+    corpus — and the Muwatta's witness is a single-column CSV, so the matcher
+    never ran, every number shipped null, and `corpus.chapterLink` kept
+    claiming a link the UI could render on no record. Nothing failed: the
+    gates measure binding, not linking.
+
+    The corpus now declares `match: position` (its 61-to-61 correspondence is
+    verified and pinned above), the build refuses a declared link that
+    resolves NOTHING, and this test asserts on the shipped payload — the one
+    artefact the earlier layers cannot vouch for.
+    """
+    import glob, json, pathlib
+    cfg = corpus.load_config("muwatta")
+    cl = (cfg.get("segmentation") or {}).get("chapter_link") or {}
+    assert cl.get("match") == "position", \
+        "the Muwatta's witness carries no chapters; only its verified " \
+        "positional map can link it"
+    docs = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+            for f in glob.glob(str(corpus.ROOT.parent /
+                                   "web/public/data/corpora/muwatta/hadith/matn-*.json"))]
+    if not docs:
+        pytest.skip("muwatta payload not built")
+    linked = [d for d in docs if d.get("chapterLinkNumber") is not None]
+    assert linked, "no muwatta record carries a chapter link — the regression is back"
+    # Positional means OUR index, exactly — a drift here is a wrong book.
+    assert all(d["chapterLinkNumber"] == (d.get("kitab") or {}).get("index")
+               for d in linked), "positional link must equal our kitab index"
+    # And every matn record under a kitab must carry one: 61 of 61 map.
+    under = [d for d in docs if (d.get("kitab") or {}).get("index")]
+    assert len(linked) == len(under), \
+        f"{len(under) - len(linked)} matn records under a kitab ship no link"
+
+
+def test_a_declared_chapter_link_that_resolves_nothing_fails_the_build():
+    """Partial resolution is a text fact (Bulugh's الطلاق has no counterpart);
+    TOTAL failure is a configuration error and must stop the build rather
+    than ship a payload that claims a link and renders it nowhere. Pinned on
+    the source, as the title-matching test above pins its mechanism, because
+    running build.py end to end needs a bound corpus this test must not
+    assume."""
+    src = (corpus.ROOT / "build.py").read_text(encoding="utf-8")
+    assert "if _cl and not _chapter_no:" in src and "return 1" in src, \
+        "the zero-resolution guard is gone from build.py"
+
+
+def test_payload_links_carry_only_the_contract_keys():
+    """`corpus.chapterLink` and friends are ReferenceLink: label, labelAr,
+    url. The yaml blocks carry pipeline-only keys besides (`level`, `match`,
+    `layers`, `number_from_witness`), and shipping the dict verbatim leaked
+    `level: bab` into the Shama'il's index.json — a key the contract does not
+    declare and no component reads. The exporter now states the contract
+    exactly; this holds it there."""
+    import json, pathlib
+    allowed = {"label", "labelAr", "url"}
+    checked = 0
+    for cid in CORPORA:
+        idx = corpus.ROOT.parent / f"web/public/data/corpora/{cid}/index.json"
+        if not idx.exists():
+            continue
+        doc = json.loads(idx.read_text(encoding="utf-8"))["corpus"]
+        for field in ("referenceLink", "chapterLink", "recordLink"):
+            link = doc.get(field)
+            if link is None:
+                continue
+            checked += 1
+            extra = set(link) - allowed
+            assert not extra, f"{cid}.{field} ships undeclared keys {extra}"
+    if not checked:
+        pytest.skip("no built payload declares a link")

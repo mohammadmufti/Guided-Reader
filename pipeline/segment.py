@@ -712,6 +712,21 @@ def read_source(source: Path) -> tuple[dict, str]:
     return meta, fold_letterforms("\n".join(lines))
 
 
+def _public_link(link: dict | None) -> dict | None:
+    """The contract's ReferenceLink: label, labelAr, url — nothing else.
+
+    The yaml blocks carry pipeline-only keys besides — `level` says which of
+    OUR heading layers the chapter link keys on, `match` how the mapping is
+    established, `layers` and `number_from_witness` steer the binder. None of
+    them means anything to the client, and shipping the dict verbatim leaked
+    `level: bab` into the Shama'il's index.json: a key the contract does not
+    declare and no component reads. The payload states the contract, exactly.
+    """
+    if not link:
+        return None
+    return {k: link.get(k) for k in ("label", "labelAr", "url")}
+
+
 def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
     meta, body = read_source(source)
 
@@ -734,12 +749,12 @@ def build(cfg: dict, source: Path, rules: Rules) -> tuple[dict, Segmenter]:
         )["sources"]["text"]["retrieved"],
         "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "edition": disp.get("edition"),
-        "referenceLink": (cfg.get("segmentation") or {}).get("reference_link"),
+        "referenceLink": _public_link((cfg.get("segmentation") or {}).get("reference_link")),
         # Per-CHAPTER external reference. sunnah.com publishes the Muwatta'
         # as one page per book with no per-hadith anchor, so the link that
         # actually resolves is to the kitab.
-        "chapterLink": (cfg.get("segmentation") or {}).get("chapter_link"),
-        "recordLink": (cfg.get("segmentation") or {}).get("record_link"),
+        "chapterLink": _public_link((cfg.get("segmentation") or {}).get("chapter_link")),
+        "recordLink": _public_link((cfg.get("segmentation") or {}).get("record_link")),
         # Which layer holds additions, and what to say about them. Both were
         # a hardcoded Arabic sentence in Reader.tsx naming al-Diya' al-Daghistani.
         "asideLayer": (cfg.get("segmentation") or {}).get("layer_names", {}).get("aside"),

@@ -61,7 +61,13 @@ three times in Kitāb al-Ḥajj. The reader therefore shows a running number, an
 prints the edition's own number beside it as `ed. N`. Cite the edition number
 with its kitāb.
 
-Each kitāb title links to the same book on sunnah.com.
+Each kitāb title links to the same book on sunnah.com. The mapping is
+**positional and declared so** (`match: position`): sunnah.com carries this
+text as one page per book, 61 books in the same order with the same titles,
+60 of 61 identical — verified against the sunnah.com-derived dataset and
+pinned by a test. Positional mapping is legal only under that verification;
+see "Chapter links" below for the mode a corpus gets by default, and for how
+this corpus's links once vanished silently.
 
 ---
 
@@ -204,6 +210,28 @@ Position is used only as a fallback, and only where both texts have the same
 number of chapters in the same order — the Shamāʾil's 57 against 57, where a
 few are titled differently without disagreeing about which chapter they are
 (`جلسة رسول الله` against `جلسته`).
+
+### Chapter links: two modes, and a guard
+
+A `chapter_link` resolves its numbers in one of two declared ways. The
+default, `match: title`, matches our headings to the witness JSON's
+`chapters` by title, with position as a fallback only where the counts agree
+— that is Bulūgh and the Shamāʾil above. `match: position` stamps our own
+heading index, and is legal only where the corpus has verified the
+positional correspondence itself — the Muwaṭṭaʾ, whose witness is a
+single-column CSV with no chapter metadata and whose 61-to-61 map is checked
+and pinned by a test.
+
+The second mode exists because the first failed silently. When the Reader
+moved from the Muwaṭṭaʾ's `kitab.index` to the build-stamped
+`chapterLinkNumber`, title matching quietly required a JSON witness the
+Muwaṭṭaʾ does not have: the matcher never ran, every number shipped null,
+and `corpus.chapterLink` kept claiming a link the UI rendered on no record.
+Nothing failed — the gates measure binding, not linking. The build now
+refuses to ship a corpus that declares a `chapter_link` and resolves **zero**
+chapters (partial resolution is a text fact — Bulūgh's الطلاق has no
+counterpart; total failure is a configuration error), and a payload test
+asserts the Muwaṭṭaʾ's links on the shipped files.
 
 ## The text is not changed
 

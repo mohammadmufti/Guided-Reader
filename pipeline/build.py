@@ -513,7 +513,31 @@ def main() -> int:
     _cl = (cfg.get("segmentation") or {}).get("chapter_link") or {}
     _chapter_no: dict[int, int] = {}
     _chapter_level = _cl.get("level", "kitab")
-    if _cl:
+    # HOW the mapping is established is declared, not inferred. `title` (the
+    # default) matches our headings to the witness JSON's `chapters` by title;
+    # `position` stamps our own heading index and is legal ONLY where the
+    # corpus has verified the positional correspondence itself — the Muwatta'
+    # did (61 kitab against sunnah.com's 61 books, same order, 60 of 61 titles
+    # identical, pinned by test_muwatta_chapter_indices_match_sunnah_com).
+    #
+    # `position` exists because title matching silently required a JSON
+    # witness with a `chapters` array. The Muwatta's witness is a single-column
+    # CSV, so when the Reader moved from `kitab.index` to the build-stamped
+    # `chapterLinkNumber`, every Muwatta link vanished: the block below never
+    # ran, no number was stamped, and nothing failed. The guard at the end of
+    # this section is what turns that silence into a stopped build.
+    _cl_match = _cl.get("match", "title")
+    if _cl and _cl_match == "position":
+        _layer = ("heading_kitab" if _chapter_level == "kitab" else "heading_bab")
+        _seen = 0
+        for _r in records["records"]:
+            if _r["layer"] != _layer:
+                continue
+            _seen += 1
+            _chapter_no[_seen] = _seen
+        print(f"  chapter links: {len(_chapter_no)} headings, positional "
+              f"(correspondence declared verified by the corpus)")
+    elif _cl:
         _wit = source_path(cfg, "vocalisation_reference", required=False)
         if _wit and _wit.exists() and _wit.suffix.lower() == ".json":
             _their = json.loads(_wit.read_text(encoding="utf-8")).get("chapters") or []
@@ -547,6 +571,27 @@ def main() -> int:
                 if _hit is not None:
                     _chapter_no[_seen] = _hit
             print(f"  chapter links: {len(_chapter_no)} of {_seen} headings matched by title")
+
+    # A DECLARED LINK THAT RESOLVES NOTHING STOPS THE BUILD. This is how the
+    # Muwatta's links vanished: `chapter_link` was declared, title matching
+    # needed a JSON witness with `chapters`, its witness is a CSV, and the
+    # build shipped `corpus.chapterLink` with every `chapterLinkNumber` null —
+    # a payload that renders the link nowhere while claiming to link. Partial
+    # resolution is legitimate (Bulugh maps 16 of 17; الطلاق has no
+    # counterpart); TOTAL failure is a configuration error, not a text fact.
+    if _cl and not _chapter_no:
+        print(
+            f"\nERROR: corpus {args.corpus!r} declares `chapter_link` but zero "
+            f"chapters resolved.\n"
+            f"  match: {_cl_match!r}. Title matching requires a JSON witness "
+            f"with a `chapters` array;\n"
+            f"  a corpus whose correspondence is positional and VERIFIED must "
+            f"declare `match: position`.\n"
+            f"  Shipping this payload would render the link on no record while "
+            f"`corpus.chapterLink` claims one.\n",
+            file=sys.stderr,
+        )
+        return 1
 
     _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
     _link_layers = _rl.get("layers")

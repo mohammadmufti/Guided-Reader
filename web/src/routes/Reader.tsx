@@ -406,9 +406,15 @@ function PageView({
                 // contains the hadith anyway.
                 //
                 // `chapterLinkNumber` comes from the BUILD, which matches our
-                // heading to theirs by title. Using our own index here would
-                // be off by one for every Bulugh kitab after الطلاق, which
-                // sunnah.com does not carry as a chapter.
+                // heading to theirs by title — or stamps our own index where
+                // the corpus has VERIFIED the positional correspondence
+                // (`match: position`; the Muwatta's 61-to-61). Reading
+                // `kitab.index` here instead would be off by one for every
+                // Bulugh kitab after الطلاق, which sunnah.com does not carry
+                // as a chapter — and reading only the build's field, as this
+                // does, once cost the Muwatta every link when its CSV witness
+                // could not feed the title matcher. The build now refuses to
+                // ship a declared link that resolved nothing.
                 <a
                   href={index.corpus.chapterLink.url.replace(
                     "{n}",
