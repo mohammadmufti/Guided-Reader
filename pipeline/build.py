@@ -596,6 +596,44 @@ def main() -> int:
     _rl = (cfg.get("segmentation") or {}).get("record_link") or {}
     _link_layers = _rl.get("layers")
     _link_from_witness = bool(_rl.get("number_from_witness"))
+    # THE ADDRESS MAP, where the witness's numbering is not the site's.
+    # `bind.py` stamps the witness row's `idInBook` — an entry index sunnah.com
+    # does not use in URLs, because the site merges entries (see
+    # pipeline/sunnah_numbers.py). A corpus that declares `link_map` gets its
+    # stamped indices TRANSLATED here into the site's own address: a URL tail
+    # via `ref_template` formatted from the map entry (plus `{n}` = the site's
+    # first display number, None where the site never assigned one), never the
+    # raw index. The map is verified at derivation and its committed form is
+    # held by tests/test_sunnah_links.py, so a translation miss here means the
+    # witness and the map drifted apart — counted below and gated.
+    _link_map: dict = {}
+    _ref_template = _rl.get("ref_template")
+    if _rl.get("link_map"):
+        _lm_path = ROOT / _rl["link_map"]
+        if not _lm_path.exists() or not _ref_template:
+            print(f"\nERROR: corpus {args.corpus!r} declares "
+                  f"`record_link.link_map` but "
+                  f"{'the file is missing: ' + str(_lm_path) if not _lm_path.exists() else 'no `ref_template` is set'}."
+                  f"\n  Shipping would stamp witness indices as if they were "
+                  f"the site's numbers — the exact bug the map exists to fix.\n",
+                  file=sys.stderr)
+            return 1
+        _link_map = json.loads(_lm_path.read_text(encoding="utf-8"))["entries"]
+    _map_hits = _map_misses = 0
+
+    def _site_address(idin) -> tuple[str | None, int | None]:
+        """(recordLinkRef, display number) for a witness entry index."""
+        nonlocal _map_hits, _map_misses
+        if idin is None:
+            return None, None
+        ent = _link_map.get(str(idin))
+        if ent is None:
+            _map_misses += 1
+            return None, None
+        _map_hits += 1
+        n = (ent.get("refs") or [None])[0]
+        return _ref_template.format(n=n, **ent), n
+
     binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")
     if recit:
@@ -659,6 +697,20 @@ def main() -> int:
     hadith_sizes = []
     for rec in records["records"]:
         b = bindings[rec["id"]]
+        # The external link, resolved before the payload so the map corpora
+        # and the numeric corpora share one gate. `_link_base` is what the
+        # binder stamped (the witness's index) or our own number for corpora
+        # whose numbering IS the site's; a corpus with a `link_map` never
+        # ships that base — it ships the translated site address or nothing.
+        _link_eligible = bool(_rl) and (_link_layers is None
+                                        or rec["layer"] in _link_layers)
+        _link_base = (b.get("recordLinkNumber")
+                      if _link_from_witness else rec["number"]) \
+            if _link_eligible else None
+        if _link_map:
+            _link_ref, _link_num = _site_address(_link_base)
+        else:
+            _link_ref, _link_num = None, _link_base
         payload = {
             "id": rec["id"], "number": rec["number"], "numbersCovered": rec["numbersCovered"],
             # The number the EDITION prints, when it differs from the address.
@@ -687,13 +739,8 @@ def main() -> int:
                 ((rec.get("kitab") or {}).get("index")
                  if _chapter_level == "kitab" else (rec.get("bab") or {}).get("index"))
             ),
-            "recordLinkNumber": (
-                None if not _rl else
-                (b.get("recordLinkNumber")
-                 if _link_from_witness else rec["number"])
-                if (_link_layers is None or rec["layer"] in _link_layers)
-                else None
-            ),
+            "recordLinkNumber": _link_num,
+            "recordLinkRef": _link_ref,
             "editionNumber": (rec.get("editionNumber")
                               if rec.get("editionNumber") != rec["number"] else None),
             "type": rec["type"], "layer": rec["layer"],
@@ -721,6 +768,27 @@ def main() -> int:
         }
         hadith_sizes.append(write(CORPUS_DATA / "hadith" / f"{rec['id']}.json", payload))
     sizes["hadith/*.json"] = hadith_sizes
+    if _link_map:
+        # A miss means the binder stamped an index the map has no entry for —
+        # the witness and the map were derived from different states of the
+        # same scrape. That is drift, not noise, and zero translations means
+        # the machinery is not wired at all (number_from_witness left off, or
+        # bindings stale). Either way the payload would silently link nothing.
+        print(f"  record links: {_map_hits:,} translated through the address "
+              f"map, {_map_misses:,} misses")
+        if _map_misses:
+            print(f"\nERROR: corpus {args.corpus!r}: {_map_misses:,} witness "
+                  f"indices missing from {_rl['link_map']} — re-derive the map "
+                  f"against the current witness (pipeline/sunnah_numbers.py) "
+                  f"or re-run bind.py; the two must come from the same "
+                  f"fetch.\n", file=sys.stderr)
+            return 1
+        if not _map_hits:
+            print(f"\nERROR: corpus {args.corpus!r} declares "
+                  f"`record_link.link_map` but zero records translated — is "
+                  f"`number_from_witness` set, and are bindings current?\n",
+                  file=sys.stderr)
+            return 1
     print(f"  context morphology: {context_counts['applied']:,} roots overridden "
           f"of {context_counts['disagreements']:,} disagreements "
           f"(geminate -> hollow only)")

@@ -125,7 +125,9 @@ from, arranged by chapter of fiqh. 1,767 hadith.
 Three OpenITI versions exist. This one aligns to the witness at a median
 coverage of 1.000. The longest carries a commentary and is a different book.
 
-**Its numbering is not sunnah.com's.** See "External numbering" below.
+**Each hadith links to sunnah.com through the verified address map** — the
+path form `bulugh/{book}/{pos}`, because the site has no complete
+collection numbering for this book. See "External numbering" below.
 
 ---
 
@@ -141,32 +143,20 @@ his appearance, his habits, his manner — rather than on rulings.
 57 bāb and no kitāb above them, so `heading_top_prefixes` is empty. Inventing
 a top level would state a structure the book does not have.
 
-**Its numbering is not sunnah.com's.** See below.
+**Each hadith links to sunnah.com through the verified address map** — the
+colon form `shamail:{n}`; our 319 is the site's 317. See "External
+numbering" below.
 
 ---
 
 ## External numbering
 
-A corpus links each hadith to the same hadith on sunnah.com where the two
-numberings are known to agree. For al-Tajrīd the editor states the Bukhārī
-number himself, and for Nawawī's Forty and Shāh Walī Allāh's the collections
-are short and the numbering is checked.
-
-**Bulūgh al-Marām and al-Shamāʾil link nowhere.** They were linked using the
-`idInBook` field of the sunnah.com-derived dataset, on the assumption that it
-is the number in a sunnah.com URL. It is not:
-
-| | |
-|---|---|
-| `sunnah.com/shamail:317` serves | محمود بن غيلان … أم هانئ |
-| the dataset calls that hadith | `idInBook` 306 |
-| the dataset's own 317 is | a different report |
-
-The alignment itself is sound — a record matches its dataset row at a median
-coverage of 1.000, and that is what supplies the vowelling. What was never
-verified is the step from dataset row to URL, and it cannot be verified from
-this data: the dataset carries `id`, `idInBook` and `chapterId`, and none of
-them is the site's hadith number.
+A corpus links each hadith to the same hadith on sunnah.com where the
+correspondence is verified. For al-Tajrīd the editor states the Bukhārī
+number himself; for Nawawī's Forty and Shāh Walī Allāh's the collections are
+short and the numbering is checked; for Bulūgh al-Marām and al-Shamāʾil the
+correspondence runs through a derived, verified address map — the mechanism
+this section documents.
 
 ### How sunnah.com numbers a hadith, and why the scrape loses it
 
@@ -174,42 +164,78 @@ sunnah.com MERGES some hadith into one entry spanning two reference numbers.
 Its chapter 1 page shows an entry headed `Ash-Shama'il Al-Muhammadiyah 5, 6` —
 one entry, two numbers — whose in-book reference is Book 1, Hadith 5.
 
-That is the whole discrepancy. The Shamāʾil has **402 entries covering 417
-reference numbers**, and 417 is exactly the number of records in our text.
-The scrape keeps only the entry index (`idInBook`, 1–402) and discards the
-reference number, which is what a URL uses.
+The Shamāʾil has **402 entries covering 417 reference numbers**, and 417 is
+exactly the number of records in our text. The vocalisation witness (the
+`AhmedBaset/hadith-json` scrape) keeps only the entry index (`idInBook`,
+1–402) and discards the reference number, which is what a URL uses — so a
+link built from `idInBook` lands on the wrong hadith, drifting further as
+merges accumulate: `sunnah.com/shamail:317` serves the hadith that scrape
+calls 306, which is our record 319. A first version of the link shipped on
+exactly that assumption and was backed out.
 
-Deriving one from the other needs the position of all 15 merges. Counting
-isnād chains finds 15 — the right total — but places them wrongly: it puts 7
-before entry 306 where the verified anchor requires 11. So the merges are not
-recoverable from the scrape alone.
+### The address map
 
-One anchor is confirmed: `sunnah.com/shamail:317` is entry 306, which is our
-record 319.
+The site's own numbering was recovered from a second scrape of the same site
+that kept what the first discarded — `CheeseWithSauce/HadithsJSONFormat`,
+whose `reference` field preserves sunnah.com's reference tables verbatim.
+`pipeline/sunnah_numbers.py` derives, for every witness entry, the address
+the site itself uses, and refuses to write on any failure: the source is
+pinned to a commit; every entry must match the witness at textual IDENTITY
+(the two are scrapes of one site — overlap 1.000 on all 402 + 1,767 pairs,
+re-measured on every run); the Shamāʾil's numbers must tile 1..417 exactly
+with exactly 15 merges; and the hand-confirmed anchors must hold. Alignment
+is positional WITHIN each chapter, because global position is not sound: the
+site's chapter "8b" sits between 8 and 9 carrying numbers 368–369, and a
+global zip mapped entry 306 to 319 where the confirmed answer is 317. The
+committed maps (`pipeline/corpora/data/*_sunnah_links.json`, numbers only,
+no text) are held to the same invariants by `tests/test_sunnah_links.py`.
 
-To finish this, either request an API key from sunnah.com (their developer
-page asks for a GitHub issue) and read `hadithNumber` for all 402 entries, or
-harvest the 57 chapter pages, each of which lists every reference number it
-contains.
+The two collections turned out to need different address forms, measured on
+live pages rather than assumed:
+
+**al-Shamāʾil has a complete collection numbering**, 1..417, and
+`sunnah.com/shamail:{n}` resolves every one. Its records link with the colon
+form and display the site's number beside the heading where it differs from
+ours.
+
+**Bulūgh al-Marām has no complete numbering on sunnah.com.** Colon references
+exist in five of its sixteen books — 378 entries — and the site assigns 31 of
+those numbers twice. What is universal and unique is the path form
+`sunnah.com/bulugh/{book}/{pos}`, which every entry carries (verified live:
+`/bulugh/1/5` is the qullatayn hadith, `/bulugh/2/151` matches the map).
+Bulūgh links with paths; the colon number, where the site has one, is shown
+as the display number, and where it never assigned one the link shows no
+number rather than inventing something.
 
 ### What links today
 
-**al-Shamāʾil links to its chapter.** Our 57 bāb headings and sunnah.com's 57
-chapters are the same chapters in the same order — chapter 1 is
-`باب ما جاء في خلق رسول الله صلى الله عليه وسلم` on both, and the 29 headings
-that differ do so only in spacing. The reader lands on the page containing
-their hadith, with the chapter title visible, so an error would show rather
-than hide.
+**Per hadith, through the map: Bulūgh and the Shamāʾil.** The binder stamps
+the `idInBook` of the witness row each record aligned to — vouched for by
+the alignment's coverage, filtered so the sequence never runs backwards
+(retrieval is per record, and a short formulaic hadith occasionally matches
+an unrelated row; 9 of Bulūgh's and 2 of the Shamāʾil's were dropped for
+this, measured) — and the build TRANSLATES it through the map into the
+site's address, never shipping the raw index. A witness index the map does
+not know fails the build. Measured on the shipped payloads: 404 of the
+Shamāʾil's 406 matn records link (99.5%), 1,566 of Bulūgh's 1,580 (99.1%);
+the rest fall back to their chapter link, which is honest — a link the
+binder could not vouch for does not exist.
 
-**Bulūgh links to its kitāb**, matched by title. Its ninth is `كتاب الطلاق`,
-which sunnah.com does not carry as a chapter of its own, so a positional map
-would be off by one from there on and every later link would land in the wrong
-book. 16 of 17 map; the 89 records of `كتاب الطلاق` carry no link.
+**Per hadith, by shared numbering: al-Tajrīd (the editor's own Bukhārī
+numbers), Nawawī's Forty and Shāh Walī Allāh's Forty** (`{n}` URLs, the
+numbering checked; Ibn Rajab's ziyādāt are absent from the site and carry no
+link).
 
-Position is used only as a fallback, and only where both texts have the same
-number of chapters in the same order — the Shamāʾil's 57 against 57, where a
-few are titled differently without disagreeing about which chapter they are
-(`جلسة رسول الله` against `جلسته`).
+**Per chapter, as the fallback and for the Muwaṭṭaʾ.** The Shamāʾil's 57 bāb
+match sunnah.com's 57 chapters by title; Bulūgh's kitāb map 16 of 17 — its
+ninth, `كتاب الطلاق`, is not a chapter on the site, so a positional map would
+be off by one from there on; those 89 records reach the site through their
+per-hadith links instead, which the chapter link never could. The Muwaṭṭaʾ
+links each kitāb positionally (61-to-61, verified — sunnah.com has no
+per-hadith pages for it). Position is otherwise only a fallback where the
+counts agree — the Shamāʾil's 57 against 57, where a few chapters are titled
+differently (`جلسة رسول الله` against `جلسته`) without disagreeing about
+which chapter they are.
 
 ### Chapter links: two modes, and a guard
 

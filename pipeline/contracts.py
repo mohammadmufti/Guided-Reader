@@ -212,6 +212,19 @@ class CorpusRecord(TypedDict):
             "from sunnah.com, so they carry no link."
         ),
     ]
+    recordLinkRef: Annotated[
+        str | None,
+        Doc(
+            "The external site's own address for this record, as a URL tail "
+            "('shamail:317', 'bulugh/2/151'), where the corpus links through "
+            "a verified address map — see pipeline/sunnah_numbers.py. When "
+            "present, `corpus.recordLink.url` carries a `{ref}` placeholder "
+            "and this fills it; `recordLinkNumber` is then the site's DISPLAY "
+            "number, which can be null: sunnah.com never finished numbering "
+            "Bulugh, so most of its hadith have an address but no number. "
+            "Null for corpora whose numbering needs no map (the `{n}` form)."
+        ),
+    ]
     editionNumber: Annotated[int | None, Doc(
         "The number the printed edition gives this hadith, when it differs from "
         "`number`. On a text that restarts numbering in every kitab, `number` is a "
@@ -549,6 +562,7 @@ class HadithFile(TypedDict):
     number: int | None
     chapterLinkNumber: int | None
     recordLinkNumber: int | None
+    recordLinkRef: str | None
     editionNumber: int | None
     numbersCovered: list[int]
     type: RecordType

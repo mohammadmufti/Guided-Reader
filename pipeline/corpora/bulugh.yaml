@@ -82,21 +82,35 @@ segmentation:
   # hadith they belong to — see segment.py.
   heading_prefixes: ["كتاب", "باب"]
   numbering: edition
-  # Its hadith N is sunnah.com's bulugh:N. Same collection, same numbering.
-  # NO PER-HADITH LINK. It was built from the dataset's `idInBook`, on the
-  # assumption that this is the number in a sunnah.com URL. IT IS NOT:
-  # sunnah.com/shamail:317 serves the hadith the dataset calls 306, and the
-  # dataset's own 317 is a different report entirely.
+  # PER-HADITH LINK, through the verified address map. Two lessons are baked
+  # into this block, both learned the hard way:
   #
-  # The alignment behind it is sound — a record matches its dataset row at a
-  # median coverage of 1.000, and that is what supplies the vowels. What was
-  # never verified is the step from row to URL, and it cannot be verified from
-  # this data: the dataset carries `id`, `idInBook` and `chapterId`, and none
-  # of them is the site's hadith number.
+  # First: the dataset's `idInBook` IS NOT the number in a sunnah.com URL —
+  # the site merges entries, so index and numbering drift — and a link built
+  # on that assumption was shipped and backed out. The binder still stamps
+  # `idInBook` (the row a record aligned to, vouched for by its coverage),
+  # but the build TRANSLATES it through corpora/data/bulugh_sunnah_links.json,
+  # derived and verified by pipeline/sunnah_numbers.py; an index the map does
+  # not know fails the build rather than shipping.
   #
-  # A wrong link is worse than none, so there is none until the numbering is
-  # confirmed against the site itself.
-  record_link: null
+  # Second, and specific to this book: sunnah.com has NO complete numbering
+  # for Bulugh at all. The line this comment replaced read "its hadith N is
+  # sunnah.com's bulugh:N" — copied from a corpus where that is true, false
+  # here in three different ways (our edition runs 1-1582, theirs would run
+  # 1-1767, and theirs does not exist: colon numbers cover five of sixteen
+  # books and the site assigns 31 of them twice). What is universal and
+  # unique on the site is the path form bulugh/{book}/{pos}, verified against
+  # live pages during derivation — so that is the address, and the display
+  # number (recordLinkNumber) is the colon number where the site has one and
+  # null where it never assigned one.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/bulugh_sunnah_links.json"
+    ref_template: "bulugh/{book}/{pos}"
   # CHAPTER LINK, matched by title. Our ninth kitab is كتاب الطلاق, which
   # sunnah.com does not carry as a chapter of its own — so a positional map
   # would be off by one from there on and every later link would land in the

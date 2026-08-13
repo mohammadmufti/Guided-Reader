@@ -452,7 +452,58 @@ function PageView({
                   link goes on that, not on a bolted-on "sunnah.com 4". The
                   reader clicks the thing they are reading. Same treatment the
                   Muwatta's kitab title gets. */}
-              {!main.kitab && index.corpus.chapterLink && main.chapterLinkNumber != null ? (
+              {/* THE RECORD LINK WINS over the chapter link. A per-hadith
+                  address is strictly more precise than the chapter page that
+                  merely contains it, and on a kitab-less corpus both want
+                  this one heading — before the swap, the Shama'il's chapter
+                  link would have shadowed every record link permanently. The
+                  chapter link stays as the fallback for records the binder
+                  could not place. */}
+              {index.corpus.recordLink &&
+              (main.recordLinkRef != null || main.recordLinkNumber != null) ? (
+                <a
+                  // `{ref}` is the site's own address tail, stamped by the
+                  // build from the verified map (sunnah.com never finished
+                  // numbering Bulugh, so its addresses are paths, not
+                  // numbers); `{n}` is the numeric form the other corpora
+                  // keep. A record carries exactly one of the two.
+                  href={
+                    main.recordLinkRef != null
+                      ? index.corpus.recordLink.url.replace("{ref}", main.recordLinkRef)
+                      : index.corpus.recordLink.url.replace(
+                          "{n}",
+                          String(main.recordLinkNumber),
+                        )
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  // SAY WHICH NUMBER IT OPENS. Where a corpus renumbers — the
+                  // site merges entries, so this edition's Shama'il 319 is
+                  // sunnah.com's 317 — a reader reading "hadith 319" lands on
+                  // 317 and reasonably calls that a mismatch. The link is
+                  // right; it was silent about being a different numbering.
+                  // And where the site has NO number for the hadith (most of
+                  // Bulugh), say nothing rather than invent one.
+                  title={
+                    main.recordLinkNumber == null ||
+                    main.recordLinkNumber === main.number
+                      ? `${main.bab.titleAr} — ${index.corpus.recordLink.label}`
+                      : `${index.corpus.recordLink.label} ${main.recordLinkNumber}` +
+                        ` — this edition numbers it ${main.number}`
+                  }
+                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+                >
+                  {main.bab.titleAr}
+                  {main.recordLinkNumber != null &&
+                    main.recordLinkNumber !== main.number && (
+                      <span className="ms-1 text-[0.7rem]" dir="ltr">
+                        ({index.corpus.recordLink.label} {main.recordLinkNumber})
+                      </span>
+                    )}
+                </a>
+              ) : !main.kitab &&
+                index.corpus.chapterLink &&
+                main.chapterLinkNumber != null ? (
                 <a
                   href={index.corpus.chapterLink.url.replace(
                     "{n}",
@@ -464,31 +515,6 @@ function PageView({
                   className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
                 >
                   {main.bab.titleAr}
-                </a>
-              ) : index.corpus.recordLink && main.recordLinkNumber != null ? (
-                <a
-                  href={index.corpus.recordLink.url.replace("{n}", String(main.recordLinkNumber))}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  // SAY WHICH NUMBER IT OPENS. Where a corpus renumbers — the
-                  // Shama'il runs to 417 against sunnah.com's 402 — a reader
-                  // reading "hadith 330" lands on 317 and reasonably calls that
-                  // a mismatch. The link is right; it was silent about being a
-                  // different numbering.
-                  title={
-                    main.recordLinkNumber === main.number
-                      ? `${main.bab.titleAr} — ${index.corpus.recordLink.label}`
-                      : `${index.corpus.recordLink.label} ${main.recordLinkNumber}` +
-                        ` — this edition numbers it ${main.number}`
-                  }
-                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
-                >
-                  {main.bab.titleAr}
-                  {main.recordLinkNumber !== main.number && (
-                    <span className="ms-1 text-[0.7rem]" dir="ltr">
-                      ({index.corpus.recordLink.label} {main.recordLinkNumber})
-                    </span>
-                  )}
                 </a>
               ) : (
                 main.bab.titleAr

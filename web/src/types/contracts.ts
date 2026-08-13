@@ -148,6 +148,15 @@ export interface CorpusRecord {
    */
   recordLinkNumber: number | null;
   /**
+   * The external site's own address for this record, as a URL tail ('shamail:317',
+   * 'bulugh/2/151'), where the corpus links through a verified address map — see
+   * pipeline/sunnah_numbers.py. When present, `corpus.recordLink.url` carries a `{ref}`
+   * placeholder and this fills it; `recordLinkNumber` is then the site's DISPLAY number, which
+   * can be null: sunnah.com never finished numbering Bulugh, so most of its hadith have an
+   * address but no number. Null for corpora whose numbering needs no map (the `{n}` form).
+   */
+  recordLinkRef: string | null;
+  /**
    * The number the printed edition gives this hadith, when it differs from `number`. On a text
    * that restarts numbering in every kitab, `number` is a running count we assigned and matches
    * no printed copy; this, with the kitab, is what a citation should quote. Null where the two
@@ -468,6 +477,7 @@ export interface HadithFile {
   number: number | null;
   chapterLinkNumber: number | null;
   recordLinkNumber: number | null;
+  recordLinkRef: string | null;
   editionNumber: number | null;
   numbersCovered: number[];
   type: RecordType;

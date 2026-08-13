@@ -63,20 +63,34 @@ segmentation:
   # structure the book does not have.
   heading_top_prefixes: []
   numbering: edition
-  # NO PER-HADITH LINK. It was built from the dataset's `idInBook`, on the
-  # assumption that this is the number in a sunnah.com URL. IT IS NOT:
-  # sunnah.com/shamail:317 serves the hadith the dataset calls 306, and the
-  # dataset's own 317 is a different report entirely.
+  # PER-HADITH LINK, through the verified address map. A link was built from
+  # the dataset's `idInBook` once, on the assumption that it is the number in
+  # a sunnah.com URL. IT IS NOT: the site merges entries — shamail:5 serves
+  # one entry the site numbers "5, 6" — so by entry 306 the index trails the
+  # site's numbering by 11 (306 is shamail:317), and that link was backed out.
   #
-  # The alignment behind it is sound — a record matches its dataset row at a
-  # median coverage of 1.000, and that is what supplies the vowels. What was
-  # never verified is the step from row to URL, and it cannot be verified from
-  # this data: the dataset carries `id`, `idInBook` and `chapterId`, and none
-  # of them is the site's hadith number.
+  # The alignment is sound and unchanged: the binder stamps the `idInBook` of
+  # the row a record aligned to, vouched for by its coverage. What was
+  # missing is the step from row to URL, and it now exists as a verified map
+  # (corpora/data/shamail_sunnah_links.json, derived by
+  # pipeline/sunnah_numbers.py from a second scrape that kept the site's
+  # reference tables; text-identical to this witness on all 402 entries, and
+  # the 306->317 anchor is asserted at derivation and again in tests). The
+  # build translates through it; an index the map does not know fails the
+  # build rather than shipping.
   #
-  # A wrong link is worse than none, so there is none until the numbering is
-  # confirmed against the site itself.
-  record_link: null
+  # Unlike Bulugh, this collection HAS a complete site numbering — the 402
+  # entries tile shamail:1..417 exactly — so the address is the colon form
+  # and every linked record also shows the site's number. A merged entry
+  # links and displays its first number; the page serves the whole entry.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/shamail_sunnah_links.json"
+    ref_template: "shamail:{n}"
   # CHAPTER LINK, verified. Our 57 bab headings and sunnah.com's 57 chapters
   # are the same chapters in the same order: chapter 1 is
   # `باب ما جاء في خلق رسول الله صلى الله عليه وسلم` on both, and the 29

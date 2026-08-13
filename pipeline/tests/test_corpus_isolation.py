@@ -1194,34 +1194,79 @@ def test_the_cross_reference_witness_does_not_vote_on_the_inventory():
 
 
 
-def test_a_link_number_is_never_invented():
-    """A corpus with no `record_link` must ship no link number.
+def test_bulugh_and_shamail_link_only_through_the_address_map():
+    """The per-hadith link exists again, and only via the verified map.
 
-    The number is only meaningful alongside a URL to put it in. Shipping one
-    regardless left 1,983 records carrying a figure the reader would be told
-    was the external site's.
+    The first version of this test asserted the OPPOSITE — that these two
+    corpora must not link per hadith at all — because the link had been built
+    from the witness's `idInBook` on the assumption that it is the number in
+    a sunnah.com URL. It is not: the site merges entries, so
+    sunnah.com/shamail:317 serves the hadith the dataset calls 306, and the
+    step from row to URL could not be verified from that data alone.
 
-    And the harder lesson behind this: `idInBook` in the sunnah.com-derived
-    datasets IS NOT the number in a sunnah.com URL. sunnah.com/shamail:317
-    serves the hadith the dataset calls 306. The alignment that number came
-    from is sound and supplies the vowels; the step from dataset row to URL
-    was never verified and cannot be from this data. Bulugh and the Shama'il
-    therefore link nowhere until it is checked against the site.
+    It can now. pipeline/sunnah_numbers.py derives the site's own addressing
+    from a second scrape that kept the reference tables, refuses to write
+    unless every entry matches the witness at textual identity and the
+    hand-confirmed anchors hold, and tests/test_sunnah_links.py holds the
+    committed maps to the same invariants. So the configuration must link —
+    and must link THROUGH the map, never by shipping a witness index as if
+    it were the site's number.
+    """
+    for cid, tmpl in (("bulugh", "bulugh/{book}/{pos}"), ("shamail", "shamail:{n}")):
+        cfg = corpus.load_config(cid)
+        rl = (cfg.get("segmentation") or {}).get("record_link") or {}
+        assert rl, f"{cid} has a verified address map and must link per hadith"
+        assert rl.get("number_from_witness") and rl.get("link_map"), \
+            f"{cid} must resolve its link from the aligned witness via the map"
+        assert rl.get("ref_template") == tmpl, \
+            f"{cid}: the address form was measured on the live site — " \
+            f"shamail has a complete colon numbering, Bulugh has only paths"
+        assert "{ref}" in rl.get("url", ""), \
+            f"{cid}: the URL must be built from the map's address, not a number"
+        assert (corpus.ROOT / rl["link_map"]).exists()
+
+
+def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
+    """The shipped files carry the site's own address, and the anchors hold.
+
+    Payload-level, because this is where the original bug lived: everything
+    upstream was sound — the alignment, the coverage, the numbers — and the
+    payload still linked wrong, because the number it shipped belonged to the
+    wrong namespace. The anchor is the same one every layer of this feature
+    is pinned to: this edition's Shama'il 319 is the witness's entry 306 is
+    sunnah.com/shamail:317.
     """
     import glob, json, pathlib
+    docs = {}
     for cid in ("bulugh", "shamail"):
-        cfg = corpus.load_config(cid)
-        rl = (cfg.get("segmentation") or {}).get("record_link")
-        assert not rl, f"{cid} must not link per hadith until its numbering is verified"
-        files = glob.glob(str(corpus.ROOT.parent /
-                              f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
-        with_link = [
-            f for f in files
-            if json.loads(pathlib.Path(f).read_text(encoding="utf-8")).get("recordLinkNumber")
-        ]
-        assert not with_link, (
-            f"{cid}: {len(with_link)} records ship a link number with no link configured"
-        )
+        fs = glob.glob(str(corpus.ROOT.parent /
+                           f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
+        docs[cid] = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+                     for f in fs]
+        if not docs[cid]:
+            pytest.skip(f"{cid} payload not built")
+    sh = {d["number"]: d for d in docs["shamail"] if d.get("number")}
+    assert sh[319].get("recordLinkRef") == "shamail:317", \
+        "ANCHOR: this edition's 319 is sunnah.com/shamail:317"
+    assert sh[319].get("recordLinkNumber") == 317
+    bu = {d["number"]: d for d in docs["bulugh"] if d.get("number")}
+    assert bu[5].get("recordLinkRef") == "bulugh/1/5", \
+        "ANCHOR: read live during derivation"
+    # Coverage floor: the binder places nearly every record (99% measured);
+    # a witness or map regression that silently unlinks a swath must fail.
+    for cid in ("bulugh", "shamail"):
+        matn = [d for d in docs[cid] if d.get("layer") == "matn"]
+        linked = [d for d in matn if d.get("recordLinkRef")]
+        assert len(linked) / len(matn) >= 0.95, \
+            f"{cid}: only {len(linked)} of {len(matn)} matn records link"
+        # And a linked record never ships a bare witness index: every ref the
+        # map produces has the collection's shape.
+        shape = ("bulugh/" if cid == "bulugh" else "shamail:")
+        assert all(d["recordLinkRef"].startswith(shape) for d in linked)
+        # Layers the config excludes carry nothing.
+        others = [d for d in docs[cid] if d.get("layer") != "matn"]
+        assert not [d for d in others
+                    if d.get("recordLinkRef") or d.get("recordLinkNumber")]
 
 
 def test_a_chapter_link_is_matched_by_title_not_position():
