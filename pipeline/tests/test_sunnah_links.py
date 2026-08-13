@@ -72,3 +72,25 @@ def test_bulugh_map_invariants():
         "ANCHOR: entry 5 is /bulugh/1/5 (= bulugh:5), read live during derivation"
     assert (e["327"]["book"], e["327"]["pos"]) == (2, 151), \
         "ANCHOR: entry 327 is /bulugh/2/151, read live during derivation"
+
+
+def test_muwatta_map_invariants():
+    doc = _load("muwatta")
+    assert doc["_provenance"]["commit"], "provenance must pin the source commit"
+    e = doc["entries"]
+    # 1,860 of the witness's 1,985 entries carry Arabic; the 125 textless
+    # slots hold their place in the chapter zip and get no map entry — an
+    # index the binder can never stamp needs no address.
+    assert len(e) == 1860
+    books = {}
+    for v in e.values():
+        assert "refs" not in v, \
+            "the site advertises no collection numbering for the Muwatta; " \
+            "a map that grew refs has been synthesised"
+        books.setdefault(v["book"], []).append(v["pos"])
+    assert sorted(books) == list(range(1, 62)), "61 site books, 1..61"
+    for b, pos in books.items():
+        assert len(pos) == len(set(pos)), \
+            f"book {b}: a duplicated position would address two hadith with one URL"
+    assert e["1"] == {"book": 1, "pos": 1}, \
+        "ANCHOR: entry 1 is /malik/1/1, read live during derivation"

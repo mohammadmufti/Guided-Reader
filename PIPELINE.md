@@ -34,7 +34,7 @@ Two triggers exist:
 | 6 | `build.py` | Assembles the payload. Trims entries, applies corrections, shards to a byte budget, and checks that no reference is broken. | Everything above | `web/public/data/corpora/{corpus}/` | Every build. About 1 min. |
 | 7 | `share.py` | Merges the entries that corpora hold in common into one shared set. Run last. | Every built corpus | `web/public/data/lexicon/` | Every build, after the last corpus. |
 | — | `codegen.py --check` | Fails the build if the TypeScript contracts no longer match `contracts.py`. | `contracts.py` | Nothing, with `--check`. Writes `contracts.ts` without it. | Every build. |
-| — | `sunnah_numbers.py` | Derives the sunnah.com address maps for Bulūgh and the Shamāʾil from a pinned second scrape, verifies them against the witness at textual identity plus hand-confirmed anchors, and refuses to write on any failure. | Cached witnesses (`fetch.py` first) | `corpora/data/*_sunnah_links.json`, committed | Only when a witness or the pinned source changes. Not part of the build — the build reads the committed maps. |
+| — | `sunnah_numbers.py` | Derives the sunnah.com address maps for Bulūgh, the Shamāʾil and the Muwaṭṭaʾ from a pinned second scrape, verifies them against the witness at textual identity plus hand-confirmed anchors, and refuses to write on any failure. | Cached witnesses (`fetch.py` first) | `corpora/data/*_sunnah_links.json`, committed | Only when a witness or the pinned source changes. Not part of the build — the build reads the committed maps. |
 
 **Run `share.py` last.** It deletes the private copy of each shared entry. A
 corpus built after it puts its own copy back. The reader then loads a stale

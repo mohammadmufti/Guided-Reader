@@ -73,6 +73,26 @@ sources:
     uri: https://raw.githubusercontent.com/abdelrahmaan/Hadith-Data-Sets/master/All%20Hadith%20Books/Maliks%20Muwatta.csv
     filename: muwatta_vocalised.csv
     encoding: utf-8
+
+  # A SECOND Muwatta', carrying entry numbers — the same arrangement
+  # al-Tajrid has with its two Bukharis. The CSV above vowels better than
+  # anything else available but is a single column that cannot say WHICH
+  # hadith a row is (1,594 rows against the site's 1,985 entries — a
+  # different dataset, not row-aligned to anything). This one is the
+  # sunnah.com scrape, 1,985 hadith in 61 chapters, and its `idInBook` is
+  # what the address map (corpora/data/muwatta_sunnah_links.json) translates
+  # into the site's own /malik/{book}/{pos} pages. Merged into one retrieval
+  # index: the CSV row usually wins the vowelling, and the binder resolves
+  # the NUMBER against the numbered rows separately — see bind.py.
+  cross_reference_witness:
+    kind: http
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/the_9_books/malik.json
+    filename: muwatta_numbered.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference and to resolve a hadith's site address; no text
+      from it is redistributed in the payload.
     notes: |
       Repo is unlicensed (no LICENSE file). Used here only as an alignment
       reference to transfer vocalisation; no text from it is redistributed in
@@ -167,11 +187,15 @@ segmentation:
   # nothing here strips nothing — previously `(بخاري: N)` was removed from
   # every corpus whether or not it made sense.
   editorial_reference: null
-  # sunnah.com carries this text as one page per book, numbered 1-61 in the
-  # same order and with the same titles as this edition — checked title by
-  # title against the scraped dataset: 60 of 61 identical, the one difference
-  # being a naming variant in the same slot (ours كتاب الجامع, theirs
-  # كتاب المدينة), not a shift. `{n}` is the kitab index.
+  # sunnah.com's BOOK pages for this text are numbered 1-61 in the same order
+  # and with the same titles as this edition — checked title by title against
+  # the scraped dataset: 60 of 61 identical, the one difference being a
+  # naming variant in the same slot (ours كتاب الجامع, theirs كتاب المدينة),
+  # not a shift. `{n}` is the kitab index. (An earlier version of this
+  # comment said the site carries the text as one page per book and nothing
+  # finer; per-hadith pages exist — /malik/{book}/{pos}, see record_link
+  # below — and this kitab link is now the FALLBACK for records the binder
+  # could not place.)
   #
   # `match: position`, DECLARED because it is verified. The default mode
   # matches heading titles against the witness JSON's `chapters` array, which
@@ -189,6 +213,30 @@ segmentation:
     label: "sunnah.com"
     labelAr: "سنة.كوم"
     url: "https://sunnah.com/malik/{n}"
+
+  # PER-HADITH LINK, through the verified address map. The kitab link above
+  # predates the discovery that sunnah.com DOES serve this text one page per
+  # hadith — /malik/{book}/{pos} — it just never advertises a collection
+  # numbering. Measured on live pages before anything was built: the URL's
+  # {pos} is the site's "Sunnah.com reference", which equals the entry's
+  # per-book ordinal in every one of the 34 entries across 30+ books where
+  # the site displays the row (gapless, unlike Bulugh's), and the USC-MSA
+  # numbering is provably NOT it (gaps at 2/6->9, three entries numbered 10).
+  # Anchors read live: /malik/1/1 is عمر بن عبد العزيز أخر الصلاة,
+  # /malik/15/2 is the strap-of-the-mushaf entry.
+  #
+  # The binder resolves the entry against the numbered second witness (its
+  # rows carry `idInBook`), the map translates that into {book}/{pos}, and a
+  # record the numbered rows cannot vouch for gets no link and keeps the
+  # kitab link above as its fallback — same policy as Bulugh.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/muwatta_sunnah_links.json"
+    ref_template: "malik/{book}/{pos}"
 
   heading_top_prefixes: ["كتاب"]
   layer_names:
@@ -218,6 +266,10 @@ gates:
   # lexicon rather than only as aligned rows took Tier 1+2 from 65.0% to 73.0%
   # and unbound from 17.9% to 6.8%. Threshold left below the measurement so it
   # catches regression rather than restating today's figure.
+  # Re-measured after the numbered second witness was merged into the index
+  # (for the per-hadith links): Tier 1+2 on matn 86.2%, retrieval 1,873 of
+  # 1,891 at median 0.980 — the sunnah.com rows also improved some readings,
+  # the same effect al-Tajrid saw. Threshold unchanged, still below.
   min_witnessed_matn: 68.0
   # Retrieval health. Below this the recension is probably wrong.
   # MEASURED at Phase 3 against the real segmentation: median 0.963,

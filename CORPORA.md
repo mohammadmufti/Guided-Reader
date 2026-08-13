@@ -61,13 +61,16 @@ three times in Kitāb al-Ḥajj. The reader therefore shows a running number, an
 prints the edition's own number beside it as `ed. N`. Cite the edition number
 with its kitāb.
 
-Each kitāb title links to the same book on sunnah.com. The mapping is
-**positional and declared so** (`match: position`): sunnah.com carries this
-text as one page per book, 61 books in the same order with the same titles,
-60 of 61 identical — verified against the sunnah.com-derived dataset and
-pinned by a test. Positional mapping is legal only under that verification;
-see "Chapter links" below for the mode a corpus gets by default, and for how
-this corpus's links once vanished silently.
+**Each hadith links to sunnah.com through the verified address map** — the
+path form `malik/{book}/{pos}`; the site never advertises a collection
+numbering for this text, but it serves one page per hadith, with `{pos}`
+equal to the entry's per-book ordinal (measured against live pages; see
+"External numbering"). Each kitāb title also links to the site's book page —
+**positional and declared so** (`match: position`): 61 books in the same
+order with the same titles, 60 of 61 identical, verified and pinned by a
+test — and that kitāb link is the fallback for the records the binder could
+not place per-hadith. See "Chapter links" below for how the kitāb links once
+vanished silently.
 
 ---
 
@@ -131,6 +134,16 @@ coverage of 1.000. The longest carries a commentary and is a different book.
 **Each hadith links to sunnah.com through the verified address map** — the
 path form `bulugh/{book}/{pos}`, because the site has no complete
 collection numbering for this book. See "External numbering" below.
+
+**The takhrīj is its own layer.** The source follows most hadith with
+further paragraphs — `أخرجه الثلاثة`, `وصححه أحمد`, a variant's
+`وللبخاري: «…»` — which segment into the `takhrij` aside layer (291
+records; several notes on one hadith are one record, line-broken) and
+render under the hadith the way al-Tajrīd's zawāʾid do. Carving them out
+of the matn also lifted the matn's Tier 1+2 from 95.2% to 99.3%: the
+witness's bare tokens were this same apparatus. The edition's numbered
+footnote *bodies* do not exist in the source file — only the `(1)` markers
+survive, and they stay: the text is not changed.
 
 ---
 
@@ -212,17 +225,28 @@ number rather than inventing something.
 
 ### What links today
 
-**Per hadith, through the map: Bulūgh and the Shamāʾil.** The binder stamps
+**Per hadith, through the map: Bulūgh, the Shamāʾil, and the Muwaṭṭaʾ.** The binder stamps
 the `idInBook` of the witness row each record aligned to — vouched for by
 the alignment's coverage, filtered so the sequence never runs backwards
 (retrieval is per record, and a short formulaic hadith occasionally matches
 an unrelated row; 9 of Bulūgh's and 2 of the Shamāʾil's were dropped for
 this, measured) — and the build TRANSLATES it through the map into the
 site's address, never shipping the raw index. A witness index the map does
-not know fails the build. Measured on the shipped payloads: 404 of the
-Shamāʾil's 406 matn records link (99.5%), 1,566 of Bulūgh's 1,580 (99.1%);
-the rest fall back to their chapter link, which is honest — a link the
-binder could not vouch for does not exist.
+not know fails the build. The Muwaṭṭaʾ adds one wrinkle: its vowelling
+witness (the CSV) carries no entry identity at all, so the corpus merges a
+second, numbered witness (the sunnah.com scrape) into the same retrieval
+index — the CSV row usually wins the vowelling, and the binder resolves the
+NUMBER by a second retrieval restricted to numbered rows, at the same
+coverage bar and through the same backwards filter. Measured on the shipped
+payloads: 404 of the Shamāʾil's 406 matn records link (99.5%), 1,565 of
+Bulūgh's 1,580 (99.1%), 1,780 of the Muwaṭṭaʾ's 1,891 (94.1% — the
+second-retrieval path is more exposed to this text's many near-identical
+short reports, and its backwards filter dropped 93); the rest fall back to
+their chapter link, which is honest — a link the binder could not vouch for
+does not exist. Where the two sides merge differently, the link lands on the
+larger part: this edition's Muwaṭṭaʾ 456 carries both the ʿAmr b. Ḥazm
+letter and Mālik's muṣḥaf-strap qawl, which the site splits as 15/1 and
+15/2; the record links to 15/2, the bulk of its text.
 
 **Per hadith, by shared numbering: al-Tajrīd (the editor's own Bukhārī
 numbers), Nawawī's Forty and Shāh Walī Allāh's Forty** (`{n}` URLs, the
@@ -234,8 +258,8 @@ match sunnah.com's 57 chapters by title; Bulūgh's kitāb map 16 of 17 — its
 ninth, `كتاب الطلاق`, is not a chapter on the site, so a positional map would
 be off by one from there on; those 89 records reach the site through their
 per-hadith links instead, which the chapter link never could. The Muwaṭṭaʾ
-links each kitāb positionally (61-to-61, verified — sunnah.com has no
-per-hadith pages for it). Position is otherwise only a fallback where the
+links each kitāb positionally (61-to-61, verified) as the fallback for its
+own per-hadith links above. Position is otherwise only a fallback where the
 counts agree — the Shamāʾil's 57 against 57, where a few chapters are titled
 differently (`جلسة رسول الله` against `جلسته`) without disagreeing about
 which chapter they are.

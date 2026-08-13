@@ -296,6 +296,89 @@ def derive_bulugh(src: Path) -> dict:
     return {str(k): mapping[k] for k in sorted(mapping)}
 
 
+def derive_muwatta(src: Path) -> dict:
+    """The Muwatta': /malik/{book}/{pos}, positions being per-book ordinals.
+
+    Measured on live pages before this was written, because the site's
+    reference tables for this collection are the least uniform of the three:
+    30 books display a "Sunnah.com reference" (the URL number, per the Bulugh
+    precedent), book 1 displays it on 4 entries, and the rest show only
+    USC-MSA and "Arabic reference" rows. What settles it: in every one of the
+    34 displayed cases the Sunnah.com number EQUALS the entry's per-book
+    ordinal, gapless — unlike Bulugh's — and the USC-MSA numbering is
+    provably not the URL (the live book-2 page numbers its entries
+    1..6, 9, 10, 10, 10, 12… while listing them in exactly the source's
+    order; its 34th entry is the map's 34th). Anchors read live:
+    /malik/1/1 and /malik/15/2. So {pos} is the ordinal, and the derivation
+    ASSERTS ordinal == Sunnah.com reference wherever the site displays one —
+    if that ever fails, the ordinal hypothesis fails with it and nothing is
+    written.
+
+    The witness here is the sunnah.com scrape declared as the corpus's
+    cross_reference_witness (the vocalisation CSV is a different dataset with
+    no entry identity at all — 1,594 rows against the site's 1,985). 125 of
+    the witness's entries carry no Arabic; they still occupy their slot in
+    the chapter zip, are never text-verified (there is nothing to verify),
+    and never receive a map entry — an index the binder can never stamp needs
+    no address.
+    """
+    sref = re.compile(r"Sunnah\.com reference\s*:\s*Book\s+(\d+),\s*Hadith\s+(\d+)")
+    books: dict[int, list] = {}
+    for i, f in enumerate(sorted(glob.glob(str(src / "malik" / "*.json"))), 1):
+        # These files carry a UTF-8 BOM, alone among the three collections.
+        entries = json.loads(Path(f).read_text(encoding="utf-8-sig"))
+        books[i] = []
+        for pos, x in enumerate(entries, 1):
+            m = sref.search(x["reference"])
+            if m:
+                assert (int(m.group(1)), int(m.group(2))) == (i, pos), (
+                    f"malik book {i} entry {pos}: the site displays "
+                    f"Sunnah.com reference {m.group(1)}/{m.group(2)} — the "
+                    f"ordinal hypothesis just failed; nothing was written")
+            books[i].append((pos, toks(x["arabic"])))
+
+    path = CACHE / "muwatta" / "muwatta_numbered.json"
+    if not path.exists():
+        sys.exit(f"ERROR: {path} missing — run `python pipeline/fetch.py "
+                 f"--corpus muwatta` first.")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    ch: dict[int, list[dict]] = {}
+    for x in doc["hadiths"]:
+        ch.setdefault(x["chapterId"], []).append(x)
+    if sorted(ch) != sorted(books):
+        sys.exit(f"ERROR: muwatta witness chapters {sorted(ch)} do not match "
+                 f"the site's books {sorted(books)}.")
+
+    scores: list[float] = []
+    mapping: dict[int, dict] = {}
+    textless = 0
+    for b in sorted(ch):
+        ours, theirs = ch[b], books[b]
+        if len(ours) != len(theirs):
+            sys.exit(f"ERROR: muwatta book {b}: {len(ours)} witness entries "
+                     f"against {len(theirs)} source entries. Nothing written.")
+        for x, (pos, T) in zip(ours, theirs):
+            if not x.get("arabic"):
+                textless += 1
+                continue
+            s = overlap(toks(x["arabic"]), T)
+            scores.append(s)
+            if s < 1.0:
+                sys.exit(f"ERROR: muwatta witness idInBook {x['idInBook']} "
+                         f"does not textually match site book {b} pos {pos} "
+                         f"(overlap {s:.2f}). Nothing was written.")
+            mapping[x["idInBook"]] = {"book": b, "pos": pos}
+
+    assert len(mapping) + textless == 1985
+    # Anchors read live during derivation (see docstring).
+    assert mapping[1] == {"book": 1, "pos": 1}, mapping[1]
+    print(f"muwatta: {len(mapping):,} entries mapped across 61 books "
+          f"({textless} textless witness slots skipped), ordinal==displayed "
+          f"Sunnah.com reference on every shown row, anchor 1->/1/1 OK, "
+          f"text identity {min(scores):.3f} on all pairs")
+    return {str(k): mapping[k] for k in sorted(mapping)}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--tarball", type=Path, default=None,
@@ -308,6 +391,7 @@ def main() -> int:
         src = extract(tarball, Path(td))
         shamail = derive_shamail(src)
         bulugh = derive_bulugh(src)
+        muwatta = derive_muwatta(src)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     prov = {
@@ -326,6 +410,11 @@ def main() -> int:
          "the address is sunnah.com/bulugh/{book}/{pos}; colon refs, where "
          "present, are display-only — partial (5 of 16 books) and 31 are "
          "duplicated on the site"),
+        ("muwatta", muwatta,
+         "the address is sunnah.com/malik/{book}/{pos}; pos is the per-book "
+         "ordinal, equal to the site's Sunnah.com reference on every row it "
+         "displays; keyed by the cross_reference_witness's idInBook — the "
+         "vocalisation CSV has no entry identity"),
     ):
         out = OUT_DIR / f"{name}_sunnah_links.json"
         out.write_text(json.dumps(

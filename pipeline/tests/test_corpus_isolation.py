@@ -1212,7 +1212,9 @@ def test_bulugh_and_shamail_link_only_through_the_address_map():
     and must link THROUGH the map, never by shipping a witness index as if
     it were the site's number.
     """
-    for cid, tmpl in (("bulugh", "bulugh/{book}/{pos}"), ("shamail", "shamail:{n}")):
+    for cid, tmpl in (("bulugh", "bulugh/{book}/{pos}"),
+                      ("shamail", "shamail:{n}"),
+                      ("muwatta", "malik/{book}/{pos}")):
         cfg = corpus.load_config(cid)
         rl = (cfg.get("segmentation") or {}).get("record_link") or {}
         assert rl, f"{cid} has a verified address map and must link per hadith"
@@ -1238,7 +1240,7 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     """
     import glob, json, pathlib
     docs = {}
-    for cid in ("bulugh", "shamail"):
+    for cid in ("bulugh", "shamail", "muwatta"):
         fs = glob.glob(str(corpus.ROOT.parent /
                            f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
         docs[cid] = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
@@ -1252,16 +1254,27 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     bu = {d["number"]: d for d in docs["bulugh"] if d.get("number")}
     assert bu[5].get("recordLinkRef") == "bulugh/1/5", \
         "ANCHOR: read live during derivation"
-    # Coverage floor: the binder places nearly every record (99% measured);
-    # a witness or map regression that silently unlinks a swath must fail.
-    for cid in ("bulugh", "shamail"):
+    mu = {d["number"]: d for d in docs["muwatta"] if d.get("number")}
+    assert mu[1].get("recordLinkRef") == "malik/1/1", \
+        "ANCHOR: /malik/1/1 read live — the page that proved per-hadith " \
+        "addressing exists for this text at all"
+    # Coverage floor: the binder places nearly every record (99% for Bulugh
+    # and the Shama'il, 94% for the Muwatta, whose number comes from a second
+    # retrieval over the numbered rows and meets more near-identical short
+    # reports); a witness or map regression that silently unlinks a swath
+    # must fail. Floors sit below the measurements to catch regression, not
+    # to restate them.
+    for cid, floor in (("bulugh", 0.95), ("shamail", 0.95), ("muwatta", 0.90)):
+        if cid not in docs:
+            continue
         matn = [d for d in docs[cid] if d.get("layer") == "matn"]
         linked = [d for d in matn if d.get("recordLinkRef")]
-        assert len(linked) / len(matn) >= 0.95, \
+        assert len(linked) / len(matn) >= floor, \
             f"{cid}: only {len(linked)} of {len(matn)} matn records link"
         # And a linked record never ships a bare witness index: every ref the
         # map produces has the collection's shape.
-        shape = ("bulugh/" if cid == "bulugh" else "shamail:")
+        shape = {"bulugh": "bulugh/", "shamail": "shamail:",
+                 "muwatta": "malik/"}[cid]
         assert all(d["recordLinkRef"].startswith(shape) for d in linked)
         # Layers the config excludes carry nothing.
         others = [d for d in docs[cid] if d.get("layer") != "matn"]
@@ -1377,3 +1390,39 @@ def test_payload_links_carry_only_the_contract_keys():
             assert not extra, f"{cid}.{field} ships undeclared keys {extra}"
     if not checked:
         pytest.skip("no built payload declares a link")
+
+def test_bulugh_takhrij_is_carved_delivered_and_line_broken():
+    """The takhrij reaches the reader as its own layer, correctly shaped.
+
+    The machinery sat inert for a reason worth remembering: the flag
+    (`unnumbered_body_is_aside`) was built, its output was wrong twice —
+    continuations torn out of the matn, and one aside record PER PARAGRAPH
+    rendering as a stack of sections under one hadith — and it was left off
+    rather than fixed, while `asideLayer: takhrij` kept shipping in the
+    corpus index as if the layer existed. This asserts the fixed shape on
+    the payload: the layer ships; several notes on one hadith are ONE record
+    whose newline separators survive close()'s whitespace collapse AND
+    tokenisation (both flattened them at different times); the matn never
+    carries a newline; and the aside carries no external link — the
+    record_link is scoped to matn, and the takhrij has no counterpart page.
+    """
+    import glob, json, pathlib
+    root = corpus.ROOT.parent / "web/public/data/corpora/bulugh/hadith"
+    tks = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+           for f in glob.glob(str(root / "takhrij-*.json"))]
+    if not tks:
+        pytest.skip("bulugh payload not built")
+    assert len(tks) >= 250, f"only {len(tks)} takhrij records shipped"
+    def text(d):
+        return d["leading"] + "".join(t["raw"] + t["punctuationAfter"]
+                                      for t in d["tokens"])
+    assert any("\n" in text(d) for d in tks), \
+        "no takhrij carries a line break — the merge or the whitespace " \
+        "collapse regressed"
+    assert not [d for d in tks
+                if d.get("recordLinkRef") or d.get("recordLinkNumber")], \
+        "a takhrij note must not claim a sunnah.com page of its own"
+    matns = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+             for f in glob.glob(str(root / "matn-*.json"))]
+    assert not [d for d in matns if "\n" in text(d)], \
+        "a newline leaked into the matn — it is the aside's separator only"

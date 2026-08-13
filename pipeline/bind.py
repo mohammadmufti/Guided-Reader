@@ -406,6 +406,7 @@ class WitnessIndex:
             r, n = self._read_numbered(one)
             rows += r
             self.numbers += n
+        self.has_numbered_rows = any(n is not None for n in self.numbers)
         self.forms = [
             [STRIP_EDGE.sub("", t) for t in s.split() if ARABIC.search(t)] for s in rows
         ]
@@ -421,7 +422,14 @@ class WitnessIndex:
                 if df[w] <= RETRIEVAL_DF_CEILING:
                     self.postings[w].append(i)
 
-    def retrieve(self, query: list[str]) -> tuple[int | None, float]:
+    def retrieve(self, query: list[str],
+                 numbered_only: bool = False) -> tuple[int | None, float]:
+        """Best row for the query — optionally only among NUMBERED rows.
+
+        `numbered_only` exists for a merged index whose unnumbered rows vowel
+        better and therefore win: the caller re-asks "and which numbered row
+        is this?" to resolve a link without giving up the better vowelling.
+        """
         scores: dict[int, float] = collections.defaultdict(float)
 
         # `sorted`, not bare `set`. Set iteration order over strings depends on
@@ -436,6 +444,8 @@ class WitnessIndex:
         # a number you cannot reproduce is not a measurement.
         for w in sorted(set(query)):
             for i in self.postings.get(w, ()):
+                if numbered_only and self.numbers[i] is None:
+                    continue
                 scores[i] += self.idf[w]
         if not scores:
             return None, 0.0
@@ -641,6 +651,24 @@ def bind_corpus(
                 # not — 1,767 is the scrape's entry count.
                 if link_from_witness and witness_idx.numbers[row] is not None:
                     link_numbers[rec["id"]] = witness_idx.numbers[row]
+                elif link_from_witness and witness_idx.has_numbered_rows:
+                    # THE VOWELLING ROW AND THE NUMBERED ROW CAN DIFFER. The
+                    # Muwatta' merges two witnesses the way al-Tajrid does: an
+                    # unnumbered CSV that vowels better than anything else,
+                    # and the sunnah.com scrape that says which entry a row
+                    # is. Retrieval picks ONE best row, and where the CSV row
+                    # wins — usually — the record kept its superior vowelling
+                    # and silently lost its link. So the number is resolved by
+                    # a SECOND retrieval restricted to numbered rows, admitted
+                    # at the same coverage bar as the first and filtered by
+                    # the same never-runs-backwards check below. The vowelling
+                    # still comes from the row that won. Corpora with a single
+                    # numbered witness never reach this branch (the winner
+                    # always carries a number), and corpora without
+                    # `number_from_witness` never enter it at all.
+                    row2, cov2 = witness_idx.retrieve(keys, numbered_only=True)
+                    if row2 is not None and cov2 >= MIN_COVERAGE:
+                        link_numbers[rec["id"]] = witness_idx.numbers[row2]
 
 
                 # Which keys appear in this Bukhari row with more than one
