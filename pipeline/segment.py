@@ -67,6 +67,7 @@ class Rules:
     heading_prefixes: tuple[str, ...]
     front_prefixes: tuple[str, ...]
     aside_section_prefixes: tuple[str, ...]
+    drop_section_prefixes: tuple[str, ...]
     unnumbered_body_is_aside: bool
     number_asides: bool
     section_levels: dict[str, str] | None
@@ -103,6 +104,7 @@ class Rules:
             heading_prefixes=tuple(seg.get("heading_prefixes", [])),
             front_prefixes=tuple(seg.get("front_prefixes", [])),
             aside_section_prefixes=tuple(seg.get("aside_section_prefixes", [])),
+            drop_section_prefixes=tuple(seg.get("drop_section_prefixes", [])),
             unnumbered_body_is_aside=bool(
                 seg.get("unnumbered_body_is_aside", False)),
             number_asides=bool(seg.get("number_asides", False)),
@@ -222,6 +224,19 @@ class Segmenter:
         # a part of the book whose records are ADDITIONS to it.
         self.front_depth: int | None = None
         self.in_aside_part = False
+        # Inside a dropped block: a section whose title matches
+        # `drop_section_prefixes` is discarded together with every paragraph
+        # under it, until the next section line. Al-Adab al-Mufrad's chosen
+        # edition needs this: it interleaves al-Albani's gradings as
+        # `### | [قال الشيخ الألباني] :` followed by a paragraph — a modern
+        # editor's matter, not the author's text, and left alone the fragment
+        # path would REJOIN both into the hadith's matn, which is worse than
+        # either showing or dropping them. Dropping is declared per corpus and
+        # counted, so a config typo that never matches is visible in the run
+        # report rather than silent.
+        self.dropping = False
+        self.dropped_sections = 0
+        self.dropped_paragraphs = 0
 
     # -- record lifecycle ---------------------------------------------------
     def close(self) -> None:
@@ -300,6 +315,30 @@ class Segmenter:
 
             sec = self.rules.section.match(line)
             if sec:
+                # A dropped block ends where the next section begins — whatever
+                # that section is. Test the NEW title before clearing, so
+                # consecutive dropped sections stay dropped.
+                _title_for_drop = (sec.group(2) if (self.rules.section_levels
+                                   and sec.lastindex and sec.lastindex >= 2)
+                                   else sec.group(1))
+                # Tested CLEANED and whitespace-collapsed, not raw: the
+                # transcription plants ms markers inside the phrase itself
+                # (`[قال ms002 الشيخ الألباني]`), and a raw-prefix test let
+                # eleven of these through to the fragment path, which
+                # rejoined the grading into the matn. (A first repair tried a
+                # strip cleaner for the phrase instead — which this very test
+                # then applied, emptying the title before the prefix could
+                # match, so nothing dropped and the gradings fused anyway.
+                # The corpus strip list is for markers INSIDE kept text; a
+                # drop decision cleans structurally and compares.)
+                if self.rules.drop_section_prefixes:
+                    _t, _ = strip_markers(_title_for_drop, self.rules)
+                    _t = re.sub(r"\s+", " ", _t).strip()
+                    if _t.startswith(self.rules.drop_section_prefixes):
+                        self.dropping = True
+                        self.dropped_sections += 1
+                        continue
+                self.dropping = False
                 # Two capture groups plus `section_levels` means the file states
                 # its own hierarchy: group 1 is the level marker, group 2 the
                 # title. One group means the level must be inferred lexically
@@ -320,6 +359,9 @@ class Segmenter:
 
             para = self.rules.paragraph.match(line)
             if para:
+                if self.dropping:
+                    self.dropped_paragraphs += 1
+                    continue
                 self.handle_paragraph(para.group(1))
                 continue
 
@@ -953,6 +995,11 @@ def main() -> int:
     hits = check_residuals(doc, rules)
     bad = {k: v for k, v in hits.items() if v}
     print(f"\nresidual markers   {'NONE' if not bad else bad}")
+    if seg.rules.drop_section_prefixes:
+        print(f"dropped blocks     {seg.dropped_sections} sections, "
+              f"{seg.dropped_paragraphs} paragraphs "
+              f"(declared drop_section_prefixes; zero here means the config "
+              f"matched nothing)")
     if seg.warnings:
         print(f"warnings ({len(seg.warnings)}):")
         for w in seg.warnings[:10]:

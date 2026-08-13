@@ -1,0 +1,148 @@
+# Corpus configuration — al-Adab al-Mufrad
+#
+# Al-Bukhari's book of manners, separate from the Sahih: 1,322 numbered
+# hadith across 643 bab with no kitab above them, so the layout is the
+# Shama'il's (bab-only) with Bulugh's line grammar. The edition is
+# Muhammad Fu'ad ʿAbd al-Baqi's, whose numbering is the one sunnah.com and
+# the witness both use — which is why record links here resolve at 99%+
+# with no renumbering to explain.
+
+id: adab
+
+display:
+  titleAr: "الأدب المفرد"
+  titleEn: "al-Adab al-Mufrad"
+  authorAr: "محمد بن إسماعيل البخاري"
+  author: "Muḥammad b. Ismāʿīl al-Bukhārī"
+  authorDied: "256 AH"
+  edition: "Shamela 0012991 (ʿAbd al-Bāqī) — verify against the OpenITI header before shipping"
+  subject: "الأدب والأخلاق"
+  # Public domain: the author died in 256 AH. The edition's interleaved
+  # gradings by a modern editor are DROPPED, not shipped — see
+  # drop_section_prefixes below.
+  rights: "public-domain"
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # CHOSEN BY MEASUREMENT among the four OpenITI versions. This one
+    # (ʿAbd al-Baqi, Shamela 0012991) carries the numbering the witness
+    # uses, full punctuation, and the Tajrid/Bulugh line grammar; the JK
+    # version is the same edition stripped of punctuation, and the Zuhayri
+    # version interleaves a different modern apparatus as paragraphs, which
+    # cannot be dropped by section. The cost of this choice is the 1,348
+    # grading sections dropped below.
+    uri: https://raw.githubusercontent.com/OpenITI/0275AH/master/data/0256Bukhari/0256Bukhari.AdabMufrad/0256Bukhari.AdabMufrad.Shamela0012991-ara1
+    filename: adab.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # 1,326 hadith in 57 chapters, 92.7% of tokens vowelled — the best
+    # witness after the Muwatta's. Its `idInBook` is translated to the
+    # site's number through the verified address map.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/other_books/aladab_almufrad.json
+    filename: adab_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference to transfer vocalisation and to resolve the hadith
+      number; no text from it is redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK: no workbook, as for every corpus after al-Tajrid.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  section: '^###\s*\|\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  editorial_reference: null
+
+  # AL-ALBANI'S GRADINGS ARE DROPPED. This Shamela transcription interleaves
+  # them as their own sections — `### | [قال الشيخ الألباني] :` followed by a
+  # grading paragraph, 1,348 of them — and they are a modern editor's matter,
+  # not al-Bukhari's text. Left alone, the fragment path would REJOIN both
+  # lines into the hadith's matn, which is the Bulugh takhrij mistake with
+  # someone else's words. The segment run report counts what was dropped;
+  # zero there means this prefix stopped matching and the build needs eyes.
+  drop_section_prefixes: ["[قال الشيخ الألباني]"]
+
+  # Bab only, no kitab — the Shama'il's arrangement. 643 bab titles.
+  heading_prefixes: ["باب"]
+
+  # NO chapter_link. sunnah.com groups this text into 57 topical books; this
+  # edition divides it into 643 bab. There is no verified mapping between the
+  # two and none is needed: every hadith links directly.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/adab_sunnah_links.json"
+    ref_template: "adab:{n}"
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 98.7% Tier 1+2 on matn — the 92.7%
+  # witness plus a matn nearly free of apparatus once the gradings are
+  # dropped — with 1,351 of 1,357 records matched at median coverage 1.000.
+  # Thresholds set below the measurements so they catch regression rather
+  # than restating today's figures.
+  min_witnessed_matn: 90.0
+  min_retrieval_median: 0.85
+
+about:
+  description:
+    - >-
+      Al-Adab al-Mufrad — al-Bukhārī's (d. 256 AH) book of manners, apart
+      from his Ṣaḥīḥ: dealings with parents and neighbours, greeting,
+      visiting, speech and silence. 1,322 hadith across 643 chapters in
+      Muḥammad Fuʾād ʿAbd al-Bāqī's numbering, which sunnah.com uses too, so
+      each hadith links straight to its page there.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its
+      own: its vocalisation is transferred from a vowelled edition, and its
+      glosses are shared from al-Tajrīd, where the same word in the same
+      reading carries the same entry. The panel's provenance line says which
+      applies to each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of a Shamela edition (ʿAbd al-Bāqī's),
+        fetched and checksummed at build time. Chosen from four OpenITI
+        versions for carrying the standard numbering, full punctuation, and
+        a clean line grammar; the modern editor's interleaved gradings are
+        dropped at segmentation and never shipped.
+      url: https://raw.githubusercontent.com/OpenITI/0275AH/master/data/0256Bukhari/0256Bukhari.AdabMufrad/0256Bukhari.AdabMufrad.Shamela0012991-ara1
+    - label: "Vocalisation"
+      detail: >-
+        A vowelled text of the 1,326 hadith, scraped from sunnah.com, with
+        92.7% of its words carrying harakāt. Used only to transfer
+        vocalisation onto the words of the primary text and to resolve each
+        hadith's sunnah.com number; none of it is redistributed here.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon,
+        which is keyed by the written form rather than by the book it was
+        written for, plus readings minted from this text's own witness. The
+        word panel's provenance line states which source each entry came
+        from.
+      url: https://github.com/mohammadmufti/Guided-Reader

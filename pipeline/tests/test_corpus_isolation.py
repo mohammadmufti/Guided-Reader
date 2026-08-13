@@ -1214,7 +1214,9 @@ def test_bulugh_and_shamail_link_only_through_the_address_map():
     """
     for cid, tmpl in (("bulugh", "bulugh/{book}/{pos}"),
                       ("shamail", "shamail:{n}"),
-                      ("muwatta", "malik/{book}/{pos}")):
+                      ("muwatta", "malik/{book}/{pos}"),
+                      ("adab", "adab:{n}"),
+                      ("riyad", "riyadussalihin:{n}")):
         cfg = corpus.load_config(cid)
         rl = (cfg.get("segmentation") or {}).get("record_link") or {}
         assert rl, f"{cid} has a verified address map and must link per hadith"
@@ -1240,7 +1242,7 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     """
     import glob, json, pathlib
     docs = {}
-    for cid in ("bulugh", "shamail", "muwatta"):
+    for cid in ("bulugh", "shamail", "muwatta", "adab", "riyad"):
         fs = glob.glob(str(corpus.ROOT.parent /
                            f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
         docs[cid] = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
@@ -1258,23 +1260,40 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     assert mu[1].get("recordLinkRef") == "malik/1/1", \
         "ANCHOR: /malik/1/1 read live — the page that proved per-hadith " \
         "addressing exists for this text at all"
+    ad = {d["number"]: d for d in docs["adab"] if d.get("number")}
+    assert ad[1].get("recordLinkRef") == "adab:1", "ANCHOR: read live"
+    ri = {d["number"]: d for d in docs["riyad"] if d.get("number")}
+    assert ri[1].get("recordLinkRef") == "riyadussalihin:1", \
+        "the miscellany untangling, end to end: our 1 aligns to witness " \
+        "entry 1218 and links the site's 1 — raw idInBook would say 1218"
+    assert ri[680].get("recordLinkRef") == "riyadussalihin:680"
     # Coverage floor: the binder places nearly every record (99% for Bulugh
     # and the Shama'il, 94% for the Muwatta, whose number comes from a second
     # retrieval over the numbered rows and meets more near-identical short
     # reports); a witness or map regression that silently unlinks a swath
     # must fail. Floors sit below the measurements to catch regression, not
     # to restate them.
-    for cid, floor in (("bulugh", 0.95), ("shamail", 0.95), ("muwatta", 0.90)):
+    # Riyad's floor is lower: its bare-rasm witness (2.4% vowelled) makes
+    # short-hadith retrieval noisier and its backwards filter drops 5.2%.
+    for cid, floor in (("bulugh", 0.95), ("shamail", 0.95), ("muwatta", 0.90),
+                       ("adab", 0.95), ("riyad", 0.88)):
         if cid not in docs:
             continue
-        matn = [d for d in docs[cid] if d.get("layer") == "matn"]
+        matn = [d for d in docs[cid]
+                if d.get("layer") == "matn" and d.get("number")]
         linked = [d for d in matn if d.get("recordLinkRef")]
         assert len(linked) / len(matn) >= floor, \
-            f"{cid}: only {len(linked)} of {len(matn)} matn records link"
+            f"{cid}: only {len(linked)} of {len(matn)} numbered matn link"
+        # And an UNNUMBERED record never links: a fragment or a bab's verse
+        # block is not a hadith, whatever its words overlap.
+        assert not [d for d in docs[cid]
+                    if not d.get("number") and d.get("recordLinkRef")], \
+            f"{cid}: an unnumbered record claims a per-hadith page"
         # And a linked record never ships a bare witness index: every ref the
         # map produces has the collection's shape.
         shape = {"bulugh": "bulugh/", "shamail": "shamail:",
-                 "muwatta": "malik/"}[cid]
+                 "muwatta": "malik/", "adab": "adab:",
+                 "riyad": "riyadussalihin:"}[cid]
         assert all(d["recordLinkRef"].startswith(shape) for d in linked)
         # Layers the config excludes carry nothing.
         others = [d for d in docs[cid] if d.get("layer") != "matn"]

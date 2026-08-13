@@ -1,0 +1,158 @@
+# Corpus configuration — Riyad al-Salihin
+#
+# Al-Nawawi's manual of conduct: 1,896 hadith whose numbering in this
+# edition (Mahir Yasin al-Fahl's) EQUALS sunnah.com's collection numbering
+# — verified by the address map's text alignment, not assumed. Structure:
+# an unheaded opening stretch of 679 hadith (the site's synthetic "Book of
+# Miscellany"), then 18 kitab; bab headings ride at the `### $` level.
+
+id: riyad
+
+display:
+  titleAr: "رياض الصالحين"
+  titleEn: "Riyāḍ al-Ṣāliḥīn"
+  authorAr: "يحيى بن شرف النووي"
+  author: "Yaḥyā b. Sharaf al-Nawawī"
+  authorDied: "676 AH"
+  edition: "Shamela 0002348 (ed. Māhir Yāsīn al-Faḥl) — verify against the OpenITI header before shipping"
+  subject: "الرقائق والآداب"
+  # Public domain: the author died in 676 AH.
+  rights: "public-domain"
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # CHOSEN BY MEASUREMENT among six OpenITI versions: this one carries the
+    # Tajrid line grammar with 1,890 numbered openers over the standard
+    # 1,896 numbering (no duplicates), where the curated "pri" file uses a
+    # compound bab/number opener the pipeline has no grammar for and the
+    # others are OCR-status or a commentary-bearing different book.
+    uri: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.RiyadSalihin/0676Nawawi.RiyadSalihin.Shamela0002348-ara5
+    filename: riyad.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # THE WITNESS IS BARELY VOWELLED — 2.4% of tokens — because sunnah.com's
+    # own Riyad Arabic is bare, unlike its Adab (92.7%) or Bulugh. It still
+    # earns its place twice over: retrieval pins each record to its entry
+    # (which is what the record link needs), and the token stream seeds
+    # rasm-level alignment. The HARAKAT here come from the shared lexicon
+    # and al-Tajrid's readings instead, which the gates below acknowledge:
+    # min_witnessed_matn is a floor on Tier 1+2 where Tier 2 is thin by
+    # nature of this witness, not by a defect of the binding.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/other_books/riyad_assalihin.json
+    filename: riyad_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference and to resolve the hadith number; no text from it
+      is redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK: no workbook, as for every corpus after al-Tajrid.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  # BOTH `### |` and `### $` are sections here: the kitab and the hadith
+  # openers ride at `|`, the bab headings at `$` — unlike Bulugh, where
+  # `### $` marks a quoted du'a and is read as a paragraph.
+  section: '^###\s*[|$]\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+    # The edition numbers its kitab in parentheses — `### | (1) - كتاب الأدب`
+    # — and its bab with a bare number — `### $ 84 - باب الحياء` — and both
+    # numbers hide the heading word the lexical level test keys on (a bare
+    # `84 - ` would even read as a hadith opener). Both strips are scoped by
+    # lookahead to the heading word, so a real opener's number is untouched.
+    - name: kitab_number
+      pattern: '\(\d+\)\s*-\s*(?=كتاب)'
+    - name: bab_number
+      pattern: '\b\d+\s*-\s*(?=باب)'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  editorial_reference: null
+
+  heading_top_prefixes: ["كتاب"]
+  heading_prefixes: ["كتاب", "باب"]
+  front_prefixes: ["مقدمة"]
+
+  # NO chapter_link. sunnah.com carries 20 books (a synthetic "Miscellany"
+  # for the unheaded opening stretch, then 19); this edition heads 18 kitab
+  # and no Miscellany. No verified mapping, and none needed: every hadith
+  # links directly.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/riyad_sunnah_links.json"
+    ref_template: "riyadussalihin:{n}"
+    # The never-runs-backwards filter compares SITE numbers here, translated
+    # through the map, because the witness's own index is not in our reading
+    # order (its scrape appended the site's first book last) — filtered raw,
+    # 38% of correct links fell to one giant "backwards" jump at hadith 680.
+    monotone_in: site
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 91.0% Tier 1+2 on matn — far above
+  # what a 2.4%-vowelled witness could supply, because Tier 1 carries it:
+  # the lexicon minted across the OTHER corpora's vowelled witnesses covers
+  # this book's vocabulary. Retrieval: 2,008 of 2,086 records matched at
+  # median 0.982 (the bare-rasm witness makes short hadith noisier — the
+  # backwards filter dropped 5.2%, the highest of the map corpora, which is
+  # the honest price). Thresholds below the measurements, per house rule.
+  min_witnessed_matn: 75.0
+  min_retrieval_median: 0.85
+
+about:
+  description:
+    - >-
+      Riyāḍ al-Ṣāliḥīn — al-Nawawī's (d. 676 AH) manual of conduct and
+      devotion: sincerity, patience, the tongue, the etiquette of eating,
+      dress, greeting and travel, dhikr and duʿāʾ. 1,896 hadith, numbered as
+      sunnah.com numbers them, so each hadith links straight to its page
+      there.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its
+      own, and its sunnah.com witness carries almost no vowels — so, more
+      than in any other corpus here, the harakāt come from the shared
+      lexicon built across these books rather than from a vowelled witness,
+      and the word panel's provenance line says which applies to each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of a Shamela edition (Māhir Yāsīn
+        al-Faḥl's), fetched and checksummed at build time. Chosen from six
+        OpenITI versions for carrying the standard numbering — identical to
+        sunnah.com's — with a clean line grammar.
+      url: https://raw.githubusercontent.com/OpenITI/0700AH/master/data/0676Nawawi/0676Nawawi.RiyadSalihin/0676Nawawi.RiyadSalihin.Shamela0002348-ara5
+    - label: "Alignment reference"
+      detail: >-
+        The sunnah.com text of the 1,896 hadith. Its Arabic carries almost
+        no vowels — 2.4% of words — so unlike the other corpora it settles
+        few readings; it is used to pin each hadith to its sunnah.com entry
+        for the link, and none of it is redistributed here.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon,
+        which is keyed by the written form rather than by the book it was
+        written for. The word panel's provenance line states which source
+        each entry came from.
+      url: https://github.com/mohammadmufti/Guided-Reader

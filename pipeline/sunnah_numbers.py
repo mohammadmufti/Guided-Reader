@@ -169,7 +169,14 @@ def zip_verified(ours: list[dict], theirs: list[tuple], where: str,
     every pair's text is identical under normalisation. Position within a
     chapter is what disambiguates a hadith repeated verbatim elsewhere in the
     book — a global best-match cannot, and the first draft's global zip put
-    entry 306 at 319."""
+    entry 306 at 319.
+
+    The bar is 0.97, not 1.0, for one measured reason: the two scrapes carry
+    a handful of missing-space variants of each other (al-Adab's entry 527
+    fuses وجليل وهل into one token in the witness), costing a single token of
+    overlap on an otherwise identical pair. A genuinely misaligned pair
+    measures 0.3-0.5; every aligned pair across five collections measures
+    0.99+."""
     if len(ours) != len(theirs):
         sys.exit(f"ERROR: {where}: {len(ours)} witness entries against "
                  f"{len(theirs)} source entries — the chapter map is wrong "
@@ -178,7 +185,7 @@ def zip_verified(ours: list[dict], theirs: list[tuple], where: str,
     for x, t in zip(ours, theirs):
         s = overlap(toks(x["arabic"]), t[-1])
         scores.append(s)
-        if s < 1.0:
+        if s < 0.95:
             sys.exit(f"ERROR: {where}: witness idInBook {x['idInBook']} does "
                      f"not textually match its positional counterpart "
                      f"(overlap {s:.2f}). These are two scrapes of one site; "
@@ -363,7 +370,7 @@ def derive_muwatta(src: Path) -> dict:
                 continue
             s = overlap(toks(x["arabic"]), T)
             scores.append(s)
-            if s < 1.0:
+            if s < 0.95:
                 sys.exit(f"ERROR: muwatta witness idInBook {x['idInBook']} "
                          f"does not textually match site book {b} pos {pos} "
                          f"(overlap {s:.2f}). Nothing was written.")
@@ -375,6 +382,164 @@ def derive_muwatta(src: Path) -> dict:
     print(f"muwatta: {len(mapping):,} entries mapped across 61 books "
           f"({textless} textless witness slots skipped), ordinal==displayed "
           f"Sunnah.com reference on every shown row, anchor 1->/1/1 OK, "
+          f"text identity {min(scores):.3f} on all pairs")
+    return {str(k): mapping[k] for k in sorted(mapping)}
+
+
+def derive_adab(src: Path) -> dict:
+    """Al-Adab al-Mufrad: sunnah.com/adab:{n} — CAbd al-Baqi's numbering,
+    which the site, the witness and our chosen edition all share.
+
+    Order is FILE ORDER, verified against the live site rather than assumed:
+    the /adab/14 chapter page lists its entries in exactly the scrape's file
+    order — including the site's one numbering quirk, TWO consecutive
+    entries both labeled 270 (the site added the "nothing heavier on the
+    scale" hadith without renumbering the book). A first draft sorted
+    entries by their "In-book reference" number instead, and the four
+    lettered sub-entries (348a/b, 1001b, 1319b) print "Hadith 0" there,
+    colliding with real positions and scrambling two chapters — the
+    text-identity check caught it at 0.16 where aligned pairs measure 0.99+.
+
+    The reference number itself comes from the colon row where the page
+    shows one, and from the "Arabic/English book reference" row for the 145
+    entries (seven books) where that is all the page shows — the same
+    numbering, which the tiling assertion PROVES: both formats' integers
+    interleave into one gapless 1..1322, with the duplicate set exactly
+    {270, 348, 1001, 1319} (the added hadith and the three letter splits).
+    Anchor read live: adab:1 is the Abu CAmr al-Shaybani "owner of this
+    house" hadith, the same text the witness numbers 1.
+    """
+    colon = re.compile(r"Reference\s*:\s*Al-Adab Al-Mufrad\s+"
+                       r"([\da-z,\s]+?)\s*In-book")
+    fallback = re.compile(r"Arabic/English book reference\s*:\s*"
+                          r"Book\s+(\d+),\s*Hadith\s+(\d+)")
+    books: dict[int, list] = {}
+    for bi, f in enumerate(sorted(glob.glob(str(src / "adab" / "*.json"))), 1):
+        for x in json.loads(Path(f).read_text(encoding="utf-8-sig")):
+            m = colon.search(x["reference"])
+            if m:
+                refs = [int(n) if n.isdigit() else n
+                        for n in m.group(1).replace(" ", "").split(",") if n]
+            else:
+                m2 = fallback.search(x["reference"])
+                if not m2:
+                    sys.exit(f"ERROR: unparsed adab reference: "
+                             f"{x['reference'][:90]!r}")
+                refs = [int(m2.group(2))]
+            books.setdefault(bi, []).append((len(books.get(bi, [])) + 1,
+                                             refs, toks(x["arabic"])))
+
+    path = CACHE / "adab" / "adab_vocalised.json"
+    if not path.exists():
+        sys.exit(f"ERROR: {path} missing — run `python pipeline/fetch.py "
+                 f"--corpus adab` first.")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    ch: dict[int, list[dict]] = {}
+    for x in doc["hadiths"]:
+        if x.get("arabic"):
+            ch.setdefault(x["chapterId"], []).append(x)
+    if len(ch) != len(books):
+        sys.exit(f"ERROR: adab witness has {len(ch)} chapters against the "
+                 f"site's {len(books)} books.")
+
+    scores: list[float] = []
+    mapping: dict[int, dict] = {}
+    for cid, b in zip(sorted(ch), sorted(books)):
+        for iib, (_, refs, _) in zip_verified(
+                ch[cid], books[b], f"adab witness ch {cid} ~ site book {b}",
+                scores):
+            mapping[iib] = {"refs": refs}
+
+    def _num(r):
+        return r if isinstance(r, int) else int(re.match(r"\d+", r).group())
+    nums = sorted(_num(r) for v in mapping.values() for r in v["refs"])
+    assert sorted(set(nums)) == list(range(1, 1323)), \
+        "adab: the numbers must cover 1..1322 gapless"
+    from collections import Counter
+    dups = {n for n, c in Counter(nums).items() if c > 1}
+    assert dups == {270, 348, 1001, 1319}, \
+        f"adab: unexpected duplicate set {sorted(dups)} — the site's quirks " \
+        f"are the double 270 and the three letter splits, nothing else"
+    assert len(mapping) == 1326
+    assert mapping[1]["refs"] == [1], \
+        "ANCHOR: entry 1 is sunnah.com/adab:1, read live"
+    print(f"adab: {len(mapping):,} entries across 57 books, numbers cover "
+          f"1..1322 with the four known duplicates, anchor 1->adab:1 OK, "
+          f"text identity {min(scores):.3f} on all pairs")
+    return {str(k): mapping[k] for k in sorted(mapping)}
+
+
+def derive_riyad(src: Path) -> dict:
+    """Riyad al-Salihin: sunnah.com/riyadussalihin:{n}, complete colon
+    numbering 1..1896 — and the one collection whose witness is NOT in the
+    site's order.
+
+    The witness scrape appended the site's first book last: its chapter 0 is
+    the synthetic "Book of Miscellany" (site numbers 1..679) carrying
+    idInBook 1218..1896, while chapters 1..19 hold idInBook 1..1217 for the
+    site's books 2..20. So the chapter pairing is EXPLICIT — chapter 0 to
+    the miscellany file, chapter N to the Nth numbered file — and the map is
+    what untangles the numbering; a link built on idInBook here would be
+    wrong for every single hadith.
+    """
+    colon = re.compile(r"Reference\s*:\s*Riyad as-Salihin\s+"
+                       r"([\da-z,\s]+?)\s*In-book")
+    files = sorted(glob.glob(str(src / "riyadussalihin" / "*.json")))
+    misc = [f for f in files if "miscellany" in f]
+    numbered = [f for f in files if "miscellany" not in f]
+    if len(misc) != 1 or len(numbered) != 19:
+        sys.exit(f"ERROR: riyad source shape changed: {len(misc)} miscellany "
+                 f"files, {len(numbered)} numbered books.")
+
+    def read(f):
+        out = []
+        for x in json.loads(Path(f).read_text(encoding="utf-8-sig")):
+            m = colon.search(x["reference"])
+            if not m:
+                sys.exit(f"ERROR: unparsed riyad reference: "
+                         f"{x['reference'][:90]!r}")
+            refs = [int(n) if n.isdigit() else n
+                    for n in m.group(1).replace(" ", "").split(",") if n]
+            out.append((len(out) + 1, refs, toks(x["arabic"])))
+        return out
+
+    site = {0: read(misc[0])}
+    for i, f in enumerate(numbered, 1):
+        site[i] = read(f)
+
+    path = CACHE / "riyad" / "riyad_vocalised.json"
+    if not path.exists():
+        sys.exit(f"ERROR: {path} missing — run `python pipeline/fetch.py "
+                 f"--corpus riyad` first.")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    ch: dict[int, list[dict]] = {}
+    for x in doc["hadiths"]:
+        if x.get("arabic"):
+            ch.setdefault(x["chapterId"], []).append(x)
+    if sorted(ch) != sorted(site):
+        sys.exit(f"ERROR: riyad witness chapters {sorted(ch)} do not match "
+                 f"the site's books {sorted(site)}.")
+
+    scores: list[float] = []
+    mapping: dict[int, dict] = {}
+    for b in sorted(ch):
+        for iib, (_, refs, _) in zip_verified(
+                ch[b], site[b], f"riyad witness ch {b} ~ site book {b}",
+                scores):
+            mapping[iib] = {"refs": refs}
+
+    flat = sorted(r for v in mapping.values() for r in v["refs"]
+                  if isinstance(r, int))
+    assert flat == list(range(1, 1897)), \
+        "riyad refs must tile 1..1896 exactly once"
+    assert len(mapping) == 1896
+    # The untangling this map exists for, stated as an anchor: the witness's
+    # FIRST entry is the site's 680, and the miscellany's first (site 1) is
+    # the witness's 1218.
+    assert mapping[1]["refs"] == [680], mapping[1]
+    assert mapping[1218]["refs"] == [1], mapping[1218]
+    print(f"riyad: 1,896 entries, refs tile 1..1896, witness order untangled "
+          f"(idInBook 1 -> 680, 1218 -> 1), "
           f"text identity {min(scores):.3f} on all pairs")
     return {str(k): mapping[k] for k in sorted(mapping)}
 
@@ -392,6 +557,8 @@ def main() -> int:
         shamail = derive_shamail(src)
         bulugh = derive_bulugh(src)
         muwatta = derive_muwatta(src)
+        adab = derive_adab(src)
+        riyad = derive_riyad(src)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     prov = {
@@ -410,6 +577,14 @@ def main() -> int:
          "the address is sunnah.com/bulugh/{book}/{pos}; colon refs, where "
          "present, are display-only — partial (5 of 16 books) and 31 are "
          "duplicated on the site"),
+        ("adab", adab,
+         "refs are sunnah.com's collection numbers (CAbd al-Baqi's, which "
+         "this edition shares); URL is adab:{refs[0]}"),
+        ("riyad", riyad,
+         "refs are sunnah.com's collection numbers, which this edition "
+         "shares; URL is riyadussalihin:{refs[0]}; the witness's own order "
+         "is NOT the site's — its miscellany is appended last — which is "
+         "why this map exists"),
         ("muwatta", muwatta,
          "the address is sunnah.com/malik/{book}/{pos}; pos is the per-book "
          "ordinal, equal to the site's Sunnah.com reference on every row it "

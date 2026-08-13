@@ -94,3 +94,34 @@ def test_muwatta_map_invariants():
             f"book {b}: a duplicated position would address two hadith with one URL"
     assert e["1"] == {"book": 1, "pos": 1}, \
         "ANCHOR: entry 1 is /malik/1/1, read live during derivation"
+
+
+def test_adab_map_invariants():
+    doc = _load("adab")
+    e = doc["entries"]
+    assert len(e) == 1326
+    def num(r):
+        import re
+        return r if isinstance(r, int) else int(re.match(r"\d+", r).group())
+    nums = sorted(num(r) for v in e.values() for r in v["refs"])
+    assert sorted(set(nums)) == list(range(1, 1323)), \
+        "adab numbers must cover 1..1322 gapless"
+    from collections import Counter
+    dups = {n for n, c in Counter(nums).items() if c > 1}
+    assert dups == {270, 348, 1001, 1319}, \
+        "the site's quirks are the double 270 and three letter splits — " \
+        f"got {sorted(dups)}"
+    assert e["1"]["refs"] == [1], "ANCHOR: entry 1 is sunnah.com/adab:1"
+
+
+def test_riyad_map_invariants():
+    doc = _load("riyad")
+    e = doc["entries"]
+    assert len(e) == 1896
+    flat = sorted(r for v in e.values() for r in v["refs"] if isinstance(r, int))
+    assert flat == list(range(1, 1897)), "riyad refs must tile 1..1896"
+    # THE untangling this map exists for: the witness scrape appended the
+    # site's first book last, so a link built on idInBook would be wrong for
+    # every hadith in the collection.
+    assert e["1"]["refs"] == [680], "witness entry 1 is the site's 680"
+    assert e["1218"]["refs"] == [1], "the miscellany's first is witness 1218"

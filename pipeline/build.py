@@ -702,8 +702,14 @@ def main() -> int:
         # binder stamped (the witness's index) or our own number for corpora
         # whose numbering IS the site's; a corpus with a `link_map` never
         # ships that base — it ships the translated site address or nothing.
-        _link_eligible = bool(_rl) and (_link_layers is None
-                                        or rec["layer"] in _link_layers)
+        # A NUMBERED record only. An unnumbered body record is a fragment or
+        # a citation block — Riyad's bab-opening verse quotations, 189 of
+        # them — and a per-hadith link claims "this record IS that hadith",
+        # which a verse block is not even when retrieval finds its words
+        # inside some witness row (verses are quoted inside hadith).
+        _link_eligible = (bool(_rl) and bool(rec.get("number"))
+                          and (_link_layers is None
+                               or rec["layer"] in _link_layers))
         _link_base = (b.get("recordLinkNumber")
                       if _link_from_witness else rec["number"]) \
             if _link_eligible else None

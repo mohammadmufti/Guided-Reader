@@ -168,6 +168,49 @@ numbering" below.
 
 ---
 
+## al-Adab al-Mufrad (`adab`)
+
+Al-Bukhārī's (d. 256 AH) book of manners, apart from his Ṣaḥīḥ: 1,322 hadith
+across 643 bāb with no kitāb above them. The edition is Muḥammad Fuʾād ʿAbd
+al-Bāqī's — the numbering sunnah.com and the witness both use — chosen from
+four OpenITI versions; its interleaved gradings by a modern editor (1,348
+sections) are **dropped at segmentation** via `drop_section_prefixes` and
+never shipped. The witness is 92.7% vowelled, the best after the Muwaṭṭaʾ's;
+Tier 1+2 measures 98.7% on matn.
+
+**Each hadith links to sunnah.com through the verified address map** — the
+colon form `adab:{n}`. The site's numbering quirks are known and pinned: a
+double 270 (an added hadith the site never renumbered around) and three
+letter splits (348a/b, 1001b, 1319b).
+
+---
+
+## Riyāḍ al-Ṣāliḥīn (`riyad`)
+
+Al-Nawawī's (d. 676 AH) manual of conduct: 1,896 hadith whose numbering in
+this edition (Māhir Yāsīn al-Faḥl's, chosen from six OpenITI versions)
+equals sunnah.com's. An unheaded opening stretch of 679 hadith — the site's
+synthetic "Book of Miscellany" — then 18 kitāb, with bāb headings at the
+`### $` level and the bāb-opening verse citations kept as unnumbered
+records.
+
+**Its witness is nearly bare** — sunnah.com's Riyāḍ Arabic carries vowels on
+2.4% of words, unlike its Adab (92.7%) — so, uniquely here, the ḥarakāt come
+from the lexicon minted across the other corpora's vowelled witnesses (Tier
+1+2 still measures 91.0%), and the witness earns its keep by pinning each
+hadith to its entry for the link.
+
+**Each hadith links through the map** — `riyadussalihin:{n}` — and this map
+exists for a sharper reason than the others: the witness scrape appended the
+site's first book LAST, so its `idInBook` order is not the site's at all
+(witness entry 1 is the site's 680; the Miscellany's first is witness 1218).
+A link built on the raw index would be wrong for every hadith in the
+collection, and the never-runs-backwards filter compares site numbers here
+(`monotone_in: site`) — filtered on the raw index it threw away 38% of
+correct links to one giant "backwards" jump.
+
+---
+
 ## External numbering
 
 A corpus links each hadith to the same hadith on sunnah.com where the

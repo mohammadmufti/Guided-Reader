@@ -541,6 +541,8 @@ def bind_corpus(
     strip: tuple[re.Pattern[str], ...] = (),
     aside_layer: str | None = None,
     link_from_witness: bool = False,
+    link_map_path: Path | None = None,
+    monotone_in_site: bool = False,
 ) -> tuple[dict, dict]:
     bound: dict[str, dict] = {}
     tally = collections.Counter()
@@ -993,6 +995,34 @@ def bind_corpus(
     # rather than repairing by interpolation — a link we cannot vouch for
     # should not exist, and a hadith with no link is honest where a plausible
     # wrong one is not. 3.8% of Bulugh's and 0.5% of the Shama'il's.
+    #
+    # WHICH numbering must not run backwards is DECLARED, because it differs
+    # by corpus. For most, the witness's own index runs in our reading order
+    # and the raw stamped values compare directly — including the Shama'il,
+    # whose SITE numbers are legitimately non-monotone (chapter 8b carries
+    # 368-369 mid-book), so comparing site numbers there would drop two
+    # correct links. Riyad is the opposite: its witness scrape appended the
+    # site's first book last, so raw idInBook has a giant "backwards" jump
+    # at hadith 680 that threw away 38% of correct links — measured — while
+    # its SITE numbers run exactly in our order. Such a corpus declares
+    # `record_link.monotone_in: site` and the filter compares each stamped
+    # index translated through the address map.
+    _sort_key = None
+    if (link_numbers and monotone_in_site
+            and link_map_path is not None and link_map_path.exists()):
+            _entries = json.loads(link_map_path.read_text(encoding="utf-8"))["entries"]
+
+            def _sort_key(idin):
+                ent = _entries.get(str(idin))
+                if ent is None:
+                    return (1, 0, 0, "")   # unknown sorts after everything
+                if "book" in ent:
+                    return (0, ent["book"], ent["pos"], "")
+                r = (ent.get("refs") or [0])[0]
+                if isinstance(r, int):
+                    return (0, r, 0, "")
+                import re as _re
+                return (0, int(_re.match(r"\d+", r).group()), 0, r)
     if link_numbers:
         by_ours = sorted(
             ((r["number"], r["id"]) for r in records
@@ -1004,7 +1034,8 @@ def bind_corpus(
         parent: dict[int, int | None] = {}
         ends: list[int] = []
         for pos, (_, rid) in enumerate(by_ours):
-            v = link_numbers[rid]
+            v = (_sort_key(link_numbers[rid]) if _sort_key
+                 else link_numbers[rid])
             k = bisect.bisect_right(tails, v)
             parent[pos] = ends[k - 1] if k else None
             if k == len(tails):
@@ -1507,6 +1538,13 @@ def main() -> int:
         link_from_witness=bool(
             ((cfg.get("segmentation") or {}).get("record_link") or {})
             .get("number_from_witness")),
+        link_map_path=(
+            ROOT / _rl_lm if (_rl_lm := ((cfg.get("segmentation") or {})
+                              .get("record_link") or {}).get("link_map"))
+            else None),
+        monotone_in_site=(
+            ((cfg.get("segmentation") or {}).get("record_link") or {})
+            .get("monotone_in") == "site"),
     )
     if witness_idx is None:
         stats["retrieval"]["skipped"] = True
