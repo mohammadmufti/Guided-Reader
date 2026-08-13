@@ -135,15 +135,18 @@ coverage of 1.000. The longest carries a commentary and is a different book.
 path form `bulugh/{book}/{pos}`, because the site has no complete
 collection numbering for this book. See "External numbering" below.
 
-**The takhrīj is its own layer.** The source follows most hadith with
-further paragraphs — `أخرجه الثلاثة`, `وصححه أحمد`, a variant's
-`وللبخاري: «…»` — which segment into the `takhrij` aside layer (291
-records; several notes on one hadith are one record, line-broken) and
-render under the hadith the way al-Tajrīd's zawāʾid do. Carving them out
-of the matn also lifted the matn's Tier 1+2 from 95.2% to 99.3%: the
-witness's bare tokens were this same apparatus. The edition's numbered
-footnote *bodies* do not exist in the source file — only the `(1)` markers
-survive, and they stay: the text is not changed.
+**The trailing paragraphs are entry content, not an apparatus.** The source
+follows many hadith with further paragraphs — a variant's `وللبخاري: «…»`,
+the author's own `أخرجه الثلاثة`, `وصححه أحمد` — and twice they were carved
+into a "takhrīj" aside layer on the theory that they are footnotes. They are
+not: they are Ibn Ḥajar's own text, inside the same single entry on the
+witness and the same numbered hadith in this edition, and carved out they
+read as footnotes attached to the wrong hadith. They stay in the matn. The
+edition's real footnotes — the numbered bodies behind its 2,037 `(1)`-style
+anchors — do not exist in the OpenITI file at all (only the anchors
+survive), and the one source that carries them is the witness apparatus,
+which is not redistributed; the anchors stay, because the text is not
+changed.
 
 ---
 

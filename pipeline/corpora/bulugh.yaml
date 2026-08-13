@@ -86,25 +86,25 @@ segmentation:
   # mid-sentence fragments as `### |` headings, and without this they split the
   # hadith they belong to — see segment.py.
   heading_prefixes: ["كتاب", "باب"]
-  # THE TAKHRIJ, delivered. The source follows most hadith with further `#`
-  # paragraphs — `أخرجه الثلاثة`, `وصححه أحمد`, a variant's `وللبخاري: «…»` —
-  # which is much of what this book is for. This flag carves them into the
-  # aside layer (`takhrij` below) so they render under the hadith the way
-  # al-Tajrid's zawa'id do, rather than fused invisibly into the matn. The
-  # machinery was built and left off after its first output was wrong in two
-  # ways, both now fixed in segment.py: a paragraph that merely CONTINUES an
-  # open sentence is a continuation, not a note (the source breaks lines
-  # mid-clause; 219 of the 591 candidates), and several notes on one hadith
-  # are ONE aside record with line breaks, not a stack of sections.
+  # NO ASIDE LAYER — and this is the second time that lesson was paid for.
+  # The source follows many hadith with further `#` paragraphs — a variant's
+  # `وللبخاري: «…»`, the author's own `أخرجه الثلاثة` and `وصححه أحمد` — and
+  # twice they were carved into a "takhrij" aside on the theory that they are
+  # an apparatus. They are not: they are ENTRY CONTENT, Ibn Hajar's own text,
+  # inside the same single entry on the witness (its entry 6 carries the matn
+  # AND all three variants) and inside the same numbered hadith in this
+  # edition. Carving them out presented the hadith's own words as an
+  # editorial aside, only for the minority of entries where the source
+  # happened to break a paragraph, and read to a user exactly like footnotes
+  # attached to the wrong hadith. `unnumbered_body_is_aside` stays OFF here;
+  # the further paragraphs join their matn, which is where the witness has
+  # them and why retrieval matches at median 1.000.
   #
-  # What this cannot deliver: the editor's numbered footnote BODIES. The
-  # edition's (1) (2) markers survive in the text, but this OpenITI file
-  # carries no footnote text for them — checked, they are simply absent — and
-  # the one source that has them (the sunnah.com witness, whose bare 25% is
-  # exactly this apparatus) is an alignment reference whose text is not
-  # redistributed, and the notes are a modern editor's copyrighted matter
-  # besides. The markers stay: the text is not changed.
-  unnumbered_body_is_aside: true
+  # What a "footnotes" feature would actually need — the numbered BODIES
+  # behind the (1) (2) anchors, 2,037 of them — does not exist in this file:
+  # the anchors survive, the notes behind them were never in the OpenITI
+  # text (checked, not assumed), and the one source that has them is the
+  # witness apparatus, non-redistributable and a modern editor's matter.
   numbering: edition
   # PER-HADITH LINK, through the verified address map. Two lessons are baked
   # into this block, both learned the hard way:
@@ -147,7 +147,6 @@ segmentation:
     url: "https://sunnah.com/bulugh/{n}"
   layer_names:
     body: matn
-    aside: takhrij
     top: heading_kitab
     sub: heading_bab
     front: frontmatter
@@ -157,11 +156,11 @@ gates:
   # MEASURED on the first binding run: 95.2% Tier 1+2 on matn, with 1,682 of
   # 1,692 records matched at median coverage 1.000 — higher than a witness
   # 44% vowelled overall suggests, explained once the apparatus is split out:
-  # the matn itself is 90.1% vowelled. RE-MEASURED after the takhrij was
-  # carved into its own layer: 99.3% Tier 1+2 on matn, 1,578 of 1,578
-  # matched, median 1.000 — the bare tokens that had been dragging the matn
-  # figure down were the apparatus all along, and now they sit in the layer
-  # whose witness counterpart is equally bare.
+  # the matn itself is 90.1% vowelled. (A briefly shipped carve-out of the
+  # trailing paragraphs measured 99.3% on the shortened matn and attributed
+  # the lift to the apparatus; the attribution was wrong — those paragraphs
+  # are entry content, the carve was reverted, and the figure with them
+  # restored is the 95.2% above.)
   #
   # Threshold set below the measurement so it catches regression rather than
   # restating today's figure.

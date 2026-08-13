@@ -1391,38 +1391,80 @@ def test_payload_links_carry_only_the_contract_keys():
     if not checked:
         pytest.skip("no built payload declares a link")
 
-def test_bulugh_takhrij_is_carved_delivered_and_line_broken():
-    """The takhrij reaches the reader as its own layer, correctly shaped.
+def test_bulugh_trailing_paragraphs_stay_in_the_matn():
+    """The variants and takhrij sentences are the hadith's own text.
 
-    The machinery sat inert for a reason worth remembering: the flag
-    (`unnumbered_body_is_aside`) was built, its output was wrong twice —
-    continuations torn out of the matn, and one aside record PER PARAGRAPH
-    rendering as a stack of sections under one hadith — and it was left off
-    rather than fixed, while `asideLayer: takhrij` kept shipping in the
-    corpus index as if the layer existed. This asserts the fixed shape on
-    the payload: the layer ships; several notes on one hadith are ONE record
-    whose newline separators survive close()'s whitespace collapse AND
-    tokenisation (both flattened them at different times); the matn never
-    carries a newline; and the aside carries no external link — the
-    record_link is scoped to matn, and the takhrij has no counterpart page.
+    Twice they were carved into a "takhrij" aside on the theory that a
+    trailing paragraph is a footnote, and twice that shipped the hadith's own
+    words — `وللبخاري: «…»`, `أخرجه الثلاثة` — as an apparatus block that a
+    reader (correctly) read as footnotes attached to the wrong hadith. They
+    are entry content: the witness carries hadith 6's matn AND its three
+    variants inside one entry, and this edition numbers them as one hadith.
+    So: no aside layer ships for this corpus, hadith 6's matn contains its
+    variants, and the corpus index does not declare an aside layer it does
+    not have. The real footnotes — the bodies behind the (1) anchors — are
+    not in the source file at all, and no layer should pretend otherwise.
     """
     import glob, json, pathlib
-    root = corpus.ROOT.parent / "web/public/data/corpora/bulugh/hadith"
-    tks = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
-           for f in glob.glob(str(root / "takhrij-*.json"))]
-    if not tks:
+    root = corpus.ROOT.parent / "web/public/data/corpora/bulugh"
+    matns = glob.glob(str(root / "hadith/matn-*.json"))
+    if not matns:
         pytest.skip("bulugh payload not built")
-    assert len(tks) >= 250, f"only {len(tks)} takhrij records shipped"
-    def text(d):
-        return d["leading"] + "".join(t["raw"] + t["punctuationAfter"]
-                                      for t in d["tokens"])
-    assert any("\n" in text(d) for d in tks), \
-        "no takhrij carries a line break — the merge or the whitespace " \
-        "collapse regressed"
-    assert not [d for d in tks
-                if d.get("recordLinkRef") or d.get("recordLinkNumber")], \
-        "a takhrij note must not claim a sunnah.com page of its own"
-    matns = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
-             for f in glob.glob(str(root / "matn-*.json"))]
-    assert not [d for d in matns if "\n" in text(d)], \
-        "a newline leaked into the matn — it is the aside's separator only"
+    assert not glob.glob(str(root / "hadith/takhrij-*.json")), \
+        "a takhrij layer shipped — the carve-out is back"
+    idx = json.loads((root / "index.json").read_text(encoding="utf-8"))
+    assert idx["corpus"].get("asideLayer") is None, \
+        "the corpus index declares an aside layer this corpus does not have"
+    import re
+    diac = re.compile("[\u064b-\u0652\u0670\u0640]")
+    for f in matns:
+        d = json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+        if d.get("number") == 6:
+            text = diac.sub("", d["leading"] + "".join(
+                t["raw"] + t["punctuationAfter"] for t in d["tokens"]))
+            assert "وللبخاري" in text, \
+                "hadith 6 lost its Bukhari variant — the carve-out is back"
+            break
+    else:
+        raise AssertionError("bulugh hadith 6 not found")
+
+
+def test_the_aside_merge_machinery_stays_fixed():
+    """`unnumbered_body_is_aside`, exercised on a fixture, since no corpus
+    currently enables it. The machinery was wrong twice in SHAPE — one aside
+    record per paragraph, and a whitespace collapse in close() that fused the
+    merged notes back into a run-on — and both fixes should survive even
+    while the flag has no user: several closed trailing paragraphs are ONE
+    aside record with newline separators, a mid-clause continuation still
+    joins with a space, and the body record never carries a newline."""
+    import segment as seg
+    cfg = {
+        "id": "fixture",
+        "segmentation": {
+            "opener": r"^(\d+)\s*-\s*(.*)$",
+            "unnumbered_body_is_aside": True,
+            "layer_names": {"body": "matn", "aside": "note",
+                            "top": "heading_kitab", "sub": "heading_bab",
+                            "front": "frontmatter"},
+            "heading_prefixes": ["كتاب", "باب"],
+            "heading_top_prefixes": ["كتاب"],
+        },
+    }
+    rules = seg.Rules.from_config(cfg)
+    s = seg.Segmenter(cfg, rules)
+    s.feed([
+        "### | كتاب الفتن",
+        "### | 1 - ",
+        "# متن الحديث الأول قال. (1)",
+        "# أخرجه فلان. (2)",     # matn is closed -> opens the aside
+        "# وصححه غيره يعني",     # aside is closed -> a NEW note, newline
+        "# في روايته. (3)",      # the note above is OPEN -> joins, space
+        "# ورواه آخر. (4)",      # closed again -> a third note, newline
+    ])
+    s.finalise()
+    notes = [r for r in s.records if r["layer"] == "note"]
+    assert len(notes) == 1, f"{len(notes)} aside records for one hadith"
+    assert notes[0]["textRaw"] == \
+        "أخرجه فلان. (2)\nوصححه غيره يعني في روايته. (3)\nورواه آخر. (4)"
+    matn = [r for r in s.records if r["layer"] == "matn"]
+    assert len(matn) == 1 and "\n" not in matn[0]["textRaw"]

@@ -488,12 +488,17 @@ class Segmenter:
                 self.current["numbersCovered"] = numbers
                 return
 
-        # A further paragraph on a record that ALREADY HAS TEXT is a note on
-        # it, not a new one. In Bulugh these are the takhrij lines — `أخرجه
-        # الثلاثة`, `رواه الترمذي وضعفه` — which follow each hadith and are
-        # much of what the book is for. Left as body records they were
-        # unnumbered, and an unnumbered body record is addressed by nothing and
-        # shown on no page: 121 of them were invisible.
+        # A further paragraph on a record that ALREADY HAS TEXT can be read
+        # as a note on it — IF the corpus's trailing paragraphs really are an
+        # apparatus. No corpus currently says so, and Bulugh is the reason
+        # the flag defaults off: its trailing paragraphs (`وللبخاري: «…»`,
+        # `أخرجه الثلاثة`, `وصححه أحمد`) were twice carved into an aside on
+        # that theory, and twice reverted — they are ENTRY CONTENT, the
+        # author's own text, inside the same single entry on the witness and
+        # the same numbered hadith in the edition; carved out, they read as
+        # footnotes attached to the wrong hadith. The machinery stays, fixed
+        # (see the merge below), for a text whose trailing paragraphs are a
+        # genuine apparatus.
         #
         # `textRaw` must be non-empty. A text that puts its number on a line of
         # its own leaves the record empty when its own body arrives, and
