@@ -86,6 +86,25 @@ segmentation:
   # mid-sentence fragments as `### |` headings, and without this they split the
   # hadith they belong to — see segment.py.
   heading_prefixes: ["كتاب", "باب"]
+  # THE TAKHRIJ, delivered. The source follows most hadith with further `#`
+  # paragraphs — `أخرجه الثلاثة`, `وصححه أحمد`, a variant's `وللبخاري: «…»` —
+  # which is much of what this book is for. This flag carves them into the
+  # aside layer (`takhrij` below) so they render under the hadith the way
+  # al-Tajrid's zawa'id do, rather than fused invisibly into the matn. The
+  # machinery was built and left off after its first output was wrong in two
+  # ways, both now fixed in segment.py: a paragraph that merely CONTINUES an
+  # open sentence is a continuation, not a note (the source breaks lines
+  # mid-clause; 219 of the 591 candidates), and several notes on one hadith
+  # are ONE aside record with line breaks, not a stack of sections.
+  #
+  # What this cannot deliver: the editor's numbered footnote BODIES. The
+  # edition's (1) (2) markers survive in the text, but this OpenITI file
+  # carries no footnote text for them — checked, they are simply absent — and
+  # the one source that has them (the sunnah.com witness, whose bare 25% is
+  # exactly this apparatus) is an alignment reference whose text is not
+  # redistributed, and the notes are a modern editor's copyrighted matter
+  # besides. The markers stay: the text is not changed.
+  unnumbered_body_is_aside: true
   numbering: edition
   # PER-HADITH LINK, through the verified address map. Two lessons are baked
   # into this block, both learned the hard way:
@@ -136,10 +155,13 @@ segmentation:
 
 gates:
   # MEASURED on the first binding run: 95.2% Tier 1+2 on matn, with 1,682 of
-  # 1,692 records matched at median coverage 1.000. Higher than expected from
-  # a witness 44% vowelled overall — explained once the apparatus is split
-  # out: the matn itself is 90.1% vowelled, and the shared glossary
-  # carries the rest.
+  # 1,692 records matched at median coverage 1.000 — higher than a witness
+  # 44% vowelled overall suggests, explained once the apparatus is split out:
+  # the matn itself is 90.1% vowelled. RE-MEASURED after the takhrij was
+  # carved into its own layer: 99.3% Tier 1+2 on matn, 1,578 of 1,578
+  # matched, median 1.000 — the bare tokens that had been dragging the matn
+  # figure down were the apparatus all along, and now they sit in the layer
+  # whose witness counterpart is equally bare.
   #
   # Threshold set below the measurement so it catches regression rather than
   # restating today's figure.

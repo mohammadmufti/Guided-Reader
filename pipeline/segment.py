@@ -226,7 +226,16 @@ class Segmenter:
     # -- record lifecycle ---------------------------------------------------
     def close(self) -> None:
         if self.current is not None:
-            self.current["textRaw"] = re.sub(r"\s+", " ", self.current["textRaw"]).strip()
+            # Collapse whitespace, but a NEWLINE survives: it is never source
+            # noise — feed() works line by line and every paragraph is
+            # whitespace-flattened before it reaches a record — so the only
+            # newline a record can hold is the deliberate separator the aside
+            # merge writes between one hadith's several takhrij notes, which
+            # the pane renders as a plain line break. Flattening it (as this
+            # line did until it mattered) silently fused the notes back into
+            # one run-on paragraph.
+            t = re.sub(r"[^\S\n]+", " ", self.current["textRaw"])
+            self.current["textRaw"] = re.sub(r" ?\n ?", "\n", t).strip()
             self.last_structural = self.current["layer"]
             self.records.append(self.current)
             self.current = None
@@ -496,6 +505,16 @@ class Segmenter:
         # paragraph tore the matn in half and filed the rest as a footnote.
         #
         # 219 of Bulugh's 591 "notes" were continuations of this kind.
+        #
+        # ONE ASIDE PER HADITH, not one per paragraph. A hadith can carry
+        # several takhrij paragraphs — hadith 2's `أخرجه الثلاثة` and
+        # `وصححه أحمد` are two — and the first shipping of this feature opened
+        # a new aside record for each, which the reader rendered as a stack of
+        # separate aside sections under one hadith. They are one apparatus:
+        # a further note on a record that is ALREADY the aside joins it,
+        # separated by a newline the pane renders as a plain line break
+        # (`whitespace-pre-line` on the aside only — the matn joins its
+        # continuations with a space and never carries one).
         if (
             self.rules.unnumbered_body_is_aside
             and self.current is not None
@@ -504,8 +523,11 @@ class Segmenter:
             and self.current["layer"] in (
                 self.rules.layers["body"], self.rules.layers["aside"])
         ):
-            self.open(rtype="hadith", layer=self.rules.layers["aside"],
-                      number=None, text=clean)
+            if self.current["layer"] == self.rules.layers["aside"]:
+                self.current["textRaw"] += "\n" + clean
+            else:
+                self.open(rtype="hadith", layer=self.rules.layers["aside"],
+                          number=None, text=clean)
             return
 
         bullet = self.rules.bullet.match(clean) if self.rules.bullet else None

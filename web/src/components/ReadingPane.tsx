@@ -131,7 +131,12 @@ export function ReadingPane({ record, selected, onSelect, harakat, muted }: Prop
       dir="rtl"
       lang="ar"
       onKeyDown={onKeyDown}
-      className={`arabic-body ${muted ? "text-(--color-ink-muted)" : ""}`}
+      // `whitespace-pre-line` ONLY on the aside: Bulugh merges a hadith's
+      // several takhrij paragraphs into one record separated by newlines,
+      // and this is what turns them into plain line breaks. The matn joins
+      // its continuations with a space and never carries a newline, so the
+      // main pane keeps normal whitespace.
+      className={`arabic-body ${muted ? "whitespace-pre-line text-(--color-ink-muted)" : ""}`}
       style={muted ? { fontSize: "calc(var(--ar-size) * 0.82)" } : undefined}
     >
       {record.leading}
