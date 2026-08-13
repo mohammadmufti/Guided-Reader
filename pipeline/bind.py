@@ -357,8 +357,13 @@ class WitnessIndex:
         Rows, and the hadith number each carries — None where the source has none.
 
         A single-column CSV has no numbers. The sunnah.com-derived JSON does,
-        in `idInBook`, and that number is what a cross-reference link resolves
-        with.
+        in `idInBook` — but that is the scrape's ENTRY INDEX, and whether it
+        is also the number a sunnah.com URL resolves with depends on the
+        collection: for Bukhari the two coincide (no merged entries), which is
+        what the zawa'id cross-reference relies on; for Bulugh and the
+        Shama'il they do not, so the build translates the stamped index
+        through the verified address map before it ships (see
+        pipeline/sunnah_numbers.py).
         """
         if path.suffix.lower() == ".json":
             doc = json.loads(path.read_text(encoding="utf-8"))
@@ -614,18 +619,26 @@ def bind_corpus(
             else:
                 retrieval["coverages"].append(coverage)
 
-                # ---- the number the EXTERNAL site uses ----------------------
+                # ---- the row the EXTERNAL site's text sits in ---------------
                 #
-                # Not ours. Bulugh's edition numbers its hadith 1-1582 and
-                # sunnah.com numbers the same collection 1-1767; Shama'il runs
-                # to 417 against 402. Measured, our number agrees with theirs
-                # for 1% of records, and the offset drifts — so a link built
-                # from our numbering would send a reader to the wrong hadith
-                # almost every time.
+                # Not our number. Bulugh's edition numbers its hadith 1-1582
+                # against the witness's 1,767 entries; the Shama'il's run to
+                # 417 against 402. Measured, our number agrees with the
+                # witness's index for 1% of Bulugh's records, and the offset
+                # drifts — so a link built from our numbering would send a
+                # reader to the wrong hadith almost every time.
                 #
                 # The witness IS the site's own text, so the row this record
-                # aligned to carries the right number by construction, and the
-                # coverage that admitted the alignment is what vouches for it.
+                # aligned to identifies the right ENTRY by construction, and
+                # the coverage that admitted the alignment is what vouches for
+                # it. What gets stamped here is the witness's `idInBook` — an
+                # entry index, NOT yet a URL: the site merges entries, and for
+                # Bulugh it never finished a collection numbering at all, so
+                # the build translates this index through the verified address
+                # map (pipeline/sunnah_numbers.py) before anything ships. An
+                # earlier version of this comment claimed "sunnah.com numbers
+                # the same collection 1-1767"; measured on the site, it does
+                # not — 1,767 is the scrape's entry count.
                 if link_from_witness and witness_idx.numbers[row] is not None:
                     link_numbers[rec["id"]] = witness_idx.numbers[row]
 

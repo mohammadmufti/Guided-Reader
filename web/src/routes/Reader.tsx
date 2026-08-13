@@ -275,6 +275,35 @@ export function Reader() {
   );
 }
 
+import type { ReferenceLink } from "@/types/contracts";
+
+/** The chapter-page anchor, rendered on a kitab title (Bulugh, the Muwatta)
+    or on a bab title as the fallback where a record has no per-hadith link.
+    One component because the two call sites drifted apart once already —
+    the decisions about WHICH number and WHEN live at the call sites, where
+    their comments are; this only renders the resolved answer. */
+function ChapterRefAnchor({
+  link,
+  n,
+  title,
+}: {
+  link: ReferenceLink;
+  n: number;
+  title: string;
+}) {
+  return (
+    <a
+      href={link.url.replace("{n}", String(n))}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`${title} on ${link.label} — opens in a new tab`}
+      className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+    >
+      {title}
+    </a>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto max-w-6xl px-5 py-7">{children}</main>;
 }
@@ -415,18 +444,11 @@ function PageView({
                 // does, once cost the Muwatta every link when its CSV witness
                 // could not feed the title matcher. The build now refuses to
                 // ship a declared link that resolved nothing.
-                <a
-                  href={index.corpus.chapterLink.url.replace(
-                    "{n}",
-                    String(main.chapterLinkNumber),
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${main.kitab.titleAr} on ${index.corpus.chapterLink.label} — opens in a new tab`}
-                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
-                >
-                  {main.kitab.titleAr}
-                </a>
+                <ChapterRefAnchor
+                  link={index.corpus.chapterLink}
+                  n={main.chapterLinkNumber}
+                  title={main.kitab.titleAr}
+                />
               ) : (
                 main.kitab.titleAr
               )}
@@ -504,18 +526,11 @@ function PageView({
               ) : !main.kitab &&
                 index.corpus.chapterLink &&
                 main.chapterLinkNumber != null ? (
-                <a
-                  href={index.corpus.chapterLink.url.replace(
-                    "{n}",
-                    String(main.chapterLinkNumber),
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${main.bab.titleAr} on ${index.corpus.chapterLink.label} — opens in a new tab`}
-                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
-                >
-                  {main.bab.titleAr}
-                </a>
+                <ChapterRefAnchor
+                  link={index.corpus.chapterLink}
+                  n={main.chapterLinkNumber}
+                  title={main.bab.titleAr}
+                />
               ) : (
                 main.bab.titleAr
               )}

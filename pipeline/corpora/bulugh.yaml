@@ -38,10 +38,15 @@ sources:
 
   vocalisation_reference:
     kind: http
-    # 1,767 hadith, 44.1% of tokens vowelled. THINNER THAN THE OTHERS —
-    # al-Muwaṭṭaʾ's witness runs at 98.7% and Nawawī's at 94.8% — so expect a
-    # lower Tier 2 here and more of the readings to come from the shared
-    # lexicon instead. It is what exists.
+    # 1,767 hadith, 44.1% of tokens vowelled OVERALL — but do not read that
+    # as a thin scrape. Measured with the matn braces split out: the matn is
+    # 90.1% vowelled; the bare mass is al-Albānī's takhrīj apparatus (25.3%),
+    # which is equally unvowelled on the live site — the bare tokens are bare
+    # at the source, and no better witness exists to fetch. Still lower than
+    # al-Muwaṭṭaʾ's 98.7% or Nawawī's 94.8%, so more readings come from the
+    # shared lexicon. Verified to be sunnah.com's own current text: identical
+    # to a second pinned scrape on all 1,767 entries (sunnah_numbers.py), so
+    # where a record aligns, the site is the harakāt ground truth.
     uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/other_books/bulugh_almaram.json
     filename: bulugh_vocalised.json
     encoding: utf-8
@@ -132,7 +137,9 @@ segmentation:
 gates:
   # MEASURED on the first binding run: 95.2% Tier 1+2 on matn, with 1,682 of
   # 1,692 records matched at median coverage 1.000. Higher than expected from
-  # a witness only 44% vowelled — the shared glossary carries the rest.
+  # a witness 44% vowelled overall — explained once the apparatus is split
+  # out: the matn itself is 90.1% vowelled, and the shared glossary
+  # carries the rest.
   #
   # Threshold set below the measurement so it catches regression rather than
   # restating today's figure.
@@ -164,10 +171,11 @@ about:
       url: https://raw.githubusercontent.com/OpenITI/0875AH/master/data/0852IbnHajarCasqalani/0852IbnHajarCasqalani.BulughMaram/0852IbnHajarCasqalani.BulughMaram.Shamela0009111-ara1
     - label: "Vocalisation"
       detail: >-
-        A partially vowelled text of the 1,767 hadith, scraped from sunnah.com.
-        44% of its words carry harakāt, against 98.7% for the Muwaṭṭaʾ's
-        witness, so it settles fewer readings. Used only to transfer
-        vocalisation; none of it is redistributed here.
+        A partially vowelled text of the 1,767 hadith, scraped from sunnah.com
+        — verified identical to the site's current text. The matn is 90%
+        vowelled; the takhrīj apparatus around it is mostly bare, there as
+        here. Used only to transfer vocalisation; none of it is redistributed
+        here.
       url: https://github.com/AhmedBaset/hadith-json
     - label: "Meaning"
       detail: >-

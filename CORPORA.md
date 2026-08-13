@@ -119,7 +119,10 @@ Ibn Ḥajar al-ʿAsqalānī (d. 852 AH) collected the hadith the jurists reason
 from, arranged by chapter of fiqh. 1,767 hadith.
 
 - **Text**: OpenITI, from a Shamela edition.
-- **Vowels**: a sunnah.com text, 44% vowelled — the thinnest witness here.
+- **Vowels**: a sunnah.com text. 44% of tokens overall, but that headline
+  misleads: the matn — the text the reader binds — is 90.1% vowelled, and
+  the bare mass is al-Albānī's takhrīj apparatus (25.3%), unvowelled on the
+  live site too. See DIACRITISATION.md §8.
 - **Meaning**: al-Tajrīd's glosses, shared through `match_id`.
 
 Three OpenITI versions exist. This one aligns to the witness at a median

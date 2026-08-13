@@ -140,3 +140,30 @@ way to choose.
    guesses at every vowel.
 
 The measurement decides this. It should not be decided any other way.
+
+## 8. Addendum (2026-08): the sunnah.com witnesses are already the ground truth
+
+The record-link work on Bulūgh and the Shamāʾil settled a question this
+document left open by implication: whether their vowelling should come from
+sunnah.com "rather than" the current witnesses. It already does — the
+witnesses ARE sunnah.com's text. The address-map derivation
+(pipeline/sunnah_numbers.py) proved it mechanically: every one of the 402 +
+1,767 witness entries is textually identical, under normalisation, to a
+second scrape of the site at a pinned commit, and spot checks against live
+pages match byte for byte. So wherever Tier 2 aligns — 99%+ of matn records
+on both corpora, at median coverage 1.000 — the ḥarakāt a reader sees are
+the site's own, and the tier order already prefers them over the lexicon and
+every heuristic. There is no separate "adopt sunnah.com for vowelling"
+workstream; it shipped the day those corpora bound.
+
+One number in this repo invited the wrong conclusion and should not be read
+that way again. Bulūgh's witness was recorded as "44% vowelled — the
+thinnest witness here", which suggests a thin or stale scrape worth
+replacing. Measured properly, it is neither: the witness wraps each matn in
+braces, and INSIDE them — the text the reader binds and reads — 90.1% of
+tokens carry a mark; the unvowelled mass is outside, in al-Albānī's takhrīj
+apparatus (25.3% marked), which is equally unvowelled on the live site. The
+bare tokens are bare at the source. Fetching a "better" witness would find
+nothing better to fetch, and running a generated diacritiser over the
+apparatus would be exactly the confident noise section 4 warns against —
+the apparatus is an aside layer, not teaching text.

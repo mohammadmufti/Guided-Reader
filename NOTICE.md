@@ -90,6 +90,15 @@ is one file: `pipeline/corpora/shahwaliullah40.yaml`.
 terms as the Bukhārī above: vowelling is transferred onto words this project
 already holds, and no sentence from either is redistributed.
 
+**sunnah.com address maps** — `pipeline/corpora/data/*_sunnah_links.json`,
+derived by `pipeline/sunnah_numbers.py` from `CheeseWithSauce/HadithsJSONFormat`
+(MIT-licensed, itself a scrape of sunnah.com that preserved the site's
+reference tables). These committed files contain **numbers only** — for each
+witness entry, the reference number or book-and-position sunnah.com itself
+addresses that hadith with — and no text from any source. The scrape's text is
+read transiently during derivation, for verification against the alignment
+witness, and none of it is committed or shipped.
+
 **The frequency workbook** — supplied by the maintainer. Its README records that
 it was itself built from a Bukhārī alignment, `qalsadi`, Buckwalter/AraMorph and
 Lane; three of those four are GPL, which is consistent with everything above.
@@ -101,6 +110,8 @@ Lane; three of those four are GPL, which is consistent with everything above.
 - the OpenITI project
 - `AhmedBaset/hadith-json` and `abdelrahmaan/Hadith-Data-Sets`, for machine
   -readable vocalised texts that no other source provides
-- sunnah.com, from which both of those datasets were scraped
+- `CheeseWithSauce/HadithsJSONFormat`, for preserving sunnah.com's reference
+  tables, without which the per-hadith links could not have been verified
+- sunnah.com, from which all three of those datasets were scraped
 - the `laneslexicon` project, for a digitisation that would otherwise have taken
   years
