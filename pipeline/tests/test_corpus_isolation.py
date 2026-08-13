@@ -1216,7 +1216,8 @@ def test_bulugh_and_shamail_link_only_through_the_address_map():
                       ("shamail", "shamail:{n}"),
                       ("muwatta", "malik/{book}/{pos}"),
                       ("adab", "adab:{n}"),
-                      ("riyad", "riyadussalihin:{n}")):
+                      ("riyad", "riyadussalihin:{n}"),
+                      ("mukhtasar", "muslim:{n}")):
         cfg = corpus.load_config(cid)
         rl = (cfg.get("segmentation") or {}).get("record_link") or {}
         assert rl, f"{cid} has a verified address map and must link per hadith"
@@ -1242,7 +1243,8 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     """
     import glob, json, pathlib
     docs = {}
-    for cid in ("bulugh", "shamail", "muwatta", "adab", "riyad"):
+    for cid in ("bulugh", "shamail", "muwatta", "adab", "riyad",
+                "mukhtasar"):
         fs = glob.glob(str(corpus.ROOT.parent /
                            f"web/public/data/corpora/{cid}/hadith/matn-*.json"))
         docs[cid] = [json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
@@ -1262,6 +1264,17 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
         "addressing exists for this text at all"
     ad = {d["number"]: d for d in docs["adab"] if d.get("number")}
     assert ad[1].get("recordLinkRef") == "adab:1", "ANCHOR: read live"
+    mk = [d for d in docs["mukhtasar"] if d.get("recordLinkRef")]
+    # A lettered address never fakes a numeric suffix — muslim:1662a and
+    # muslim:1662b are different hadith — and a plain one always shows its
+    # number. Both shapes must exist.
+    lettered = [d for d in mk
+                if any(c.isalpha() for c in d["recordLinkRef"].split(":")[1])]
+    plain = [d for d in mk if d not in lettered]
+    assert lettered and plain
+    assert all(d.get("recordLinkNumber") is None for d in lettered)
+    assert all(isinstance(d.get("recordLinkNumber"), int) for d in plain)
+    assert not any("None" in d["recordLinkRef"] for d in mk)
     ri = {d["number"]: d for d in docs["riyad"] if d.get("number")}
     assert ri[1].get("recordLinkRef") == "riyadussalihin:1", \
         "the miscellany untangling, end to end: our 1 aligns to witness " \
@@ -1273,10 +1286,13 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
     # reports); a witness or map regression that silently unlinks a swath
     # must fail. Floors sit below the measurements to catch regression, not
     # to restate them.
-    # Riyad's floor is lower: its bare-rasm witness (2.4% vowelled) makes
-    # short-hadith retrieval noisier and its backwards filter drops 5.2%.
+    # Floors differ for measured reasons. Riyad's bare-rasm witness (2.4%
+    # vowelled) makes short-hadith retrieval noisier. The Mukhtasar's is
+    # lowest of all: an abridgement against a collection that repeats its
+    # reports leaves ~24% of records with no row the reading order can
+    # vouch for, and those stay honestly unlinked.
     for cid, floor in (("bulugh", 0.95), ("shamail", 0.95), ("muwatta", 0.90),
-                       ("adab", 0.95), ("riyad", 0.88)):
+                       ("adab", 0.95), ("riyad", 0.88), ("mukhtasar", 0.70)):
         if cid not in docs:
             continue
         matn = [d for d in docs[cid]
@@ -1293,7 +1309,8 @@ def test_map_linked_payloads_carry_site_addresses_not_witness_indices():
         # map produces has the collection's shape.
         shape = {"bulugh": "bulugh/", "shamail": "shamail:",
                  "muwatta": "malik/", "adab": "adab:",
-                 "riyad": "riyadussalihin:"}[cid]
+                 "riyad": "riyadussalihin:",
+                 "mukhtasar": "muslim:"}[cid]
         assert all(d["recordLinkRef"].startswith(shape) for d in linked)
         # Layers the config excludes carry nothing.
         others = [d for d in docs[cid] if d.get("layer") != "matn"]

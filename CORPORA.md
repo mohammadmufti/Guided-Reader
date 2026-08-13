@@ -211,6 +211,35 @@ correct links to one giant "backwards" jump.
 
 ---
 
+## Mukhtaṣar Ṣaḥīḥ Muslim (`mukhtasar`)
+
+Al-Mundhirī's (d. 656 AH) abridgement of the Ṣaḥīḥ — this project's second
+abridgement-against-its-source arrangement, mirroring al-Tajrīd against
+al-Bukhārī: the text is the Mukhtaṣar (2,162 hadith in the edition's
+1..2179 numbering, three-level AUTO headings, `# N -` paragraph openers on
+the Muwaṭṭaʾ's grammar), and the witness is the **complete Ṣaḥīḥ Muslim**
+from sunnah.com — 7,459 entries, 92% vowelled — which supplies both the
+vowels and, through the verified address map, the site's **lettered**
+number (`muslim:1662a`; letters matter, `1662b` is a different hadith, so
+a lettered link shows no numeric suffix rather than a lossy integer).
+
+This corpus is why the link machinery grew up. Muslim repeats his reports
+with different chains — the very thing al-Mundhirī abridged away — so each
+record matches several near-identical rows and a greedy winner-per-record
+jittered across hundreds of rows; the old longest-run filter threw away
+60% of correct links. Links are now chosen by **one order-constrained
+assignment** across the whole book (every record's admissible candidates
+compete, chosen rows never run backwards, total coverage maximised), plus
+a full-scan band fill inside the brackets the assignment vouches for.
+1,636 of 2,139 matched records link; the ~500 left are records whose every
+admissible row conflicts with the global order — al-Mundhirī's local
+consolidations — and they stay unlinked because a wrong link is worse than
+none. The muqaddima's 83 Introduction-style entries are declared no-links
+in the map, so a stray retrieval onto them fails soft instead of failing
+the build.
+
+---
+
 ## External numbering
 
 A corpus links each hadith to the same hadith on sunnah.com where the
@@ -242,9 +271,12 @@ that kept what the first discarded — `CheeseWithSauce/HadithsJSONFormat`,
 whose `reference` field preserves sunnah.com's reference tables verbatim.
 `pipeline/sunnah_numbers.py` derives, for every witness entry, the address
 the site itself uses, and refuses to write on any failure: the source is
-pinned to a commit; every entry must match the witness at textual IDENTITY
-(the two are scrapes of one site — overlap 1.000 on all 402 + 1,767 pairs,
-re-measured on every run); the Shamāʾil's numbers must tile 1..417 exactly
+pinned to a commit; every entry must match the witness at textual
+near-identity, bar 0.95 (the two are scrapes of one site; the handful of
+pairs under 1.000 are spacing variants — one scrape fuses or splits a
+token the other doesn't — while a genuinely misaligned pair measures
+0.3–0.5, and every pair on every collection is re-measured on every run);
+the Shamāʾil's numbers must tile 1..417 exactly
 with exactly 15 merges; and the hand-confirmed anchors must hold. Alignment
 is positional WITHIN each chapter, because global position is not sound: the
 site's chapter "8b" sits between 8 and 9 carrying numbers 368–369, and a
@@ -272,12 +304,21 @@ number rather than inventing something.
 ### What links today
 
 **Per hadith, through the map: Bulūgh, the Shamāʾil, and the Muwaṭṭaʾ.** The binder stamps
-the `idInBook` of the witness row each record aligned to — vouched for by
-the alignment's coverage, filtered so the sequence never runs backwards
-(retrieval is per record, and a short formulaic hadith occasionally matches
-an unrelated row; 9 of Bulūgh's and 2 of the Shamāʾil's were dropped for
-this, measured) — and the build TRANSLATES it through the map into the
-site's address, never shipping the raw index. A witness index the map does
+the `idInBook` of the witness row each record aligned to — chosen by ONE
+order-constrained assignment across the whole book: every record's
+admissible candidate rows (same coverage bar as the alignment) compete
+under the constraint that chosen rows never run backwards, total coverage
+maximised, with a full-scan band fill inside the brackets the assignment
+vouches for. Retrieval alone is per record, and both failure modes are
+measured: a short formulaic hadith matches an unrelated row, and a
+collection that repeats its reports (Muslim, for the Mukhtaṣar) matches
+several near-identical rows split by a hair of scoring — a per-record
+greedy choice plus a longest-run filter threw away 60% of the Mukhtaṣar's
+correct links, where the assignment keeps 76% placed and leaves the rest
+honestly unlinked. Which numbering the constraint runs on is declared per
+corpus (`record_link.monotone_in: site` for Riyāḍ, whose witness is not in
+the site's order). The build then TRANSLATES the chosen index through the
+map into the site's address, never shipping the raw index. A witness index the map does
 not know fails the build. The Muwaṭṭaʾ adds one wrinkle: its vowelling
 witness (the CSV) carries no entry identity at all, so the corpus merges a
 second, numbered witness (the sunnah.com scrape) into the same retrieval

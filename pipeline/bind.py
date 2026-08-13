@@ -422,8 +422,35 @@ class WitnessIndex:
                 if df[w] <= RETRIEVAL_DF_CEILING:
                     self.postings[w].append(i)
 
+    def retrieve_topk(self, query: list[str], k: int = 8,
+                      numbered_only: bool = False) -> list[tuple[int, float]]:
+        """Top-k rows by the same scoring as retrieve(), same coverage
+        semantics per row. Exists for the order-constrained link assignment:
+        a collection that REPEATS its reports (Muslim's chains) gives a
+        record several near-identical candidate rows, and which repetition
+        is right is decided by the reading order across records, not by a
+        hair of idf — so the assignment needs the alternatives, not just
+        the winner."""
+        scores: dict[int, float] = collections.defaultdict(float)
+        for w in sorted(set(query)):
+            for i in self.postings.get(w, ()):
+                if numbered_only and self.numbers[i] is None:
+                    continue
+                scores[i] += self.idf[w]
+        if not scores:
+            return []
+        top = sorted(scores, key=lambda i: -scores[i])[:k]
+        q = set(query)
+        out = []
+        for i in top:
+            cov = len(q & set(self.norm[i])) / max(1, len(q))
+            out.append((i, cov))
+        return out
+
     def retrieve(self, query: list[str],
-                 numbered_only: bool = False) -> tuple[int | None, float]:
+                 numbered_only: bool = False,
+                 row_range: tuple[int, int] | None = None,
+                 ) -> tuple[int | None, float]:
         """Best row for the query — optionally only among NUMBERED rows.
 
         `numbered_only` exists for a merged index whose unnumbered rows vowel
@@ -445,6 +472,9 @@ class WitnessIndex:
         for w in sorted(set(query)):
             for i in self.postings.get(w, ()):
                 if numbered_only and self.numbers[i] is None:
+                    continue
+                if row_range is not None and not (
+                        row_range[0] <= i <= row_range[1]):
                     continue
                 scores[i] += self.idf[w]
         if not scores:
@@ -551,6 +581,8 @@ def bind_corpus(
     retrieval = {"attempted": 0, "no_row": 0, "low_coverage": 0, "coverages": []}
     # record id -> the number the external site uses for it. See below.
     link_numbers: dict[str, int] = {}
+    _link_cands: dict[str, list[tuple[int, float]]] = {}
+    _link_keys: dict[str, list[str]] = {}
     ref_agree = {"checked": 0, "consistent": 0}
     undetermined: set[tuple[str, int]] = set()
     repairs = collections.Counter()
@@ -651,26 +683,41 @@ def bind_corpus(
                 # earlier version of this comment claimed "sunnah.com numbers
                 # the same collection 1-1767"; measured on the site, it does
                 # not — 1,767 is the scrape's entry count.
-                if link_from_witness and witness_idx.numbers[row] is not None:
-                    link_numbers[rec["id"]] = witness_idx.numbers[row]
-                elif link_from_witness and witness_idx.has_numbered_rows:
-                    # THE VOWELLING ROW AND THE NUMBERED ROW CAN DIFFER. The
-                    # Muwatta' merges two witnesses the way al-Tajrid does: an
-                    # unnumbered CSV that vowels better than anything else,
-                    # and the sunnah.com scrape that says which entry a row
-                    # is. Retrieval picks ONE best row, and where the CSV row
-                    # wins — usually — the record kept its superior vowelling
-                    # and silently lost its link. So the number is resolved by
-                    # a SECOND retrieval restricted to numbered rows, admitted
-                    # at the same coverage bar as the first and filtered by
-                    # the same never-runs-backwards check below. The vowelling
-                    # still comes from the row that won. Corpora with a single
-                    # numbered witness never reach this branch (the winner
-                    # always carries a number), and corpora without
-                    # `number_from_witness` never enter it at all.
-                    row2, cov2 = witness_idx.retrieve(keys, numbered_only=True)
-                    if row2 is not None and cov2 >= MIN_COVERAGE:
-                        link_numbers[rec["id"]] = witness_idx.numbers[row2]
+                if link_from_witness:
+                    # THE LINK ROW IS DECIDED LATER, ACROSS RECORDS. Three
+                    # measured reasons live behind this, one per corpus that
+                    # taught it. The vowelling row and the numbered row can
+                    # differ (the Muwatta' merges an unnumbered CSV that
+                    # vowels best with the numbered sunnah.com scrape — the
+                    # CSV usually wins retrieval, and stamping only winners
+                    # silently starved the links), so candidates are drawn
+                    # from NUMBERED rows regardless of who won the vowelling.
+                    # A collection that repeats its reports gives a record
+                    # several near-identical candidates split by a hair of
+                    # idf (the Mukhtasar against Muslim's chains: a greedy
+                    # winner-per-record jittered across hundreds of rows and
+                    # a longest-run filter then threw away 60% of correct
+                    # links). And which candidate is right is exactly what
+                    # the READING ORDER knows. So each record keeps its
+                    # admissible numbered candidates here, and after the
+                    # loop one order-constrained assignment chooses among
+                    # them — see the block below.
+                    # k=160, measured on the Mukhtasar (spine + band fill
+                    # totals): k=8 placed 969, k=24 -> 1,328, k=64 -> 1,596,
+                    # k=160 -> 1,636 of 2,139 — a plateau. Muslim repeats
+                    # some reports across more rows than a small k catches
+                    # (the true short repetition ranks below dozens of
+                    # longer variants sharing its words); the ~500 records
+                    # still unlinked at the plateau are ones whose every
+                    # admissible row conflicts with the global order —
+                    # al-Mundhiri's local consolidations — and they stay
+                    # unlinked because a link the order cannot vouch for
+                    # should not exist.
+                    _link_keys[rec["id"]] = keys
+                    _link_cands[rec["id"]] = [
+                        (r2, c2) for r2, c2 in witness_idx.retrieve_topk(
+                            keys, k=160, numbered_only=True)
+                        if c2 >= MIN_COVERAGE]
 
 
                 # Which keys appear in this Bukhari row with more than one
@@ -985,81 +1032,140 @@ def bind_corpus(
 
     # ---- the external numbering must not run backwards --------------------
     #
-    # Both sides number the same collection in the same order, so as our number
-    # rises theirs must not fall. Retrieval is per record and knows nothing of
-    # its neighbours, so a short or formulaic hadith occasionally matches an
-    # unrelated row: Bulugh had our #114 pointing at their #1, with the records
-    # either side pointing at #136 and #119.
+    # Both sides number the same collection in the same order, so as our
+    # number rises the site's must not fall. Retrieval is per record and
+    # knows nothing of its neighbours; worse, a collection that repeats its
+    # reports (Muslim) hands a record several near-identical rows. So the
+    # link row is chosen by ONE ASSIGNMENT across the whole book: every
+    # record's admissible numbered candidates compete under the constraint
+    # that chosen rows never run backwards, maximising total coverage —
+    # dynamic programming over candidates with a prefix-max tree over the
+    # row axis. A record whose every candidate would break the order stays
+    # unlinked, which is honest: a link the order cannot vouch for should
+    # not exist. This one mechanism replaced three that each solved a
+    # corner: a longest-run filter (kept an arbitrary monotone spine of the
+    # jitter and threw away 60% of the Mukhtasar's correct links), a
+    # numbered-only re-retrieval for the Muwatta's merged witnesses, and a
+    # bracket-band repair pass.
     #
-    # Keep the longest non-decreasing run and drop the rest. Dropping is right
-    # rather than repairing by interpolation — a link we cannot vouch for
-    # should not exist, and a hadith with no link is honest where a plausible
-    # wrong one is not. 3.8% of Bulugh's and 0.5% of the Shama'il's.
-    #
-    # WHICH numbering must not run backwards is DECLARED, because it differs
-    # by corpus. For most, the witness's own index runs in our reading order
-    # and the raw stamped values compare directly — including the Shama'il,
-    # whose SITE numbers are legitimately non-monotone (chapter 8b carries
-    # 368-369 mid-book), so comparing site numbers there would drop two
-    # correct links. Riyad is the opposite: its witness scrape appended the
-    # site's first book last, so raw idInBook has a giant "backwards" jump
-    # at hadith 680 that threw away 38% of correct links — measured — while
-    # its SITE numbers run exactly in our order. Such a corpus declares
-    # `record_link.monotone_in: site` and the filter compares each stamped
-    # index translated through the address map.
-    _sort_key = None
-    if (link_numbers and monotone_in_site
-            and link_map_path is not None and link_map_path.exists()):
-            _entries = json.loads(link_map_path.read_text(encoding="utf-8"))["entries"]
+    # The AXIS the monotone constraint runs on is declared per corpus, as
+    # before: most compare the witness's own row order; a corpus whose
+    # witness is scrambled relative to the site (Riyad's scrape appended
+    # the site's first book last) declares `record_link.monotone_in: site`
+    # and rows compare by their mapped site address.
+    if link_from_witness and _link_cands:
+        _axis_key = None
+        if monotone_in_site and link_map_path is not None \
+                and link_map_path.exists():
+            _entries = json.loads(
+                link_map_path.read_text(encoding="utf-8"))["entries"]
 
-            def _sort_key(idin):
-                ent = _entries.get(str(idin))
+            def _axis_key(row):
+                ent = _entries.get(str(witness_idx.numbers[row]))
                 if ent is None:
-                    return (1, 0, 0, "")   # unknown sorts after everything
+                    return None            # unmappable: not a candidate
                 if "book" in ent:
-                    return (0, ent["book"], ent["pos"], "")
-                r = (ent.get("refs") or [0])[0]
+                    return (ent["book"], ent["pos"], "")
+                r = (ent.get("refs") or [None])[0]
+                if r is None:
+                    return None            # declared no-link: not a target
                 if isinstance(r, int):
-                    return (0, r, 0, "")
-                import re as _re
-                return (0, int(_re.match(r"\d+", r).group()), 0, r)
-    if link_numbers:
-        by_ours = sorted(
+                    return (r, 0, "")
+                return (int(re.match(r"\d+", r).group()), 0, r)
+
+        ordered = sorted(
             ((r["number"], r["id"]) for r in records
-             if r.get("number") and r["id"] in link_numbers),
-            key=lambda x: x[0],
-        )
-        import bisect
-        tails: list[int] = []          # tails[k] = smallest end of a run of length k+1
-        parent: dict[int, int | None] = {}
-        ends: list[int] = []
-        for pos, (_, rid) in enumerate(by_ours):
-            v = (_sort_key(link_numbers[rid]) if _sort_key
-                 else link_numbers[rid])
-            k = bisect.bisect_right(tails, v)
-            parent[pos] = ends[k - 1] if k else None
-            if k == len(tails):
-                tails.append(v); ends.append(pos)
+             if r.get("number") and _link_cands.get(r["id"])),
+            key=lambda x: x[0])
+        # Flatten candidates in our reading order; coordinates on the
+        # monotone axis are rank-compressed for the prefix-max tree.
+        cands = []                     # (record_pos, row, axis, coverage)
+        for pos, (_, rid) in enumerate(ordered):
+            for row, cov in _link_cands[rid]:
+                axis = _axis_key(row) if _axis_key else row
+                if axis is not None:
+                    cands.append((pos, row, axis, cov))
+        axes = {a: i + 1 for i, a in
+                enumerate(sorted({c[2] for c in cands}))}
+        size = len(axes) + 1
+        tree_best = [0.0] * size       # prefix-max over axis rank
+        tree_arg = [-1] * size
+        def _get(r):
+            best, arg = 0.0, -1
+            while r > 0:
+                if tree_best[r] > best:
+                    best, arg = tree_best[r], tree_arg[r]
+                r -= r & (-r)
+            return best, arg
+        def _put(r, val, arg):
+            while r < size:
+                if val > tree_best[r]:
+                    tree_best[r], tree_arg[r] = val, arg
+                r += r & (-r)
+        score = [0.0] * len(cands)
+        back = [-1] * len(cands)
+        # Candidates of one record must not chain to each other; process
+        # record by record, publishing a record's candidates only after all
+        # its own are scored.
+        i = 0
+        while i < len(cands):
+            j = i
+            while j < len(cands) and cands[j][0] == cands[i][0]:
+                j += 1
+            for k in range(i, j):
+                prev, arg = _get(axes[cands[k][2]])
+                score[k] = prev + cands[k][3]
+                back[k] = arg
+            for k in range(i, j):
+                _put(axes[cands[k][2]], score[k], k)
+            i = j
+        chosen: dict[int, int] = {}    # record_pos -> row
+        if cands:
+            k = max(range(len(cands)), key=lambda k: score[k])
+            while k != -1:
+                chosen[cands[k][0]] = cands[k][1]
+                k = back[k]
+        link_numbers.clear()
+        for pos, (_, rid) in enumerate(ordered):
+            if pos in chosen:
+                link_numbers[rid] = witness_idx.numbers[chosen[pos]]
+                bound[rid]["recordLinkNumber"] = link_numbers[rid]
             else:
-                tails[k] = v; ends[k] = pos
-        keep, node = set(), (ends[-1] if ends else None)
-        while node is not None:
-            keep.add(node)
-            node = parent[node]
-        dropped = 0
-        for pos, (_, rid) in enumerate(by_ours):
-            if pos not in keep:
-                del link_numbers[rid]
-                dropped += 1
-        # Apply it. The per-record assignment happened during the loop above,
-        # before this check could run, so filtering `link_numbers` alone left
-        # the bindings holding the values it had just rejected.
-        for rid in list(bound):
-            if "recordLinkNumber" in bound[rid] and rid not in link_numbers:
-                del bound[rid]["recordLinkNumber"]
-        if dropped:
-            print(f"  dropped {dropped:,} external links whose target ran backwards "
-                  f"({100*dropped/len(by_ours):.1f}% of those matched)")
+                bound[rid].pop("recordLinkNumber", None)
+        # THE BAND FILL: global top-k candidates starve inside Muslim's
+        # largest repetition clusters — the true short repetition ranks
+        # below two dozen longer variants that share its words — so each
+        # record the assignment left out is retrieved once more over EVERY
+        # numbered row inside the bracket its placed neighbours vouch for,
+        # admitted at the same bar, lower bound advancing so fills in one
+        # gap stay mutually ordered. The spine the brackets hang on is the
+        # optimal assignment above, not an arbitrary monotone run — that
+        # distinction is measured: bracketing on a longest-run spine
+        # recovered 305, on this spine it recovers ~700.
+        banded = 0
+        placed_pos = sorted(chosen)
+        rows_sorted = None
+        for gi in range(len(placed_pos) + 1):
+            lo_pos = placed_pos[gi - 1] if gi else None
+            hi_pos = placed_pos[gi] if gi < len(placed_pos) else None
+            lo = chosen[lo_pos] if lo_pos is not None else 0
+            hi = (chosen[hi_pos] if hi_pos is not None
+                  else len(witness_idx.numbers) - 1)
+            start = (lo_pos + 1) if lo_pos is not None else 0
+            stop = hi_pos if hi_pos is not None else len(ordered)
+            for pos in range(start, stop):
+                rid = ordered[pos][1]
+                row3, cov3 = witness_idx.retrieve(
+                    _link_keys[rid], numbered_only=True, row_range=(lo, hi))
+                if row3 is not None and cov3 >= MIN_COVERAGE:
+                    link_numbers[rid] = witness_idx.numbers[row3]
+                    bound[rid]["recordLinkNumber"] = link_numbers[rid]
+                    lo = row3
+                    banded += 1
+        left = len(ordered) - len(chosen) - banded
+        print(f"  order-constrained link assignment: {len(chosen):,} placed, "
+              f"{banded:,} band-filled inside their brackets, "
+              f"{left:,} of {len(ordered):,} left unlinked")
 
     reasons.update(repairs)
     reasons["Tier 1 unopposed but unwitnessed"] = unopposed

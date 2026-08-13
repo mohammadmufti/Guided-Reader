@@ -1,0 +1,155 @@
+# Corpus configuration — Mukhtasar Sahih Muslim
+#
+# Al-Mundhiri's (d. 656 AH) abridgement of the Sahih — this project's
+# second abridgement-against-its-source arrangement, mirroring al-Tajrid
+# against al-Bukhari: the text is the Mukhtasar, the witness is the FULL
+# Sahih Muslim from sunnah.com (7,459 entries, 92% vowelled), each record
+# aligns to its row in the full collection, and the address map translates
+# that row into the site's lettered number. Most witness rows have no
+# counterpart here — an abridgement keeps roughly two thousand of seven —
+# and that is fine: retrieval is per record, and rows nothing aligns to
+# simply never come up.
+
+id: mukhtasar
+
+display:
+  titleAr: "مختصر صحيح مسلم"
+  titleEn: "Mukhtaṣar Ṣaḥīḥ Muslim"
+  authorAr: "عبد العظيم بن عبد القوي المنذري"
+  author: "ʿAbd al-ʿAẓīm b. ʿAbd al-Qawī al-Mundhirī"
+  authorDied: "656 AH"
+  edition: "Sham19Y 0017616 — verify against the OpenITI header before shipping"
+  subject: "الحديث"
+  # Public domain: the author died in 656 AH. The transcribed edition is
+  # al-Albani's print, but unlike his Adab it carries no interleaved
+  # grading apparatus — measured: three incidental mentions, all in the
+  # header matter, nothing to drop.
+  rights: "public-domain"
+  crossRefLabel: null
+
+sources:
+  text:
+    kind: http
+    # The ONE OpenITI version. 2,129 numbered openers over the edition's
+    # 1..2179 numbering (53 numbers absent from the transcription, 3
+    # doubled); `# N -` paragraph-level openers with three-level AUTO
+    # headings, so the grammar is the Muwatta's arrangement (opener_on:
+    # paragraph, declared section levels) rather than al-Tajrid's.
+    uri: https://raw.githubusercontent.com/OpenITI/0675AH/master/data/0656IbnCabdQawiMundhiri/0656IbnCabdQawiMundhiri.MukhtasarSahihMuslim/0656IbnCabdQawiMundhiri.MukhtasarSahihMuslim.Sham19Y0017616-ara1
+    filename: mukhtasar.mARkdown
+    encoding: utf-8
+
+  vocalisation_reference:
+    kind: http
+    # THE FULL SAHIH, not the Mukhtasar: 7,459 hadith in 57 chapters
+    # (muqaddima appended last in the scrape's own order), 92% of tokens
+    # vowelled. Every Mukhtasar record's vowels AND its link come from the
+    # row of the full collection it aligns to — al-Tajrid's arrangement
+    # with its Bukhari witness, book for book.
+    uri: https://raw.githubusercontent.com/AhmedBaset/hadith-json/main/db/by_book/the_9_books/muslim.json
+    filename: muslim_vocalised.json
+    encoding: utf-8
+    notes: |
+      Scraped from sunnah.com, which has its own terms. Used only as an
+      alignment reference to transfer vocalisation and to resolve the hadith
+      number; no text from it is redistributed in the app's output payload.
+
+  # NO `lexicon` BLOCK: no workbook, as for every corpus after al-Tajrid.
+
+# ---------------------------------------------------------------------------
+segmentation:
+  # The file states its own hierarchy: `### | AUTO كتاب`, `### || AUTO باب`,
+  # and a third `### |||` level for sub-divisions, which flattens to bab.
+  section: '^###\s*(\|+)\s*(.*)$'
+  section_levels:
+    "|": top
+    "||": sub
+    "|||": sub
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+    # Every heading in this transcription is prefixed AUTO — a machine
+    # annotation, not text.
+    - name: auto_marker
+      pattern: '\bAUTO\b'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+  page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
+  opener: '^(\d+)\s*-\s*(.*)$'
+  # `# N - ` on a paragraph line, the Muwatta's arrangement — section lines
+  # here are always headings.
+  opener_on: paragraph
+  editorial_reference: null
+
+  heading_top_prefixes: ["كتاب"]
+  heading_prefixes: ["كتاب", "باب"]
+  front_prefixes: ["مقدمة"]
+
+  # NO chapter_link: this edition's 67 kitab do not map verifiably onto the
+  # site's 56 books, and none is needed — every hadith links directly.
+  record_link:
+    label: "sunnah.com"
+    labelAr: "سنة.كوم"
+    url: "https://sunnah.com/{ref}"
+    layers: [matn]
+    number_from_witness: true
+    link_map: "corpora/data/muslim_sunnah_links.json"
+    ref_template: "muslim:{n}"
+  layer_names:
+    body: matn
+    top: heading_kitab
+    sub: heading_bab
+    front: frontmatter
+  curated_index_phantoms: false
+
+gates:
+  # MEASURED on the first binding run: 91.6% Tier 1+2 on matn, with 2,156
+  # of 2,160 records matched at median coverage 0.915 — the abridgement's
+  # consolidations shave the median below the single-source corpora's
+  # 0.98-1.000 without hurting the transfer. Thresholds below the
+  # measurements, per house rule.
+  min_witnessed_matn: 80.0
+  min_retrieval_median: 0.85
+
+about:
+  description:
+    - >-
+      Mukhtaṣar Ṣaḥīḥ Muslim — al-Mundhirī's (d. 656 AH) abridgement of the
+      Ṣaḥīḥ: the reports without their repeated chains and variants, about
+      two thousand hadith from Muslim's seven, arranged by his own chapters.
+      Each hadith links to the full report in Ṣaḥīḥ Muslim on sunnah.com,
+      resolved by aligning this text against the complete collection — the
+      same arrangement al-Tajrīd has with Ṣaḥīḥ al-Bukhārī.
+    - >-
+      Every word is tappable. This text has no frequency workbook of its
+      own: its vocalisation is transferred from the full Ṣaḥīḥ's vowelled
+      text where a record aligns, and its glosses are shared from
+      al-Tajrīd's lexicon. The word panel's provenance line says which
+      applies to each word.
+  sources:
+    - label: "Primary text"
+      detail: >-
+        OpenITI mARkdown transcription of al-Albānī's print of the
+        Mukhtaṣar, fetched and checksummed at build time — the one OpenITI
+        version of this text, carrying the edition's numbering with a clean
+        three-level heading grammar.
+      url: https://raw.githubusercontent.com/OpenITI/0675AH/master/data/0656IbnCabdQawiMundhiri/0656IbnCabdQawiMundhiri.MukhtasarSahihMuslim/0656IbnCabdQawiMundhiri.MukhtasarSahihMuslim.Sham19Y0017616-ara1
+    - label: "Vocalisation and numbering"
+      detail: >-
+        The complete Ṣaḥīḥ Muslim scraped from sunnah.com — 7,459 hadith,
+        92% of words carrying harakāt. Each hadith here aligns to its row in
+        the full collection, which supplies both the vowels and the
+        sunnah.com number; none of that text is redistributed here.
+      url: https://github.com/AhmedBaset/hadith-json
+    - label: "Meaning"
+      detail: >-
+        Glosses, lemmas and roots come from al-Tajrīd's curated lexicon,
+        which is keyed by the written form rather than by the book it was
+        written for, plus readings minted from the Ṣaḥīḥ's witness. The word
+        panel's provenance line states which source each entry came from.
+      url: https://github.com/mohammadmufti/Guided-Reader

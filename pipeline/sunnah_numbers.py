@@ -544,6 +544,114 @@ def derive_riyad(src: Path) -> dict:
     return {str(k): mapping[k] for k in sorted(mapping)}
 
 
+def derive_muslim(src: Path) -> dict:
+    """Sahih Muslim: sunnah.com/muslim:{n} where {n} is the site's LETTERED
+    number ("8a") — the map that serves al-Mundhiri's Mukhtasar the way the
+    Bukhari witness serves al-Tajrid.
+
+    This map is keyed by the FULL Sahih's witness (`muslim_vocalised.json`,
+    the Mukhtasar corpus's vocalisation reference): the abridgement aligns
+    each of its records to a row of the full collection, and this translates
+    that row into the site's address. Letters matter — muslim:1662a and
+    muslim:1662b are different hadith — so refs ride as strings wherever the
+    site letters them, and the display number is only shown where the site's
+    number is a plain integer.
+
+    The witness scrape appends the muqaddima last (chapter 1 in its own ids,
+    `introduction.json` sorting after the numbered books — the same
+    arrangement Riyad's miscellany has). The muqaddima's 91 entries carry
+    "Sahih Muslim Introduction N" references with no colon URL of the form
+    this template builds, and the Mukhtasar abridges the Sahih proper, so
+    they are mapped as DECLARED no-links: present (a stray retrieval must
+    not read as witness/map drift and fail the build) but yielding no
+    address.
+    """
+    ref = re.compile(r"Reference\s*:\s*Sahih Muslim\s+"
+                     r"(\d+[a-z]*(?:\s*,\s*\d+[a-z]*)*)")
+    intro = re.compile(r"Reference\s*:\s*Sahih Muslim Introduction\s+(\d+)")
+    files = sorted(glob.glob(str(src / "muslim" / "*.json")))
+    intro_f = [f for f in files if "introduction" in f]
+    numbered = [f for f in files if "introduction" not in f]
+    if len(intro_f) != 1 or len(numbered) != 56:
+        sys.exit(f"ERROR: muslim source shape changed: {len(intro_f)} intro "
+                 f"files, {len(numbered)} numbered books.")
+
+    def read(f, is_intro):
+        out = []
+        for x in json.loads(Path(f).read_text(encoding="utf-8-sig")):
+            # The muqaddima is MIXED: its first narrations carry plain colon
+            # numbers (muslim:1..7 are muqaddima hadith — the Book of Faith
+            # starts at 8a), the rest read "Sahih Muslim Introduction N" and
+            # have no address of this template's form. Try the colon form
+            # first everywhere; only an Introduction-style entry becomes a
+            # declared no-link.
+            m = ref.search(x["reference"])
+            if not m and is_intro and intro.search(x["reference"]):
+                out.append((len(out) + 1, None, toks(x["arabic"])))
+                continue
+            if not m:
+                sys.exit(f"ERROR: unparsed muslim reference: "
+                         f"{x['reference'][:90]!r}")
+            refs = [int(n) if n.isdigit() else n
+                    for n in m.group(1).replace(" ", "").split(",") if n]
+            out.append((len(out) + 1, refs, toks(x["arabic"])))
+        return out
+
+    # The witness's chapter 1 IS the muqaddima; its numbered books follow.
+    site = {0: read(intro_f[0], True)}
+    for i, f in enumerate(numbered, 1):
+        site[i] = read(f, False)
+
+    path = CACHE / "mukhtasar" / "muslim_vocalised.json"
+    if not path.exists():
+        sys.exit(f"ERROR: {path} missing — run `python pipeline/fetch.py "
+                 f"--corpus mukhtasar` first.")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    ch: dict[int, list[dict]] = {}
+    for x in doc["hadiths"]:
+        if x.get("arabic"):
+            ch.setdefault(x["chapterId"], []).append(x)
+    if len(ch) != len(site):
+        sys.exit(f"ERROR: muslim witness has {len(ch)} chapters against the "
+                 f"site's {len(site)}.")
+
+    scores: list[float] = []
+    mapping: dict[int, dict] = {}
+    for cid, b in zip(sorted(ch), sorted(site)):
+        for iib, (_, refs, _) in zip_verified(
+                ch[cid], site[b], f"muslim witness ch {cid} ~ site book {b}",
+                scores):
+            mapping[iib] = ({"nolink": True} if refs is None
+                            else {"refs": refs})
+
+    def _num(r):
+        return r if isinstance(r, int) else int(re.match(r"\d+", r).group())
+    nums = sorted({_num(r) for v in mapping.values()
+                   for r in v.get("refs", [])})
+    # The site's own numbering skips eleven integers — measured, then
+    # pinned: three singles and a run of eight just before the final 3033
+    # (entries the site renumbered or never assigned). A DIFFERENT missing
+    # set would mean the scrape or the parse drifted.
+    missing = set(range(1, nums[-1] + 1)) - set(nums)
+    assert nums[-1] == 3033 and missing == \
+        {1698, 1824, 2483, 3007, 3008, 3009, 3010, 3011, 3012, 3013, 3014}, \
+        f"muslim numbering changed shape: max {nums[-1]}, " \
+        f"missing {sorted(missing)}"
+    assert len(mapping) == 7459
+    n_nolink = sum(1 for v in mapping.values() if v.get("nolink"))
+    assert n_nolink == 83, \
+        f"the muqaddima's Introduction-style entries number 83, got {n_nolink}"
+    # Anchor: the site's first entry of the Book of Faith is muslim:8a.
+    first_faith = min(i for i, v in mapping.items() if "refs" in v)
+    assert mapping[first_faith]["refs"] == ["8a"], mapping[first_faith]
+    print(f"muslim: {len(mapping):,} entries across 56 books + muqaddima "
+          f"({n_nolink} declared no-link), numbers cover 1..{nums[-1]} "
+          f"with the eleven pinned site gaps, first Faith entry -> "
+          f"muslim:8a, "
+          f"text identity {min(scores):.3f} on all pairs")
+    return {str(k): mapping[k] for k in sorted(mapping)}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--tarball", type=Path, default=None,
@@ -559,6 +667,7 @@ def main() -> int:
         muwatta = derive_muwatta(src)
         adab = derive_adab(src)
         riyad = derive_riyad(src)
+        muslim = derive_muslim(src)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     prov = {
@@ -585,6 +694,11 @@ def main() -> int:
          "shares; URL is riyadussalihin:{refs[0]}; the witness's own order "
          "is NOT the site's — its miscellany is appended last — which is "
          "why this map exists"),
+        ("muslim", muslim,
+         "refs are sunnah.com's lettered numbers for the FULL Sahih "
+         "(muslim:8a); keyed by the full collection's witness, which serves "
+         "al-Mundhiri's Mukhtasar the way the Bukhari witness serves "
+         "al-Tajrid; the muqaddima's 91 entries are declared no-links"),
         ("muwatta", muwatta,
          "the address is sunnah.com/malik/{book}/{pos}; pos is the per-book "
          "ordinal, equal to the site's Sunnah.com reference on every row it "

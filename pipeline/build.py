@@ -631,8 +631,19 @@ def main() -> int:
             _map_misses += 1
             return None, None
         _map_hits += 1
+        # A DECLARED no-link is a hit, not a miss: the map knows this entry
+        # and says it has no page of this template's form — Sahih Muslim's
+        # muqaddima narrations, which the Mukhtasar's stray retrievals can
+        # land on without meaning the map has drifted.
+        if ent.get("nolink"):
+            return None, None
         n = (ent.get("refs") or [None])[0]
-        return _ref_template.format(n=n, **ent), n
+        # The display number only where the site's number IS a number:
+        # muslim:1662a letters matter (1662b is a different hadith), and a
+        # lettered address shows the link with no numeric suffix rather
+        # than a lossy integer.
+        return (_ref_template.format(n=n, **ent),
+                n if isinstance(n, int) else None)
 
     binding_tally: dict[str, float] = {}
     recit = cfg.get("recitation")

@@ -125,3 +125,25 @@ def test_riyad_map_invariants():
     # every hadith in the collection.
     assert e["1"]["refs"] == [680], "witness entry 1 is the site's 680"
     assert e["1218"]["refs"] == [1], "the miscellany's first is witness 1218"
+
+
+def test_muslim_map_invariants():
+    doc = _load("muslim")
+    e = doc["entries"]
+    assert len(e) == 7459
+    nolink = [k for k, v in e.items() if v.get("nolink")]
+    assert len(nolink) == 83, \
+        "the muqaddima's Introduction-style entries are declared no-links"
+    import re
+    def num(r):
+        return r if isinstance(r, int) else int(re.match(r"\d+", r).group())
+    nums = sorted({num(r) for v in e.values() for r in v.get("refs", [])})
+    missing = set(range(1, nums[-1] + 1)) - set(nums)
+    # The site's own numbering gaps, measured then pinned.
+    assert nums[-1] == 3033 and missing == \
+        {1698, 1824, 2483, 3007, 3008, 3009, 3010, 3011, 3012, 3013, 3014}
+    # ANCHOR read live: muslim:8a is the Yahya b. Ya'mur qadar hadith, the
+    # Book of Faith's first entry.
+    first_faith = min(int(k) for k, v in e.items() if "refs" in v
+                      and not v.get("nolink"))
+    assert e[str(first_faith)]["refs"] == ["8a"]
