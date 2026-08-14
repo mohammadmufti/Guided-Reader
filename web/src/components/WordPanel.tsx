@@ -530,11 +530,30 @@ function Classical({
             <span className="arabic text-xl" lang="ar" dir="rtl">
               {shown.headword}
             </span>
-            <span className="text-[0.65rem] text-(--color-ink-muted)" dir="ltr">
+            {/* Underlined like every other disclosure control in this panel
+                — an unadorned phrase did not read as pressable, and this is
+                the one control readers most need to find. */}
+            <span
+              className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
+              dir="ltr"
+            >
               {laneEntry ? "this word's own entry" : "first entry under this root"}
               {lane?.page ? ` · p. ${lane.page}` : ""}
             </span>
           </button>
+
+          {/* The headword again, OUTSIDE the button, because text inside a
+              button cannot be selected: a reader who wants to copy Lane's
+              citation form — which is not always the form they tapped in
+              the matn (نَوَاهُ for نَوَى) — had nothing to copy. Shown only
+              once the entry is open, beside what it heads. */}
+          <div
+            className={`mb-1 select-text arabic text-lg ${entryOpen ? "" : "hidden"}`}
+            lang="ar"
+            dir="rtl"
+          >
+            {shown.headword}
+          </div>
 
           <ol className={`space-y-2 ${entryOpen ? "" : "hidden"}`} dir="ltr">
             {visible.map((sense, i) => (

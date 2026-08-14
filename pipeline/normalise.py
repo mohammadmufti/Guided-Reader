@@ -20,6 +20,8 @@ fold to bare HAMZA. Getting that backwards silently mis-joins ~600 forms.
 
 from __future__ import annotations
 
+import re
+
 # Harakat, tanwin, shadda, sukun, superscript alef, and tatweel.
 DIACRITICS = str.maketrans(
     "",
@@ -137,3 +139,23 @@ def root_variants(root: str) -> list[str]:
                 if c not in out:
                     out.append(c)
     return out
+
+
+_VOC_MARKS = "\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670"
+
+
+def voc_key(text: str) -> str:
+    """
+    The TOP matching tier for Lane headwords: letters plus their own short
+    vowels, order-normalised, with the final letter's case marks dropped
+    (a headword carries a citation ending, a lemma carries its own). This is
+    what tells هِجْرَةٌ (hijrah, emigration) from هُجْرَةٌ (hujrah) — twins
+    at the diacritic-stripped tier, distinct words to a reader.
+    """
+    groups = re.findall(rf"([^\s{_VOC_MARKS}])([{_VOC_MARKS}]*)", str(text))
+    out = []
+    for i, (letter, marks) in enumerate(groups):
+        if i == len(groups) - 1:
+            marks = "".join(m for m in marks if m == "\u0651")  # keep shadda
+        out.append(letter + "".join(sorted(marks)))
+    return "".join(out)

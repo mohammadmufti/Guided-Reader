@@ -46,7 +46,8 @@ import yaml
 
 from gloss import parse_gloss, says_the_same
 from morphology import Recoverer
-from normalise import dediac, normalise, root_variants, root_key
+from normalise import dediac, normalise, root_variants, root_key, voc_key
+import lane_links
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -217,27 +218,6 @@ LEMMA_COVERAGE_FLOOR = 0.30
 # the workbook already records. Stated in the panel, because a reader is
 # entitled to know how a root they are being shown was arrived at.
 RECOVERY_ACCURACY = 98.0
-
-
-_VOC_MARKS = "\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670"
-
-
-def voc_key(text: str) -> str:
-    """
-    The TOP matching tier for Lane headwords: letters plus their own short
-    vowels, order-normalised, with the final letter's case marks dropped
-    (a headword carries a citation ending, a lemma carries its own). This is
-    what tells هِجْرَةٌ (hijrah, emigration) from هُجْرَةٌ (hujrah) — twins
-    at the diacritic-stripped tier, distinct words to a reader.
-    """
-    import re
-    groups = re.findall(rf"([^\s{_VOC_MARKS}])([{_VOC_MARKS}]*)", str(text))
-    out = []
-    for i, (letter, marks) in enumerate(groups):
-        if i == len(groups) - 1:
-            marks = "".join(m for m in marks if m == "\u0651")  # keep shadda
-        out.append(letter + "".join(sorted(marks)))
-    return "".join(out)
 
 
 _HAMZA_SEATS = str.maketrans({"أ": "ء", "إ": "ء", "آ": "ء", "ؤ": "ء", "ئ": "ء"})
@@ -864,6 +844,9 @@ def main() -> int:
     # the bare tiers cannot separate them either. Only the headword pass can.
     for root, payload in lane.items():
         lane_by_root[root] = payload.get("entries", [])
+    # Every curated override target must exist in what was just ingested —
+    # here, once, before any entry resolves through the table.
+    lane_links.verify(lane_by_root)
     for take_headwords in (True, False):
         for root, payload in lane.items():
             for e in payload.get("entries", []):
@@ -1091,18 +1074,39 @@ def main() -> int:
         # than it looks — a workbook row can carry no root at all and get one
         # from the analysis, and 220 entries reached the lookup with `root:
         # None` for exactly that reason while the analysis had `ءوي` ready.
-        lr = (e.get("lane_root") or e.get("root")
-              or (analyses.get(str(e.get("vocalized"))) or {}).get("root"))
-        if lr and lr not in lane_by_root:
-            lr = next((v for v in root_variants(lr) if v in lane_by_root), None)
-        # ALWAYS write it back, not only when a variant was needed. The shipped
-        # root must be the one the lookup actually used, or absent: the client
-        # keys the classical and lane shards by it, and a root with no shard
-        # draws an empty section. Writing it only in the variant branch left an
-        # entry with a resolved `laneEntry` and a null root to reach it by.
-        trimmed["lane_root"] = lr
-        trimmed["laneEntry"] = None
-        if lr and lr in lane_by_root:
+        # THE CLOSED CLASS FIRST. A handful of function words and homographs
+        # defeat the automatic path below for structural reasons — the kunya
+        # أَبِي roots as the verb "to refuse" and was shown "disdain"; بن
+        # reaches the BUILDING article through root_variants' ordering (بنى
+        # before بنو); the verb نَوَى cannot match Lane's suffixed citation
+        # نَوَاهُ at any tier and collided with date-stones; the relative
+        # pronouns have no Lane article at all and were shown لَذَّ, "it was
+        # delicious". Each is curated in lane_links.py, keyed narrowly enough
+        # that the homograph keeps its automatic path (أَبَى the verb and
+        # نَوًى the date-stones both MISS the table, tested), and every
+        # target is verified against the ingested Lane below. An override
+        # decides `lr` and the entry; the classical apparatus that follows
+        # is shared with the automatic path unchanged.
+        _ov_hit, _ov = lane_links.lookup(
+            e.get("vocalized"), e.get("lemma"), e.get("unvocalized"))
+        if _ov_hit:
+            lr = _ov[0] if _ov else None
+            trimmed["lane_root"] = lr
+            trimmed["laneEntry"] = _ov[1] if _ov else None
+        else:
+            lr = (e.get("lane_root") or e.get("root")
+                  or (analyses.get(str(e.get("vocalized"))) or {}).get("root"))
+            if lr and lr not in lane_by_root:
+                lr = next((v for v in root_variants(lr) if v in lane_by_root), None)
+            # ALWAYS write it back, not only when a variant was needed. The
+            # shipped root must be the one the lookup actually used, or
+            # absent: the client keys the classical and lane shards by it,
+            # and a root with no shard draws an empty section. Writing it
+            # only in the variant branch left an entry with a resolved
+            # `laneEntry` and a null root to reach it by.
+            trimmed["lane_root"] = lr
+            trimmed["laneEntry"] = None
+        if not _ov_hit and lr and lr in lane_by_root:
             # exact tier (ة preserved) for BOTH candidates before either
             # falls back to the folded tier — a folded hit on the lemma must
             # not shadow an exact hit on the vocalised form
