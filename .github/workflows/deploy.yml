@@ -107,7 +107,7 @@ jobs:
       - name: Fetch sources
         run: |
           python pipeline/fetch.py --corpus lane
-          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail; do
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail adab riyad mukhtasar; do
             python pipeline/fetch.py --corpus "$c"
           done
 
@@ -121,7 +121,7 @@ jobs:
       # because segmentation happens first by hand.
       - name: Segment every corpus
         run: |
-          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail; do
+          for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail adab riyad mukhtasar; do
             python pipeline/segment.py --corpus "$c"
           done
 
@@ -203,6 +203,27 @@ jobs:
           python pipeline/build.py   --corpus bulugh
           python pipeline/bind.py    --corpus shamail
           python pipeline/build.py   --corpus shamail
+
+          # al-Adab al-Mufrad: the only corpus that DROPS declared sections
+          # (a modern editor's 1,348 interleaved gradings), so it is the sole
+          # end-to-end exercise of drop_section_prefixes.
+          python pipeline/bind.py    --corpus adab
+          python pipeline/build.py   --corpus adab
+
+          # Riyad al-Salihin: the only corpus whose witness is not in the
+          # site's order (`monotone_in: site`) and the only one binding
+          # against a near-bare witness — Tier 1+2 here is carried by the
+          # lexicon minted from the OTHER corpora, which nothing else
+          # verifies end to end.
+          python pipeline/bind.py    --corpus riyad
+          python pipeline/build.py   --corpus riyad
+
+          # Mukhtasar Sahih Muslim: an abridgement bound against its full
+          # collection (7,459 witness rows for ~2,100 records), the corpus
+          # the order-constrained link assignment exists for, and the only
+          # one exercising lettered site addresses and declared no-links.
+          python pipeline/bind.py    --corpus mukhtasar
+          python pipeline/build.py   --corpus mukhtasar
 
       # Runs LAST, after every corpus is built: it merges what they have in
       # common into one shared shard set and deletes the per-corpus copies.
