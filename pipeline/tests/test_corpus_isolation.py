@@ -399,40 +399,6 @@ def test_minted_entries_reach_lane():
         assert field in writer, f"minted.json drops {field}"
 
 
-def test_every_resolvable_root_reaches_lane():
-    """An invariant, not a percentage.
-
-    The share of entries carrying a Lane root moves with corpus composition and
-    with which corpora a given build produced — it read 76% on one machine and
-    69% on CI for the same code. A threshold pinned to either number tests the
-    build order, not the linkage.
-
-    What must always hold: if an entry has a root, and that root resolves to
-    Lane under any of Lane's own spellings, then the entry must carry
-    `lane_root`. An entry whose root Lane genuinely lacks carries none, and
-    the panel says nothing rather than drawing an empty section.
-    """
-    import glob, json, pathlib as _p
-    from normalise import root_variants
-    lane_path = corpus.ROOT / "build" / "lane" / "entries.json"
-    shards = glob.glob(str(corpus.ROOT.parent / "web/public/data/lexicon/surface-*.json"))
-    if not shards or not lane_path.exists():
-        pytest.skip("payload or Lane build not present")
-    lane = json.loads(lane_path.read_text(encoding="utf-8"))
-    entries = {}
-    for f in shards:
-        entries.update(json.loads(_p.Path(f).read_text(encoding="utf-8")))
-
-    missed = [
-        e for e in entries.values()
-        if e.get("root") and not e.get("lane_root")
-        and any(v in lane for v in root_variants(str(e["root"])))
-    ]
-    assert not missed, (
-        f"{len(missed)} entries have a root Lane holds but carry no lane_root, "
-        f"e.g. {[(x.get('vocalized'), x.get('root')) for x in missed[:3]]}"
-    )
-
 def test_root_variants_reach_lanes_own_spelling():
     """A root Lane holds under another spelling must still resolve.
 
@@ -1041,14 +1007,44 @@ def test_every_resolvable_root_reaches_lane():
     for f in shards:
         entries.update(json.loads(_p.Path(f).read_text(encoding="utf-8")))
 
+    from build import CLOSED_CLASS_POS
+    from normalise import normalise as _norm
+
+    # The exists => linked claim holds for the OPEN vocabulary. A
+    # closed-class word (pos-tagged; qalsadi's `stopword` net also catches
+    # real derivational words) links by identity or by a headword HIT, and
+    # an analyser root whose article merely EXISTS is precisely what it
+    # must refuse: أَيْضًا's analyser root is the bare letter ض, whose
+    # letter-article Lane holds and which holds no أَيْضًا — unlinked is
+    # the correct panel there, where the old rule would have drawn the
+    # letter's article.
     missed = [
         e for e in entries.values()
         if e.get("root") and not e.get("lane_root")
+        and e.get("pos") not in CLOSED_CLASS_POS
         and any(v in lane for v in root_variants(str(e["root"])))
     ]
     assert not missed, (
         f"{len(missed)} entries have a root Lane holds but carry no lane_root, "
         f"e.g. {[(x.get('vocalized'), x.get('root')) for x in missed[:3]]}"
+    )
+
+    # And the closed class's own invariant, from shipped fields alone:
+    # every LINKED closed-class entry got its article by identity (the
+    # root is a spelling variant of the word's own lemma) or by a headword
+    # hit (laneEntry non-null). An exists-only closed-class link is the
+    # لَذَّ bug shipping again.
+    bad_closed = [
+        e for e in entries.values()
+        if e.get("pos") in CLOSED_CLASS_POS and e.get("lane_root")
+        and not e.get("laneEntry")
+        and not any(v == e["lane_root"] for f in (e.get("lemma"),
+                                                  e.get("unvocalized"))
+                    if f for v in root_variants(_norm(str(f))))
+    ]
+    assert not bad_closed, (
+        f"{len(bad_closed)} closed-class entries link by mere existence, "
+        f"e.g. {[(x.get('vocalized'), x.get('lane_root')) for x in bad_closed[:3]]}"
     )
 
 def test_root_variants_reach_lanes_own_spelling():

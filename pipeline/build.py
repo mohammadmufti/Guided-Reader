@@ -1160,20 +1160,6 @@ def main() -> int:
             lr = _ov[0] if _ov else None
             trimmed["lane_root"] = lr
             trimmed["laneEntry"] = _ov[1] if _ov else None
-        elif _pos in CLOSED_CLASS_POS:
-            lr = None
-            node = None
-            for ident in (e.get("lemma"), e.get("unvocalized")):
-                if not ident:
-                    continue
-                cand = normalise(str(ident))
-                lr = next((v for v in root_variants(cand)
-                           if v in lane_by_root), None)
-                if lr:
-                    node, _ = _match(lr)
-                    break
-            trimmed["lane_root"] = lr
-            trimmed["laneEntry"] = node
         else:
             # Candidate roots in authority order. The alternatives matter
             # more than they look: the analyser's FIRST root for a genuinely
@@ -1185,7 +1171,7 @@ def main() -> int:
                       *(_analysed.get("rootAlternatives") or [])):
                 if c and c not in _cands:
                     _cands.append(c)
-            best = None   # (tier, cand_i, var_i, root, node)
+            best = None   # ((tier, cand_i, var_i), root, node)
             fallback = None
             for ci, cand in enumerate(_cands):
                 for vi, v in enumerate(root_variants(cand)):
@@ -1198,19 +1184,47 @@ def main() -> int:
                         rank = (tier, ci, vi)
                         if best is None or rank < best[0]:
                             best = (rank, v, node)
-            if best:
+            if _pos in CLOSED_CLASS_POS:
+                # Identity first: the word's own lemma as an article is the
+                # strongest claim a function word can have (في -> فى). Then
+                # the scored candidates — qalsadi's `stopword` net also
+                # catches real derivational words (وَأَعْلَى, أَيْضًا), and
+                # identity-only resolution stranded 195 of them on CI, the
+                # invariant test's catch — but a closed-class word takes a
+                # scored root ONLY on a headword hit, never the exists-only
+                # fallback: the fallback on a junk analyser root is exactly
+                # how اللَّذَيْنِ was shown لَذَّ, and أَيْضًا's analyser
+                # root is the bare letter ض, whose letter-article Lane does
+                # hold and which holds no أَيْضًا. Unlinked is correct
+                # there.
+                lr = None
+                node = None
+                for ident in (e.get("lemma"), e.get("unvocalized")):
+                    if not ident:
+                        continue
+                    lr = next((v for v in root_variants(normalise(str(ident)))
+                               if v in lane_by_root), None)
+                    if lr:
+                        node, _ = _match(lr)
+                        break
+                if lr is None and best:
+                    lr, node = best[1], best[2]
+                trimmed["lane_root"] = lr
+                trimmed["laneEntry"] = node
+            elif best:
                 lr, trimmed["laneEntry"] = best[1], best[2]
+                trimmed["lane_root"] = lr
             else:
                 # No candidate root's article holds this word's headword:
                 # open the best-authority existing article anyway, exactly
                 # as the single-root path always did, and let the panel say
                 # "first entry under this root".
+                # ALWAYS write it back, not only when a variant was needed.
+                # The shipped root must be the one the lookup actually used,
+                # or absent: the client keys the classical and lane shards
+                # by it, and a root with no shard draws an empty section.
                 lr, trimmed["laneEntry"] = fallback, None
-            # ALWAYS write it back, not only when a variant was needed. The
-            # shipped root must be the one the lookup actually used, or
-            # absent: the client keys the classical and lane shards by it,
-            # and a root with no shard draws an empty section.
-            trimmed["lane_root"] = lr
+                trimmed["lane_root"] = lr
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
             # `.get`: a minted entry has a Lane root but none of the

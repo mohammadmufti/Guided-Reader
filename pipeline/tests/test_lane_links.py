@@ -110,3 +110,33 @@ def test_every_target_exists_in_lane(lane):
     by_id = {e["nodeid"]: e for r in lane.values() for e in r["entries"]}
     assert by_id["n116"]["headword"] == "أَبٌ"
     assert by_id["n3342"]["headword"] == "اِبْنٌ"
+
+
+def test_stopword_net_with_real_roots_still_reaches_lane(hw):
+    """qalsadi's `stopword` tag also catches real derivational words —
+    وَأَعْلَى stranded 195 entries on CI when closed-class meant identity
+    only. The refined rule lets a closed-class word take a scored root ON A
+    HEADWORD HIT, and the elative's own lemma is right there in Lane."""
+    hw_voc, hw_exact, hw_folded = hw
+    hit = any(
+        (v, key("أَعْلَى")) in index
+        for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
+                           (hw_folded, normalise))
+        for v in root_variants("علي")
+    )
+    assert hit, "أَعْلَى must be reachable under its root's variants"
+
+
+def test_junk_letter_root_correctly_yields_nothing(hw, lane):
+    """أَيْضًا's analyser root is the bare letter ض. Lane HOLDS a
+    letter-article under ض — which is exactly why exists-only linking is
+    forbidden for the closed class: that article holds no أَيْضًا at any
+    tier, and unlinked is the correct panel."""
+    hw_voc, hw_exact, hw_folded = hw
+    assert "ض" in lane
+    assert not any(
+        (v, key("أَيْضًا")) in index
+        for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
+                           (hw_folded, normalise))
+        for v in root_variants("ض")
+    )
