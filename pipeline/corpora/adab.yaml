@@ -85,8 +85,12 @@ segmentation:
   # edition divides it into 643 bab. There is no verified mapping between the
   # two and none is needed: every hadith links directly.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Adab al-Mufrad 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Adab al-Mufrad"
+    labelAr: "الأدب المفرد"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true

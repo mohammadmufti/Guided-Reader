@@ -78,6 +78,29 @@ segmentation:
     # annotation, not text.
     - name: auto_marker
       pattern: '\bAUTO\b'
+    # Footnote anchors, in this transcription's `(¬N)` form — 1,977 ¬
+    # characters in the file and every one sits inside such an anchor,
+    # measured. The ¬ matters to the pattern: this text also quotes whole
+    # suras with their AYAH numbers as plain "(N)", and those are content —
+    # a blanket paren-digit strip would delete verse numbers out of the
+    # Qur'an it quotes.
+    - name: footnote_anchor
+      pattern: '\(\s*¬\s*\d+\s*\)'
+    # The edition's own takhrij cite, "(م 1/ 35 - 36)" — Muslim by volume
+    # and page, 1,837 of them. Two reasons to strip where Bulugh's takhrij
+    # sentences stay: the reader gets a better version of the same fact
+    # from the per-hadith Muslim link this corpus carries, and the lone م
+    # tokenised as a clickable Arabic word — a tappable letter opening a
+    # lexicon panel is broken reading, not apparatus.
+    - name: muslim_page_cite
+      pattern: '\(م\s*\d+\s*/[^)]{0,20}\)'
+    # WHAT STAYS: roughly a dozen plain "(N)" remain, and they are left
+    # deliberately. Measured one by one, they are a MIX — a few anchors the
+    # transcription wrote without its usual ¬ (often on the same line as a
+    # ¬ form), interleaved with ayah numbers of suras quoted without braces
+    # ("وأعمى أبصارهم (23)") and an editor's numeral gloss. No pattern
+    # separates the anchors from the Qur'an, and deleting verse numbers out
+    # of quoted revelation to catch eight stray anchors is the wrong trade.
   page_marker_alt: 'PageV(\d+)P(\d+)'
   page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
   opener: '^(\d+)\s*-\s*(.*)$'
@@ -93,8 +116,12 @@ segmentation:
   # NO chapter_link: this edition's 67 kitab do not map verifiably onto the
   # site's 56 books, and none is needed — every hadith links directly.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Muslim 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Muslim"
+    labelAr: "صحيح مسلم"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true

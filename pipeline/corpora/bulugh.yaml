@@ -75,6 +75,13 @@ segmentation:
       pattern: 'PageV\d+P\d+'
     - name: shamela_div
       pattern: '<div[^>]*>'
+    # Footnote anchors. The transcription carries the editor's note NUMBERS
+    # — 1,054 of them, sentence-final and mid-sentence alike — but not the
+    # notes themselves, and an anchor to nothing is not text: the reader
+    # sees "(1)" and looks for a footnote that is not delivered. Measured
+    # before stripping: every paren-digit in this file is such an anchor.
+    - name: footnote_anchor
+      pattern: '\(\s*\d+\s*\)'
   page_marker_alt: 'PageV(\d+)P(\d+)'
   page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
   opener: '^(\d+)\s*-\s*(.*)$'
@@ -128,8 +135,12 @@ segmentation:
   # number (recordLinkNumber) is the colon number where the site has one and
   # null where it never assigned one.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Bulugh 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Bulugh"
+    labelAr: "بلوغ المرام"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true
@@ -142,8 +153,12 @@ segmentation:
   # الطلاق unlinked, which is the honest result.
   chapter_link:
     level: kitab
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Bulugh 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Bulugh"
+    labelAr: "بلوغ المرام"
     url: "https://sunnah.com/bulugh/{n}"
   layer_names:
     body: matn

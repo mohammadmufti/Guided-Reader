@@ -76,6 +76,13 @@ segmentation:
       pattern: '\(\d+\)\s*-\s*(?=كتاب)'
     - name: bab_number
       pattern: '\b\d+\s*-\s*(?=باب)'
+    # Footnote anchors — 1,166, and the notes themselves are not delivered,
+    # so the anchors are noise. ORDERED AFTER the kitab strip above: strips
+    # apply in list order, and a blanket paren-digit running first would eat
+    # the "(1)" of "(1) - كتاب" and leave a heading the prefix test cannot
+    # recognise.
+    - name: footnote_anchor
+      pattern: '\(\s*\d+\s*\)'
   page_marker_alt: 'PageV(\d+)P(\d+)'
   page_marker: '\[\s*ص\s*:\s*(\d+)\s*\]'
   opener: '^(\d+)\s*-\s*(.*)$'
@@ -90,8 +97,12 @@ segmentation:
   # and no Miscellany. No verified mapping, and none needed: every hadith
   # links directly.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Riyad as-Salihin 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Riyad as-Salihin"
+    labelAr: "رياض الصالحين"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true

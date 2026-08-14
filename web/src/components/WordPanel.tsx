@@ -96,13 +96,18 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
           workbook covers. The curated gloss follows where there is one, and
           Lane sits below both. A reader who wants depth scrolls; a reader who
           wants the word does not have to. */}
-      {/* Two glosses, but only where they say different things. The BUILD
-          decides that — `glossQuick` is null when it duplicates the curated
-          one — because comparing them here as well meant two implementations
-          of "the same meaning", and they drifted. The clitic and feature boxes
-          hang off whichever gloss is shown, so nothing is lost either way. */}
-      {entry.glossQuick && (
-        <Meaning gloss={entry.glossQuick} isName={entry.isName} quick={!!entry.gloss} />
+      {/* Two glosses, but only where they say different things AND there are
+          two. The BUILD decides sameness — `glossQuick` is null when it
+          duplicates the curated one — because comparing them here as well
+          meant two implementations of "the same meaning", and they drifted.
+          The guard on BOTH existing is this panel's own job, and it was
+          missing: on a word with no curated gloss — most words in every
+          corpus after al-Tajrid — the first block rendered the quick gloss
+          and the `??` fallback then rendered the same quick gloss again, two
+          identical "Meaning" sections. The clitic and feature boxes hang off
+          whichever gloss is shown, so nothing is lost either way. */}
+      {entry.gloss && entry.glossQuick && (
+        <Meaning gloss={entry.glossQuick} isName={entry.isName} quick />
       )}
       <Meaning gloss={entry.gloss ?? entry.glossQuick} isName={entry.isName} />
       <RootAndLemma entry={entry} classical={classical} token={token} />

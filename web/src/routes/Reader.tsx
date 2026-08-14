@@ -470,62 +470,22 @@ function PageView({
               {/* A text with no kitab divides into bab, and its chapter link
                   hangs off that instead — otherwise it renders for no record
                   at all. */}
-              {/* The heading already names the hadith — الحديث الأول — so the
-                  link goes on that, not on a bolted-on "sunnah.com 4". The
-                  reader clicks the thing they are reading. Same treatment the
-                  Muwatta's kitab title gets. */}
-              {/* THE RECORD LINK WINS over the chapter link. A per-hadith
-                  address is strictly more precise than the chapter page that
-                  merely contains it, and on a kitab-less corpus both want
-                  this one heading — before the swap, the Shama'il's chapter
-                  link would have shadowed every record link permanently. The
-                  chapter link stays as the fallback for records the binder
-                  could not place. */}
-              {index.corpus.recordLink &&
-              (main.recordLinkRef != null || main.recordLinkNumber != null) ? (
-                <a
-                  // `{ref}` is the site's own address tail, stamped by the
-                  // build from the verified map (sunnah.com never finished
-                  // numbering Bulugh, so its addresses are paths, not
-                  // numbers); `{n}` is the numeric form the other corpora
-                  // keep. A record carries exactly one of the two.
-                  href={
-                    main.recordLinkRef != null
-                      ? index.corpus.recordLink.url.replace("{ref}", main.recordLinkRef)
-                      : index.corpus.recordLink.url.replace(
-                          "{n}",
-                          String(main.recordLinkNumber),
-                        )
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  // SAY WHICH NUMBER IT OPENS. Where a corpus renumbers — the
-                  // site merges entries, so this edition's Shama'il 319 is
-                  // sunnah.com's 317 — a reader reading "hadith 319" lands on
-                  // 317 and reasonably calls that a mismatch. The link is
-                  // right; it was silent about being a different numbering.
-                  // And where the site has NO number for the hadith (most of
-                  // Bulugh), say nothing rather than invent one.
-                  title={
-                    main.recordLinkNumber == null ||
-                    main.recordLinkNumber === main.number
-                      ? `${main.bab.titleAr} — ${index.corpus.recordLink.label}`
-                      : `${index.corpus.recordLink.label} ${main.recordLinkNumber}` +
-                        ` — this edition numbers it ${main.number}`
-                  }
-                  className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
-                >
-                  {main.bab.titleAr}
-                  {main.recordLinkNumber != null &&
-                    main.recordLinkNumber !== main.number && (
-                      <span className="ms-1 text-[0.7rem]" dir="ltr">
-                        ({index.corpus.recordLink.label} {main.recordLinkNumber})
-                      </span>
-                    )}
-                </a>
-              ) : !main.kitab &&
-                index.corpus.chapterLink &&
-                main.chapterLinkNumber != null ? (
+              {/* The record link no longer rides ON this heading. It did —
+                  the Arabic title was the anchor, with "(sunnah.com 317)"
+                  bolted on where the numbering differed — and the LTR paren
+                  inside an RTL anchor clobbered against the title, while the
+                  suffix itself read as an aside rather than a place to go.
+                  It now renders beside the page numbers in the LTR metadata
+                  group below, in al-Tajrid's cross-reference form: the label
+                  is part of the link, "Muslim 1426", and a different number
+                  than ours is self-explanatory there the way "Bukhari 4508"
+                  always was. The chapter-link fallback keeps its
+                  anchor-on-title — a chapter page IS the heading it names. */}
+              {!(index.corpus.recordLink &&
+                (main.recordLinkRef != null || main.recordLinkNumber != null)) &&
+              !main.kitab &&
+              index.corpus.chapterLink &&
+              main.chapterLinkNumber != null ? (
                 <ChapterRefAnchor
                   link={index.corpus.chapterLink}
                   n={main.chapterLinkNumber}
@@ -538,6 +498,10 @@ function PageView({
           )}
           <span className="ms-auto flex gap-3 text-xs text-(--color-ink-muted)" dir="ltr">
             {main.pages.length > 0 && <span className="tabular-nums">{main.pages.join(" · ")}</span>}
+            {index.corpus.recordLink &&
+              (main.recordLinkRef != null || main.recordLinkNumber != null) && (
+                <RecordRef link={index.corpus.recordLink} record={main} />
+              )}
             {main.crossRefs.length > 0 && (
               <CrossRefs refs={main.crossRefs} link={index.corpus.referenceLink} />
             )}
@@ -796,6 +760,60 @@ function PageView({
  * The URL template comes from the corpus config, not from here, because what a
  * text cites is a property of the text.
  */
+function RecordRef({
+  link,
+  record,
+}: {
+  link: { label: string; labelAr: string; url: string };
+  record: { number: number | null; recordLinkRef: string | null; recordLinkNumber: number | null };
+}) {
+  // Al-Tajrid's cross-reference form, applied to the per-hadith site link:
+  // the label is part of the link — "Muslim 1426" is a place to go where a
+  // bare underlined number is decoration. What shows after the label is the
+  // SITE's token, never invented: the stamped number where the site numbers
+  // plainly; the address tail where it does not — "8a" from muslim:8a
+  // (letters matter, 8b is a different hadith), "1/5" from bulugh/1/5
+  // (sunnah.com never finished numbering Bulugh, so its addresses are
+  // paths). A different number than ours needs no apology here, any more
+  // than "Bukhari 4508" beside our hadith 22 ever did — the label says
+  // whose number it is; the tooltip still spells it out.
+  const ref = record.recordLinkRef;
+  const display =
+    record.recordLinkNumber != null
+      ? String(record.recordLinkNumber)
+      : ref != null
+        ? ref.includes(":")
+          ? ref.split(":").slice(1).join(":")
+          : ref.split("/").slice(1).join("/")
+        : null;
+  if (display == null) return null;
+  const href =
+    ref != null
+      ? link.url.replace("{ref}", ref)
+      : link.url.replace("{n}", String(record.recordLinkNumber));
+  const differs =
+    record.recordLinkNumber != null &&
+    record.number != null &&
+    String(record.recordLinkNumber) !== String(record.number);
+  return (
+    <span className="tabular-nums">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={
+          `${link.label} ${display} — opens sunnah.com in a new tab` +
+          (differs ? `; this edition numbers it ${record.number}` : "")
+        }
+        aria-label={`${link.label} ${display}, opens in a new tab`}
+        className="underline decoration-dotted underline-offset-2 transition-colors hover:text-(--color-accent)"
+      >
+        {link.label} {display}
+      </a>
+    </span>
+  );
+}
+
 function CrossRefs({
   refs,
   link,

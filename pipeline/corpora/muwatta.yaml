@@ -210,8 +210,12 @@ segmentation:
   # — positional there puts every kitab after الطلاق in the wrong book).
   chapter_link:
     match: position
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Muwatta 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Muwatta"
+    labelAr: "الموطأ"
     url: "https://sunnah.com/malik/{n}"
 
   # PER-HADITH LINK, through the verified address map. The kitab link above
@@ -230,8 +234,12 @@ segmentation:
   # record the numbered rows cannot vouch for gets no link and keeps the
   # kitab link above as its fallback — same policy as Bulugh.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Muwatta 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Muwatta"
+    labelAr: "الموطأ"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true

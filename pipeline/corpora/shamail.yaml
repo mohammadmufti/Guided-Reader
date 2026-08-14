@@ -84,8 +84,12 @@ segmentation:
   # and every linked record also shows the site's number. A merged entry
   # links and displays its first number; the page serves the whole entry.
   record_link:
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Shama'il 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Shama'il"
+    labelAr: "الشمائل"
     url: "https://sunnah.com/{ref}"
     layers: [matn]
     number_from_witness: true
@@ -105,8 +109,12 @@ segmentation:
     # chapter IS the bab — and a link keyed on kitab would have rendered for
     # no record at all.
     level: bab
-    label: "sunnah.com"
-    labelAr: "سنة.كوم"
+    # The label names the COLLECTION the link opens, in al-Tajrid's
+    # cross-reference form — "Shama'il 22" is a place to go the way "Bukhari
+    # 4508" is; "sunnah.com 22" was a website with a number. The tooltip
+    # still says where it opens.
+    label: "Shama'il"
+    labelAr: "الشمائل"
     url: "https://sunnah.com/shamail/{n}"
   layer_names:
     body: matn
