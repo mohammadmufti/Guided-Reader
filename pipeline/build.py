@@ -126,6 +126,17 @@ ENGLISH_STOPWORDS = {
 # the workbook README calls it the trustworthy field.
 CLASSICAL_FIELDS = ["classical_keywords", "lane_entry_count"]
 
+# The pos values that mark a closed-class word, from both sources that write
+# the field: the workbook tags pronouns `pronoun`; qalsadi's lemmatiser puts
+# the whole function-word class under `stopword`. A closed-class word links
+# to Lane by DIRECT IDENTITY only — its own lemma as an article — never
+# through a derivational root, because it has none and the analyser's guess
+# for one is noise (the relative pronouns were rooted لذذ). Lane's real
+# particle articles (فِى, لَوْ, هَلْ) survive this rule; the pronouns it
+# never wrote articles for stop getting someone else's.
+CLOSED_CLASS_POS = {"pronoun", "stopword", "particle", "preposition",
+                    "conjunction", "interjection"}
+
 
 def fnv1a(text: str) -> int:
     """
@@ -858,6 +869,35 @@ def main() -> int:
                     hw_voc.setdefault((root, voc_key(str(form))), e["nodeid"])
                     hw_exact.setdefault((root, dediac(str(form))), e["nodeid"])
                     hw_folded.setdefault((root, normalise(form)), e["nodeid"])
+    # LANE CITES TRANSITIVE VERBS WITH AN OBJECT SUFFIX — نَوَاهُ, قَدَّهُ,
+    # بَلَّهُ — and a lemma can never equal that citation at any tier, so the
+    # verb of the first hadith of the Forty was falling through to the bare
+    # tier and colliding with the date-stones noun that shares its rasm. A
+    # third pass keys each suffixed citation under its STRIPPED form too,
+    # with the final-weak spelling restored (the ا that carries the suffix
+    # is the lemma's ى: نَوَاهُ -> نَوَى). setdefault ordering makes these
+    # keys strictly weaker than every real headword's own — a stripped
+    # citation never displaces an article that spells the word itself — but
+    # at the vocalised tier the stripped verb carries its own harakat and
+    # the noun carries its tanwin, so نَوَى finds نَوَاهُ while نَوًى keeps
+    # date-stones. Measured on the full index: the pass adds keys, changes
+    # no existing one.
+    for root, payload in lane.items():
+        for e in payload.get("entries", []):
+            hw = str(e.get("headword") or "")
+            for suffix in ("هُ", "هَا", "ه", "ها"):
+                if hw.endswith(suffix) and len(hw) > len(suffix) + 1:
+                    stripped = hw[: -len(suffix)]
+                    variants = [stripped]
+                    if stripped.endswith("ا"):
+                        variants.append(stripped[:-1] + "ى")
+                    if stripped.endswith("َا"):
+                        variants.append(stripped[:-2] + "َى")
+                    for v in variants:
+                        hw_voc.setdefault((root, voc_key(v)), e["nodeid"])
+                        hw_exact.setdefault((root, dediac(v)), e["nodeid"])
+                        hw_folded.setdefault((root, normalise(v)), e["nodeid"])
+                    break
 
     # ---- lexicon shards ----------------------------------------------------
     review = set(lexicon["review"])
@@ -1058,83 +1098,119 @@ def main() -> int:
         # A derived lexicon has no Lane linkage: `lane_root` is computed by
         # lexicon.py from the workbook. Absent is a legitimate state, not a
         # missing field — the entry simply has no classical apparatus.
-        # Resolve the root against Lane's own spelling before using it. An
-        # unresolved root still produced a classical shard, so the panel showed
-        # an empty root section rather than the root's first article — 4,408
-        # entries, 82% of them a geminate, a final weak radical, or a hamza
-        # seat written the other way.
-        # `lane_root` is the workbook's own validated key. Where there is
-        # none — a minted entry, or a workbook row Lane had no article for
-        # under the spelling the workbook used — fall back to the analyser's
-        # root and let the variants below resolve it. 337 entries had a root
-        # Lane holds and no `lane_root` to reach it with, almost all of them
-        # hamza-initial: `ءهل` where Lane files `اهل`.
-        # Three sources, in order of authority: the workbook's own validated
-        # key, the entry's root, then the analyser's. The third matters more
-        # than it looks — a workbook row can carry no root at all and get one
-        # from the analysis, and 220 entries reached the lookup with `root:
-        # None` for exactly that reason while the analysis had `ءوي` ready.
-        # THE CLOSED CLASS FIRST. A handful of function words and homographs
-        # defeat the automatic path below for structural reasons — the kunya
-        # أَبِي roots as the verb "to refuse" and was shown "disdain"; بن
-        # reaches the BUILDING article through root_variants' ordering (بنى
-        # before بنو); the verb نَوَى cannot match Lane's suffixed citation
-        # نَوَاهُ at any tier and collided with date-stones; the relative
-        # pronouns have no Lane article at all and were shown لَذَّ, "it was
-        # delicious". Each is curated in lane_links.py, keyed narrowly enough
-        # that the homograph keeps its automatic path (أَبَى the verb and
-        # نَوًى the date-stones both MISS the table, tested), and every
-        # target is verified against the ingested Lane below. An override
-        # decides `lr` and the entry; the classical apparatus that follows
-        # is shared with the automatic path unchanged.
+        # Resolving a word to Lane is TWO different problems, split by what
+        # kind of word it is, and both are answered from the entry's own
+        # analysed data rather than from a list of words.
+        #
+        # A CLOSED-CLASS WORD — pronoun, particle, preposition; the workbook
+        # says `pronoun`, qalsadi says `stopword` — has no derivational root
+        # to look up, and letting the analyser guess one is how the relative
+        # pronoun اللَّذَيْنِ was shown لَذَّ, "it was delicious". But Lane
+        # DOES hold articles for many function words (فِى, لَوْ, هَلْ, مَنْ),
+        # so the rule is not "no linkage": it is linkage by DIRECT IDENTITY
+        # only — the word's own lemma as a Lane article, orthographic
+        # variants allowed, derivational roots forbidden. الذي finds no such
+        # article and correctly shows nothing; في finds فى and keeps it.
+        #
+        # An OPEN-VOCABULARY WORD resolves through its candidate roots — the
+        # workbook's validated key, the entry's root, the analyser's root
+        # and the analyser's ALTERNATIVES, in that order of authority — but
+        # a candidate is only as good as the article it opens, so every
+        # existing variant of every candidate is scored by the tier at which
+        # this word's own headword matches there, and the best MATCH wins
+        # rather than the first EXISTING article. That ordering is what
+        # broke بن: its root comes back بني, which Lane does not hold, and
+        # first-existing took بنى (to build, no اِبْنٌ anywhere in it) over
+        # بنو (which holds اِبْنٌ at the exact tier). Ties keep the original
+        # authority order, so nothing that resolved correctly before moves.
+        _lv = (e.get("lemmaVocalised")
+               or (analyses.get(str(e.get("vocalized"))) or {}).get("lemmaVocalised"))
+        _analysed = analyses.get(str(e.get("vocalized"))) or {}
+
+        def _match(root):
+            """This word's headword under `root`, with the tier it matched
+            at (0 best). The tier order and candidate order are the ones the
+            single-root matcher always used — see the comment below —
+            hoisted into a function so several candidate roots can compete
+            on match quality."""
+            # 1. `lemmaVocalised` — the analyser's vocalised lemma, clitics
+            #    stripped: `بَعَثَكَ` gives `بَعَث`, which IS a Lane headword.
+            # 2. `vocalized` — the form as this text writes it.
+            # 3. `lemma` — bare, and last, because six entries under one
+            #    root can share a bare spelling.
+            # The exact tier (ة preserved) tries BOTH candidates before the
+            # folded tier — a folded hit on the lemma must not shadow an
+            # exact hit on the vocalised form.
+            for tier, (index, key) in enumerate((
+                    (hw_voc, voc_key), (hw_exact, dediac),
+                    (hw_folded, normalise))):
+                for candidate in (_lv, e.get("vocalized"), e.get("lemma")):
+                    if candidate:
+                        node = index.get((root, key(str(candidate))))
+                        if node:
+                            return node, tier
+            return None, None
+
+        _pos = e.get("pos") or _analysed.get("pos")
         _ov_hit, _ov = lane_links.lookup(
             e.get("vocalized"), e.get("lemma"), e.get("unvocalized"))
         if _ov_hit:
+            # The curated residue — see lane_links.py for why each survivor
+            # remains after the systematic resolution below.
             lr = _ov[0] if _ov else None
             trimmed["lane_root"] = lr
             trimmed["laneEntry"] = _ov[1] if _ov else None
+        elif _pos in CLOSED_CLASS_POS:
+            lr = None
+            node = None
+            for ident in (e.get("lemma"), e.get("unvocalized")):
+                if not ident:
+                    continue
+                cand = normalise(str(ident))
+                lr = next((v for v in root_variants(cand)
+                           if v in lane_by_root), None)
+                if lr:
+                    node, _ = _match(lr)
+                    break
+            trimmed["lane_root"] = lr
+            trimmed["laneEntry"] = node
         else:
-            lr = (e.get("lane_root") or e.get("root")
-                  or (analyses.get(str(e.get("vocalized"))) or {}).get("root"))
-            if lr and lr not in lane_by_root:
-                lr = next((v for v in root_variants(lr) if v in lane_by_root), None)
+            # Candidate roots in authority order. The alternatives matter
+            # more than they look: the analyser's FIRST root for a genuinely
+            # ambiguous rasm can be the homograph's, while the right root
+            # sits in the alternatives with an exact-tier headword waiting —
+            # the kunya أَبِي against the verb أَبَى is the measured case.
+            _cands = []
+            for c in (e.get("lane_root"), e.get("root"), _analysed.get("root"),
+                      *(_analysed.get("rootAlternatives") or [])):
+                if c and c not in _cands:
+                    _cands.append(c)
+            best = None   # (tier, cand_i, var_i, root, node)
+            fallback = None
+            for ci, cand in enumerate(_cands):
+                for vi, v in enumerate(root_variants(cand)):
+                    if v not in lane_by_root:
+                        continue
+                    if fallback is None:
+                        fallback = v
+                    node, tier = _match(v)
+                    if node is not None:
+                        rank = (tier, ci, vi)
+                        if best is None or rank < best[0]:
+                            best = (rank, v, node)
+            if best:
+                lr, trimmed["laneEntry"] = best[1], best[2]
+            else:
+                # No candidate root's article holds this word's headword:
+                # open the best-authority existing article anyway, exactly
+                # as the single-root path always did, and let the panel say
+                # "first entry under this root".
+                lr, trimmed["laneEntry"] = fallback, None
             # ALWAYS write it back, not only when a variant was needed. The
             # shipped root must be the one the lookup actually used, or
             # absent: the client keys the classical and lane shards by it,
-            # and a root with no shard draws an empty section. Writing it
-            # only in the variant branch left an entry with a resolved
-            # `laneEntry` and a null root to reach it by.
+            # and a root with no shard draws an empty section.
             trimmed["lane_root"] = lr
-            trimmed["laneEntry"] = None
-        if not _ov_hit and lr and lr in lane_by_root:
-            # exact tier (ة preserved) for BOTH candidates before either
-            # falls back to the folded tier — a folded hit on the lemma must
-            # not shadow an exact hit on the vocalised form
-            for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
-                               (hw_folded, normalise)):
-                # Order matters, and each step is a different question.
-                #
-                # 1. `lemmaVocalised` — the analyser's vocalised lemma, with
-                #    clitics stripped. `بَعَثَكَ` gives `بَعَث`, which IS a Lane
-                #    headword; the inflected form is not, and the bare lemma
-                #    `بعث` cannot use the vocalised tier at all.
-                # 2. `vocalized` — the form as this text writes it. Right when
-                #    the word is already in its dictionary shape.
-                # 3. `lemma` — bare, and last, because six entries under one
-                #    root can share a bare spelling.
-                # A workbook entry has no `lemmaVocalised` of its own — the
-                # spreadsheet never held one — so fall back to the analyser's,
-                # keyed by the form. This is what lets al-Tajrid benefit too.
-                _lv = (e.get("lemmaVocalised")
-                       or (analyses.get(str(e.get("vocalized"))) or {}).get("lemmaVocalised"))
-                for candidate in (_lv, e.get("vocalized"), e.get("lemma")):
-                    if candidate:
-                        node = index.get((lr, key(str(candidate))))
-                        if node:
-                            trimmed["laneEntry"] = node
-                            break
-                if trimmed["laneEntry"]:
-                    break
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
             # `.get`: a minted entry has a Lane root but none of the

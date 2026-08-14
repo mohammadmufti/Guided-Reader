@@ -1,44 +1,40 @@
 """
-Curated Lane links for the closed class — the words the automatic
-resolution gets wrong for structural reasons, each measured before it was
-written down.
+The curated residue of Lane linking — two words, after the systematic
+resolution took the rest.
 
-The automatic path (build.py) is: analyser root -> root_variants ->
-headword match by three key tiers. It is right for the open vocabulary
-and wrong for a handful of function words and homographs, in three ways
-that no general rule fixes without breaking something it gets right:
+The general machinery in build.py answers the CLASSES the first audit
+found: a closed-class word links by direct identity only (the relative
+pronouns get no article because Lane wrote none, not because they are
+listed here); candidate roots compete on headword-match tier rather than
+first-existing (so an article that contains this word's own entry beats
+one that merely exists); and Lane's suffixed verb citations are indexed
+under their stripped form (so نَوَى finds نَوَاهُ and no longer collides
+with date-stones). None of those words appears below.
 
-  * THE ANALYSER'S ROOT IS A HOMOGRAPH'S. The kunya أَبِي (my father /
-    Abu ...) roots as ابي — the verb أَبَى, to refuse — and the reader of
-    hadith 1 of al-Nawawi's Forty was shown إِبْيَةٌ, "disdain", for the
-    Commander of the Faithful's kunya. Lane files أَبٌ in the ابو article
-    (n116). Keyed by vocalised form, because أَبَى (he refused) is a real
-    word in these texts and shares the bare rasm: the override must not
-    touch it.
+What remains is two words whose PRODUCTION INPUTS are measured-deficient
+in a way no resolution can see past:
 
-  * ROOT_VARIANTS' ORDER PICKS A DIFFERENT WORD'S ARTICLE. بن / ابن root
-    as بني, which Lane does not hold; the variants try بنى (to build)
-    before بنو (sons), both exist... only بنى exists first, so the
-    reader of an isnad was shown بَنَاهُ, "he built it". Lane's اِبْنٌ is
-    n3342 under بنو. Keyed by folded form: there is no reading of بن or
-    ابن in these texts that is not the kinship word.
+  * أَبِي / أَبُو / أَبَا — the kunya. The workbook row carries no root and
+    its lemma is the surface itself, so everything rests on the analyser,
+    whose root for this rasm is the refuse-verb's; the right article
+    (ابو, holding أَبٌ) is only reachable if ءبو appears among the
+    analyser's alternatives, which is the analyser's choice, not ours.
+    Keyed by vocalisation because أَبَى — he refused — is a real word in
+    these texts sharing the bare rasm, and it must keep its automatic
+    path (tested).
 
-  * LANE CITES THE VERB WITH ITS OBJECT SUFFIX. The verb نَوَى (he
-    intended — the word the first hadith of the Forty turns on) cannot
-    match Lane's citation نَوَاهُ at any tier, and its bare rasm collides
-    with نَوًى, date-stones, which is what the panel showed. Keyed by
-    vocalised form: date-stones is also a real word (it appears in the
-    Muwatta'), and نَوًى keeps its tanwin in the key.
+  * بن / ابن — the workbook's lemma for بن is بِن, a spelling no Lane
+    article contains under any candidate root, so tier-scoring has
+    nothing to score; and the ابن rows carry a workbook misanalysis
+    (pos=verb, glossed "return, fem. pl.") that poisons both the pos gate
+    and the lemma. Lane's اِبْنٌ is n3342 under بنو. Keyed by folded form
+    because no reading of these in these texts is anything else.
 
-  * LANE HAS NO ARTICLE AT ALL. The relative pronouns الذي family root as
-    لذذ (!) or وصل by analyser whim; Lane holds no article for them
-    anywhere — searched, not assumed — so the correct panel is NO Lane
-    section, which None declares. A wrong article is worse than none;
-    the reader of اللَّذَيْنِ was being shown لَذَّ, "it was delicious".
-
-Every (root, nodeid) target is verified against the ingested Lane by
-verify() at build time — an override pointing at nothing fails the build
-rather than shipping an empty panel.
+Both entries are belt over the braces: where the analyser's data is good
+the systematic path reaches the same article, and when the workbook rows
+are corrected these lines should be deleted and the tests below them
+will still hold. Every target is verified against the ingested Lane at
+build time.
 """
 
 from normalise import normalise, voc_key
@@ -49,27 +45,13 @@ LANE_OVERRIDES_VOC: dict[str, tuple[str, str]] = {
     voc_key("أَبِي"): ("ابو", "n116"),   # أَبٌ — the kunya, genitive
     voc_key("أَبُو"): ("ابو", "n116"),   # nominative
     voc_key("أَبَا"): ("ابو", "n116"),   # accusative
-    voc_key("نَوَى"): ("نوى", "n44208"),  # نَوَاهُ — he intended it
 }
 
 # Folded-form keyed: every reading of these in the corpora is the closed-
-# class word. None means Lane has no article: no Lane section at all.
+# class word.
 LANE_OVERRIDES_FOLDED: dict[str, tuple[str, str] | None] = {
     "بن": ("بنو", "n3342"),      # اِبْنٌ
     "ابن": ("بنو", "n3342"),
-    # The relative pronouns. Lane's lexicon has no article for any of
-    # them — the automatic path was reaching لَذَّ through the analyser's
-    # root لذذ.
-    "الذي": None,
-    "التي": None,
-    "الذين": None,
-    "اللذين": None,
-    "اللذان": None,
-    "اللتان": None,
-    "اللتين": None,
-    "اللاتي": None,
-    "اللواتي": None,
-    "اللائي": None,
 }
 
 
@@ -77,8 +59,9 @@ def lookup(vocalized: str | None, *fallbacks: str | None):
     """The override for a surface entry, or a miss.
 
     Returns (hit, target): hit False means no override speaks and the
-    automatic resolution proceeds; target None (with hit True) means Lane
-    holds nothing for this word and no linkage ships.
+    systematic resolution proceeds; target None (with hit True) would mean
+    Lane holds nothing for this word — no current entry uses it, but the
+    shape stays so a future one can.
     """
     if vocalized:
         t = LANE_OVERRIDES_VOC.get(voc_key(str(vocalized)))
@@ -98,8 +81,6 @@ def verify(lane_by_root: dict) -> None:
     targets += [t for t in LANE_OVERRIDES_FOLDED.values() if t is not None]
     for root, nodeid in targets:
         entries = lane_by_root.get(root)
-        # Accept either shape: the raw ingest (root -> {entries: [...]}) or
-        # build.py's index (root -> [...]).
         if isinstance(entries, dict):
             entries = entries.get("entries")
         assert entries, f"lane_links: no Lane article for {root!r}"
