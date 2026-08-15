@@ -48,7 +48,7 @@ OUT = BUILD / "morphology"
 sys.path.insert(0, str(ROOT))
 from corpus import ConfigError, load_config, source_path
 from vocalisation import split_marks as _split_marks
-from normalise import normalise, root_key  # noqa: E402
+from normalise import dediac, normalise, root_key  # noqa: E402
 
 
 import re  # noqa: E402
@@ -507,6 +507,29 @@ def build_analyser():
             got = lemmatiser.lemmatize(form, return_pos=True)
         except Exception:
             got = None
+        # THE VOCALISED FORM HIDES ITS OWN CLASS from qalsadi: هُوَ, أَيْضًا
+        # and بِهَؤُلَاءِ all come back pos="all" — unknown — where their
+        # bare spellings answer "stopword" at once, and the pipeline
+        # downstream nulls "all". Every minted pronoun therefore shipped
+        # with NO pos, took the open-vocabulary Lane path, and the
+        # exists-only fallback gave هُوَ the bare-letter article ه — which
+        # the shared merge then stitched onto al-Tajrid's pos=particle row,
+        # a chimera no single corpus built (the CI catch). Retry on the
+        # dediacritised form, and take its lemma too, which arrives with
+        # the clitics stripped (بِهَؤُلَاءِ -> هؤلاء). FILLS ONLY: a
+        # definite pos from the vocalised parse stands, even a wrong one —
+        # the bare form would call the verb نَوَى a stopword, and quietly
+        # reclassifying every vocalised verb whose rasm sits on the
+        # stopword list is a far worse trade than كُلَّمَا keeping the
+        # verb reading its harakat genuinely parse as.
+        if got and got[0] and str(got[1] if len(got) > 1 else "") in ("all", ""):
+            try:
+                bare = lemmatiser.lemmatize(dediac(form), return_pos=True)
+            except Exception:
+                bare = None
+            if bare and bare[0] and str(bare[1] if len(bare) > 1 else "") \
+                    not in ("all", ""):
+                got = bare
         if got and got[0]:
             lemma, pos = str(got[0]), (str(got[1]) if len(got) > 1 else None)
             arr_root, arr_alts, arr_basis = choose_root(form, lemma)

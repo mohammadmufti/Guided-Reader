@@ -46,6 +46,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import collections
+
+from build import CLOSED_CLASS_POS
 import json
 import shutil
 import sys
@@ -135,7 +137,28 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
                     entries[mid] = dict(row)
                     carried.discard(mid)
                     continue
+                # THE LANE PAIR TRAVELS TOGETHER, and never through the
+                # generic gap-fill below. lane_root and laneEntry are one
+                # decision made by one corpus's resolution against one set
+                # of that corpus's analyses; filling lane_root alone from
+                # corpus B into a row whose pos and laneEntry came from
+                # corpus A manufactured entries no build produced — هُوَ
+                # shipped al-Tajrid's pos=particle stitched to a minted
+                # corpus's bare-letter article, which is the exists-only
+                # link the build itself forbids (the CI catch).
+                if not existing.get("lane_root") and row.get("lane_root"):
+                    existing["lane_root"] = row.get("lane_root")
+                    existing["laneEntry"] = row.get("laneEntry")
+                elif (existing.get("lane_root")
+                      and existing.get("lane_root") == row.get("lane_root")
+                      and not existing.get("laneEntry")
+                      and row.get("laneEntry")):
+                    # Same article, and the donor resolved the entry inside
+                    # it: a strict refinement.
+                    existing["laneEntry"] = row.get("laneEntry")
                 for field, val in row.items():
+                    if field in ("lane_root", "laneEntry"):
+                        continue
                     cur = existing.get(field)
                     # A DELIBERATE NULL IS NOT A GAP. `glossQuick` is set to
                     # None by build.py wherever it duplicates the curated
@@ -162,6 +185,23 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
                             f"{mid}: {field} {cur!r} != {val!r} "
                             f"({' vs '.join(seen_in[mid][-2:])})"
                         )
+    # The merged view must satisfy the same invariant the build enforces
+    # per corpus: a closed-class entry links only where an article contains
+    # its own headword. The pair-merge above keeps roots and entries from
+    # mixing across corpora; this scrub covers the remaining seam, where
+    # the merged POS (one corpus knew the word is a particle) meets merged
+    # lane fields (another corpus, analysing the vocalised form, did not —
+    # qalsadi answers "all" for هُوَ with its harakat on). An exists-only
+    # closed-class link is the لَذَّ bug whichever stage assembles it.
+    scrubbed = 0
+    for e in entries.values():
+        if (e.get("pos") in CLOSED_CLASS_POS and e.get("lane_root")
+                and not e.get("laneEntry")):
+            e["lane_root"] = None
+            scrubbed += 1
+    if scrubbed:
+        print(f"  scrubbed {scrubbed} exists-only closed-class Lane links "
+              f"from the merged view")
     return entries, seen_in, conflicts
 
 

@@ -157,3 +157,28 @@ def test_identity_existence_is_not_enough(hw, lane):
                                (hw_folded, normalise))
             for v in root_variants(seed)
         ), f"{probe} must match nothing under its identity variants"
+
+
+def test_vocalised_pos_blindness_is_filled_from_the_bare_form():
+    """qalsadi answers pos='all' — unknown — for هُوَ and أَيْضًا WITH their
+    harakat, and knows both at once from the bare spelling. The retry FILLS
+    ONLY: كُلَّمَا's vocalised parse returns a definite (if debatable)
+    'verb', and نَوَى's bare rasm sits on the stopword-adjacent noun نواة —
+    a definite answer must stand, or every vocalised verb whose rasm
+    collides with a function word gets silently reclassified."""
+    ql = pytest.importorskip("qalsadi.lemmatizer")
+    lem = ql.Lemmatizer()
+    from normalise import dediac as _dd
+
+    def resolved_pos(form):
+        got = lem.lemmatize(form, return_pos=True)
+        if got and str(got[1]) in ("all", ""):
+            bare = lem.lemmatize(_dd(form), return_pos=True)
+            if bare and str(bare[1]) not in ("all", ""):
+                got = bare
+        return str(got[1]) if got else None
+
+    assert resolved_pos("هُوَ") == "stopword"
+    assert resolved_pos("أَيْضًا") == "stopword"
+    assert resolved_pos("بِهَؤُلَاءِ") == "stopword"
+    assert resolved_pos("كُلَّمَا") == "verb", "definite answers stand"
