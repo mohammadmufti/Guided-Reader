@@ -140,3 +140,20 @@ def test_junk_letter_root_correctly_yields_nothing(hw, lane):
                            (hw_folded, normalise))
         for v in root_variants("ض")
     )
+
+
+def test_identity_existence_is_not_enough(hw, lane):
+    """The second CI failure: يَا's spelling variant يأ IS a Lane article —
+    of يَأْيَأَ, 'to call a falcon' — with no vocative inside it, and هو's
+    variant هى exists without holding هُوَ. Lane wrote no article FOR
+    these words; the closed-class rule links only where the word's own
+    headword answers, so all of them stay honestly unlinked."""
+    hw_voc, hw_exact, hw_folded = hw
+    assert "يأ" in lane and "هى" in lane, "the trap articles exist"
+    for probe, seed in (("يَا", "يا"), ("هُوَ", "هو"), ("هٰذِهِ", "هذه")):
+        assert not any(
+            (v, key(probe)) in index
+            for index, key in ((hw_voc, voc_key), (hw_exact, dediac),
+                               (hw_folded, normalise))
+            for v in root_variants(seed)
+        ), f"{probe} must match nothing under its identity variants"

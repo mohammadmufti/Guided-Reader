@@ -1185,27 +1185,36 @@ def main() -> int:
                         if best is None or rank < best[0]:
                             best = (rank, v, node)
             if _pos in CLOSED_CLASS_POS:
-                # Identity first: the word's own lemma as an article is the
-                # strongest claim a function word can have (في -> فى). Then
-                # the scored candidates — qalsadi's `stopword` net also
-                # catches real derivational words (وَأَعْلَى, أَيْضًا), and
-                # identity-only resolution stranded 195 of them on CI, the
-                # invariant test's catch — but a closed-class word takes a
-                # scored root ONLY on a headword hit, never the exists-only
-                # fallback: the fallback on a junk analyser root is exactly
-                # how اللَّذَيْنِ was shown لَذَّ, and أَيْضًا's analyser
-                # root is the bare letter ض, whose letter-article Lane does
-                # hold and which holds no أَيْضًا. Unlinked is correct
-                # there.
+                # A closed-class word links ONLY where an article contains
+                # its own headword — identity variants of its lemma first,
+                # then the scored candidates, and NEVER by mere existence.
+                # Both halves of that sentence were bought with a CI
+                # failure each. Existence through a guessed root is how
+                # اللَّذَيْنِ was shown لَذَّ, and أَيْضًا's analyser root
+                # is the bare letter ض whose letter-article holds no
+                # أَيْضًا; the scored path (hit-only) then rescued the real
+                # derivational words qalsadi's `stopword` net sweeps up —
+                # وَأَعْلَى stranded 195 entries when the closed class was
+                # identity-only. But existence through IDENTITY is no
+                # better, the second failure taught: يَا's spelling variant
+                # يأ IS a Lane article — of يَأْيَأَ, "to call a falcon" —
+                # holding no vocative, and thirty pronouns and particles
+                # shipped falcon-and-letter articles with no entry inside
+                # them. Lane wrote no article for يا, هو, or هذه; the
+                # honest panel is none, and the invariant is now one
+                # clause: a linked closed-class entry HAS a laneEntry.
                 lr = None
                 node = None
                 for ident in (e.get("lemma"), e.get("unvocalized")):
                     if not ident:
                         continue
-                    lr = next((v for v in root_variants(normalise(str(ident)))
-                               if v in lane_by_root), None)
+                    for v in root_variants(normalise(str(ident))):
+                        if v in lane_by_root:
+                            _n, _ = _match(v)
+                            if _n is not None:
+                                lr, node = v, _n
+                                break
                     if lr:
-                        node, _ = _match(lr)
                         break
                 if lr is None and best:
                     lr, node = best[1], best[2]

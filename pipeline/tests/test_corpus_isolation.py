@@ -1029,18 +1029,19 @@ def test_every_resolvable_root_reaches_lane():
         f"e.g. {[(x.get('vocalized'), x.get('root')) for x in missed[:3]]}"
     )
 
-    # And the closed class's own invariant, from shipped fields alone:
-    # every LINKED closed-class entry got its article by identity (the
-    # root is a spelling variant of the word's own lemma) or by a headword
-    # hit (laneEntry non-null). An exists-only closed-class link is the
-    # لَذَّ bug shipping again.
+    # And the closed class's own invariant, one clause, from shipped
+    # fields alone: a linked closed-class entry HAS a laneEntry. The first
+    # draft of this check exempted identity-derived roots, and CI promptly
+    # showed why existence is no better through identity than through a
+    # guessed root: يَا's spelling variant يأ IS a Lane article — of
+    # يَأْيَأَ, "to call a falcon" — holding no vocative, and thirty
+    # pronouns shipped falcon-and-letter articles with nothing inside
+    # them. An article that does not contain the word is not the word's
+    # article, whichever path found it.
     bad_closed = [
         e for e in entries.values()
         if e.get("pos") in CLOSED_CLASS_POS and e.get("lane_root")
         and not e.get("laneEntry")
-        and not any(v == e["lane_root"] for f in (e.get("lemma"),
-                                                  e.get("unvocalized"))
-                    if f for v in root_variants(_norm(str(f))))
     ]
     assert not bad_closed, (
         f"{len(bad_closed)} closed-class entries link by mere existence, "
