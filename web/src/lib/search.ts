@@ -1,11 +1,11 @@
 import type { IndexFile } from "@/types/contracts";
-import { loadIndex, loadRecord, layerOf } from "@/lib/data";
+import { loadIndex, loadRecord } from "@/lib/data";
 import { normalise, rootKey } from "@/lib/normalise";
 
 // Per-corpus payload root. Shared with data.ts so a corpus switch moves
 // every fetch at once; a half-switched client would pair one book's
 // lexicon shards with another book's records.
-import { corpusBase } from "./data";
+import { corpusBase, getCorpus } from "./data";
 
 interface SearchFile {
   buildId: string;
@@ -23,6 +23,14 @@ export interface Posting {
 
 let indexPromise: Promise<Map<string, Posting[]>> | null = null;
 let rootIndex: Map<string, Posting[]> = new Map();
+// WHOSE index is cached. data.ts resets its own caches on a corpus switch
+// but cannot reach these, and a stale index is worse than a stale record:
+// postings are record SEQUENCE numbers, so one book's postings resolved
+// against another book's ordered ids return real-looking hits pointing at
+// unrelated hadith. Search after switching from al-Tajrid to Bulugh was
+// exactly that. Checked here, at the one entry point, rather than wired
+// into setCorpus — an import from data.ts back into this module is a cycle.
+let indexCorpus: string | null = null;
 
 /** Roots are loaded with the form index; call after `loadSearchIndex`. */
 export function knownRoot(query: string): string | null {
@@ -38,6 +46,11 @@ export function knownRoot(query: string): string | null {
  * record sequence numbers; they are expanded once, here, and kept.
  */
 export async function loadSearchIndex(): Promise<Map<string, Posting[]>> {
+  if (indexCorpus !== getCorpus()) {
+    indexPromise = null;
+    rootIndex = new Map();
+    indexCorpus = getCorpus();
+  }
   if (!indexPromise) {
     indexPromise = (async () => {
       const index = await loadIndex();
@@ -230,7 +243,7 @@ export async function searchByRoot(
       return {
         seq: p.seq,
         id,
-        number: numberOf.get(id) ?? null,
+        number: numberOf.get(id) ?? ownerNumber(p.seq, order, numberOf),
         kitab: rec.kitab?.titleAr ?? null,
         snippet: parts,
         matched: p.positions.length,
@@ -238,6 +251,28 @@ export async function searchByRoot(
     }),
   );
   return { hits, terms: [key], total: list.length };
+}
+
+/**
+ * The numbered record a sequence position belongs to — itself when numbered,
+ * else the numbered record it sits under (a heading or an addition), the
+ * same walk loadOccurrences uses. A search hit on a bab title used to link
+ * to /read/null.
+ */
+function ownerNumber(
+  seq: number,
+  order: readonly string[],
+  numberOf: Map<string, number>,
+): number | null {
+  for (let s = seq; s >= 1; s--) {
+    const id = order[s - 1];
+    if (id && numberOf.has(id)) return numberOf.get(id)!;
+  }
+  for (let s = seq + 1; s <= order.length; s++) {
+    const id = order[s - 1];
+    if (id && numberOf.has(id)) return numberOf.get(id)!;
+  }
+  return null;
 }
 
 export async function search(
@@ -278,14 +313,13 @@ export async function search(
       return {
         seq,
         id,
-        number: numberOf.get(id) ?? null,
+        number: numberOf.get(id) ?? ownerNumber(seq, order, numberOf),
         kitab: rec.kitab?.titleAr ?? null,
         snippet: buildSnippet(rec.tokens, terms),
         matched: best,
       };
     }),
   );
-  void layerOf;
   return { hits, terms, total: ranked.length };
 }
 

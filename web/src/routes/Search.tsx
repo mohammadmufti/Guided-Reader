@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams, useParams } from "react-router-dom";
 import type { IndexFile } from "@/types/contracts";
-import { loadIndex } from "@/lib/data";
+import { loadIndex, setCorpus } from "@/lib/data";
 import { search, searchByRoot, knownRoot, type Hit, type Mode } from "@/lib/search";
 
 type State =
@@ -21,6 +21,11 @@ export function Search() {
   // The corpus comes from the route, so a link built here points at the
   // book the reader is actually in.
   const { corpus = "tajrid" } = useParams();
+  // AND the data layer must be told, exactly as Reader.tsx tells it. This
+  // page read the route for its back-link and never called setCorpus, so a
+  // direct navigation to /bulugh/search searched whatever book the data
+  // layer last had — al-Tajrid, on a fresh load — under Bulugh's banner.
+  setCorpus(corpus);
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const mode: Mode = params.get("mode") === "root" ? "root" : "form";
@@ -29,10 +34,12 @@ export function Search() {
   const [draft, setDraft] = useState(q);
 
   useEffect(() => {
+    // Re-fetch when the corpus changes: the index carries the record order
+    // the postings' sequence numbers mean anything against.
     loadIndex().then(setIndex, (e: Error) =>
       setState({ kind: "error", message: e.message }),
     );
-  }, []);
+  }, [corpus]);
 
   useEffect(() => {
     setDraft(q);
@@ -146,6 +153,7 @@ export function Search() {
           <Results
             state={state}
             mode={mode}
+            corpus={corpus}
             onRootSearch={() => setParams({ q: draft, mode: "root" }, { replace: true })}
           />
         )}
@@ -157,10 +165,12 @@ export function Search() {
 function Results({
   state,
   mode,
+  corpus,
   onRootSearch,
 }: {
   state: { hits: Hit[]; terms: string[]; total: number; rootAvailable: string | null };
   mode: Mode;
+  corpus: string;
   onRootSearch: () => void;
 }) {
   const offer = state.rootAvailable && (
@@ -205,7 +215,11 @@ function Results({
         {state.hits.map((hit) => (
           <li key={hit.id}>
             <Link
-              to={`/hadith/${hit.number}`}
+              // Into THIS book. `/hadith/N` is the legacy route from when
+              // al-Tajrid was the only text, and it still redirects there —
+              // which meant every result of every book's search opened
+              // al-Tajrid at whatever hadith happened to share the number.
+              to={`/${corpus}/read/${hit.number}`}
               className="block rounded-md border border-transparent px-3 py-3 transition-colors hover:border-(--color-rule) hover:bg-(--color-raised)"
             >
               <div className="mb-1 flex items-baseline gap-3 text-xs text-(--color-ink-muted)">
