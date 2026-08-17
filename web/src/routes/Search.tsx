@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams, useParams } from "react-router-dom";
-import type { IndexFile } from "@/types/contracts";
-import { loadIndex, setCorpus } from "@/lib/data";
-import { search, searchByRoot, knownRoot, type Hit, type Mode } from "@/lib/search";
+import { setCorpus } from "@/lib/data";
+import {
+  searchAll,
+  searchBook,
+  type BookHits,
+  type Mode,
+  type ScopedResult,
+} from "@/lib/search";
+
+export type Scope = "all" | "book";
 
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "done"; hits: Hit[]; terms: string[]; total: number; rootAvailable: string | null }
+  | ({ kind: "done" } & ScopedResult)
   | { kind: "error"; message: string };
 
 /**
@@ -29,42 +36,33 @@ export function Search() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const mode: Mode = params.get("mode") === "root" ? "root" : "form";
-  const [index, setIndex] = useState<IndexFile | null>(null);
+  // ALL BOOKS is the default: a reader searching for a hadith rarely knows
+  // which collection carries it, and finding it in another book is the
+  // answer, not a distraction. `scope=book` narrows to the one they are in.
+  const scope: Scope = params.get("scope") === "book" ? "book" : "all";
   const [state, setState] = useState<State>({ kind: "idle" });
   const [draft, setDraft] = useState(q);
 
   useEffect(() => {
-    // Re-fetch when the corpus changes: the index carries the record order
-    // the postings' sequence numbers mean anything against.
-    loadIndex().then(setIndex, (e: Error) =>
-      setState({ kind: "error", message: e.message }),
-    );
-  }, [corpus]);
-
-  useEffect(() => {
     setDraft(q);
-    if (!index || !q.trim()) {
+    if (!q.trim()) {
       setState({ kind: "idle" });
       return;
     }
     let live = true;
     setState({ kind: "loading" });
-    const run = mode === "root" ? searchByRoot : search;
-    run(q, index).then(
-      (r) =>
-        live &&
-        setState({
-          kind: "done",
-          ...r,
-          // Offer the other mode only when it would actually find something.
-          rootAvailable: mode === "form" ? knownRoot(q) : null,
-        }),
+    const run =
+      scope === "book"
+        ? searchBook(corpus, q, mode)
+        : searchAll(corpus, q, mode);
+    run.then(
+      (r) => live && setState({ kind: "done", ...r }),
       (e: Error) => live && setState({ kind: "error", message: e.message }),
     );
     return () => {
       live = false;
     };
-  }, [q, mode, index]);
+  }, [q, mode, scope, corpus]);
 
   return (
     <main className="mx-auto max-w-4xl px-5 py-8">
@@ -84,6 +82,31 @@ export function Search() {
       {/* Form and root answer different questions: "where does this word
           appear" and "what else comes from this root". Neither is a fallback
           for the other, so both are offered rather than one guessed at. */}
+      {/* Scope: every book, or this one. Both states are honest — the
+          all-books view says per book how much it is not showing. */}
+      <div
+        role="radiogroup"
+        aria-label="نطاق البحث"
+        className="mb-3 me-3 inline-flex rounded-md border border-(--color-rule) p-0.5 text-sm"
+      >
+        {(["all", "book"] as Scope[]).map((sc) => (
+          <button
+            key={sc}
+            type="button"
+            role="radio"
+            aria-checked={scope === sc}
+            onClick={() => setParams({ q, mode, scope: sc }, { replace: true })}
+            className={`rounded px-3 py-1 transition-colors ${
+              scope === sc
+                ? "bg-(--color-rule) text-(--color-ink)"
+                : "text-(--color-ink-muted) hover:text-(--color-ink)"
+            }`}
+            lang="ar"
+          >
+            {sc === "all" ? "كل الكتب" : "هذا الكتاب"}
+          </button>
+        ))}
+      </div>
       <div
         role="radiogroup"
         aria-label="نوع البحث"
@@ -114,7 +137,7 @@ export function Search() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") setParams({ q: draft, mode }, { replace: true });
+            if (e.key === "Enter") setParams({ q: draft, mode, scope }, { replace: true });
           }}
           placeholder="اكتب كلمة أو أكثر — بالحركات أو بدونها"
           aria-label="ابحث في النص"
@@ -124,7 +147,7 @@ export function Search() {
         />
         <button
           type="button"
-          onClick={() => setParams({ q: draft, mode }, { replace: true })}
+          onClick={() => setParams({ q: draft, mode, scope }, { replace: true })}
           className="shrink-0 rounded-md border border-(--color-rule) px-3 py-2.5 text-sm transition-colors hover:bg-(--color-rule)"
           lang="ar"
         >
@@ -153,8 +176,9 @@ export function Search() {
           <Results
             state={state}
             mode={mode}
+            scope={scope}
             corpus={corpus}
-            onRootSearch={() => setParams({ q: draft, mode: "root" }, { replace: true })}
+            onRootSearch={() => setParams({ q: draft, mode: "root", scope }, { replace: true })}
           />
         )}
       </div>
@@ -165,11 +189,13 @@ export function Search() {
 function Results({
   state,
   mode,
+  scope,
   corpus,
   onRootSearch,
 }: {
-  state: { hits: Hit[]; terms: string[]; total: number; rootAvailable: string | null };
+  state: ScopedResult;
   mode: Mode;
+  scope: Scope;
   corpus: string;
   onRootSearch: () => void;
 }) {
@@ -197,7 +223,9 @@ function Results({
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)" lang="ar">
           {mode === "form"
             ? "جرّب كلمة واحدة، أو صيغة أخرى، أو ابحث بالجذر."
-            : "لا جذر بهذا الشكل في هذا الكتاب. الجذور ثلاثية غالبًا، مثل «كتب»."}
+            : scope === "book"
+              ? "لا جذر بهذا الشكل في هذا الكتاب. الجذور ثلاثية غالبًا، مثل «كتب»."
+              : "لا جذر بهذا الشكل في هذه الكتب. الجذور ثلاثية غالبًا، مثل «كتب»."}
         </p>
       </div>
     );
@@ -207,19 +235,50 @@ function Results({
       {offer}
       <p className="mb-4 text-sm text-(--color-ink-muted)" lang="ar">
         {state.total.toLocaleString("ar-EG")} حديثًا
-        {state.hits.length < state.total
-          ? ` — تُعرض أول ${state.hits.length.toLocaleString("ar-EG")}`
+        {scope === "all" && state.books.length > 1
+          ? ` في ${state.books.length.toLocaleString("ar-EG")} كتب`
           : ""}
       </p>
+      {state.books.map((book) => (
+        <BookSection key={book.corpus} book={book} scope={scope} current={corpus} />
+      ))}
+    </>
+  );
+}
+
+function BookSection({
+  book,
+  scope,
+  current,
+}: {
+  book: BookHits;
+  scope: Scope;
+  current: string;
+}) {
+  const [params] = useSearchParams();
+  const q = params.get("q") ?? "";
+  const mode = params.get("mode") ?? "form";
+  return (
+    <section className="mb-7">
+      {/* The book's name heads its results even in single-book scope: a
+          reader landing on a shared link should not have to infer which
+          text they are looking at. */}
+      <h2
+        className="mb-2 flex items-baseline gap-3 border-b border-(--color-rule) pb-1 text-base"
+        lang="ar"
+        dir="rtl"
+      >
+        <span className="arabic">{book.titleAr ?? book.corpus}</span>
+        {book.corpus === current && scope === "all" && (
+          <span className="text-xs text-(--color-ink-muted)">الكتاب الحالي</span>
+        )}
+      </h2>
       <ol className="space-y-1">
-        {state.hits.map((hit) => (
-          <li key={hit.id}>
+        {book.hits.map((hit) => (
+          <li key={`${hit.corpus}-${hit.id}`}>
             <Link
-              // Into THIS book. `/hadith/N` is the legacy route from when
-              // al-Tajrid was the only text, and it still redirects there —
-              // which meant every result of every book's search opened
-              // al-Tajrid at whatever hadith happened to share the number.
-              to={`/${corpus}/read/${hit.number}`}
+              // Into the book the hit lives in — never a default.
+              to={`/${hit.corpus}/read/${hit.number}`}
               className="block rounded-md border border-transparent px-3 py-3 transition-colors hover:border-(--color-rule) hover:bg-(--color-raised)"
             >
               <div className="mb-1 flex items-baseline gap-3 text-xs text-(--color-ink-muted)">
@@ -250,6 +309,20 @@ function Results({
           </li>
         ))}
       </ol>
-    </>
+      {book.hits.length < book.total && (
+        <p className="mt-1 text-sm" lang="ar" dir="rtl">
+          <Link
+            // The rest of this book's results live in its own single-book
+            // scope — which also carries the reader INTO that book's search,
+            // back-link and all.
+            to={`/${book.corpus}/search?q=${encodeURIComponent(q)}&mode=${mode}&scope=book`}
+            className="underline underline-offset-4 hover:text-(--color-accent)"
+          >
+            {(book.total - book.hits.length).toLocaleString("ar-EG")} نتيجة أخرى
+            في هذا الكتاب
+          </Link>
+        </p>
+      )}
+    </section>
   );
 }

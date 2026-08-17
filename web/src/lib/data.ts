@@ -81,6 +81,44 @@ export function invalidateIndex(): void {
   indexPromise = null;
 }
 
+// ---------------------------------------------------------------------------
+// EXPLICIT-CORPUS loaders, for the one consumer that reads several books at
+// once: cross-corpus search. The globals above answer "the book the reader
+// is in" and their caches turn over on setCorpus; these answer "that book,
+// whichever the reader is in", cache per corpus, and never touch the
+// global. Search resolving one book's postings against another book's
+// record order is the bug class this split exists to make impossible.
+// ---------------------------------------------------------------------------
+
+const indexOfCache = new Map<string, Promise<IndexFile>>();
+
+export function loadIndexOf(corpus: string): Promise<IndexFile> {
+  let p = indexOfCache.get(corpus);
+  if (!p) {
+    p = fetch(`${ROOT}/corpora/${corpus}/index.json`, { cache: "no-cache" }).then((r) => {
+      if (!r.ok) throw new Error(`${corpus}/index.json: HTTP ${r.status}`);
+      return r.json() as Promise<IndexFile>;
+    });
+    indexOfCache.set(corpus, p);
+  }
+  return p;
+}
+
+const recordOfCache = new Map<string, Promise<HadithFile>>();
+
+export function loadRecordOf(corpus: string, id: string, buildId: string): Promise<HadithFile> {
+  const key = `${corpus}/${id}`;
+  let p = recordOfCache.get(key);
+  if (!p) {
+    p = fetch(`${ROOT}/corpora/${corpus}/hadith/${id}.json?v=${buildId}`).then((r) => {
+      if (!r.ok) throw new Error(`${key}: HTTP ${r.status}`);
+      return r.json() as Promise<HadithFile>;
+    });
+    recordOfCache.set(key, p);
+  }
+  return p;
+}
+
 const hadithCache = new Map<string, Promise<HadithFile>>();
 
 export function setCorpus(id: string): void {
