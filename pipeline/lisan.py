@@ -61,46 +61,18 @@ OUT = ROOT / "build" / "lisan"
 
 sys.path.insert(0, str(ROOT))
 from corpus import ConfigError, load_config, source_path  # noqa: E402
-from normalise import root_key, root_variants  # noqa: E402
+from normalise import root_key  # noqa: E402
+from dictionaries import (  # noqa: E402
+    audit,
+    dict_root_variants,
+    sentences,
+)
 
-# The final-weak axis, extended for THIS SOURCE ONLY.
-#
-# Ibn Manẓūr files final-weak roots under a bare alif — صلا, not صلو or صلى.
-# 390 of the book's three-letter heads end in ا. `root_variants()` treats the
-# weak axis as ي/ى/و, so without this every final-weak root in every corpus
-# misses its article and the reader is shown a section with nothing in it —
-# the exact failure `normalise.py` documents for Lane's own spellings.
-#
-# Measured: coverage of al-Tajrid's rooted forms rises 89.0% -> 96.5%.
-#
-# WHY NOT JUST ADD ا TO `root_variants()`. Because Lane holds 213 alif-final
-# roots of its own, so widening the shared function would move live Lane
-# resolution and silently re-point entries that are currently correct. A
-# dictionary's filing convention is a property of that dictionary. If Lane
-# should gain the same variant, that is its own change with its own held-out
-# measurement — not a side effect of adding a second book.
-WEAK = ("\u064a", "\u0649", "\u0648", "\u0627")  # ي ى و ا
-
-
-def lisan_root_variants(root: str) -> list[str]:
-    """`root_variants()` plus the bare-alif spelling of a final-weak root."""
-    out = list(root_variants(root))
-    for v in list(out):
-        if v and v[-1] in WEAK:
-            for w in WEAK:
-                cand = v[:-1] + w
-                if cand not in out:
-                    out.append(cand)
-    return out
-
-# Sentence enders. The Arabic comma and semicolon are NOT here: Ibn Manẓūr
-# strings clauses with و and ؛ for pages at a time, and splitting on them
-# produces the same fragments the rejoin exists to repair.
-SENTENCE_END = re.compile(r"(?<=[.؟!])\s+")
-
-# A unit shorter than this is almost always a stranded quotation fragment
-# rather than a sense, and is merged forward into the next one.
-MIN_UNIT_CHARS = 25
+# Kept as a name so `build.py` and the tests need not change when a helper
+# moves. The behaviour is identical and shared: al-Nihaya files final-weak
+# roots under a bare alif too — 338 of its roots — which is what turned a
+# source-specific rule into a shared one.
+lisan_root_variants = dict_root_variants
 
 
 def compile_strip(cfg: dict) -> list[tuple[str, re.Pattern[str]]]:
@@ -154,17 +126,8 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
         if cur is None:
             return
         joined = clean(" ".join(lines))
-        units: list[str] = []
-        for part in SENTENCE_END.split(joined):
-            part = part.strip()
-            if not part:
-                continue
-            # Merge a stranded fragment forward rather than shipping it alone.
-            if units and len(part) < MIN_UNIT_CHARS:
-                units[-1] = f"{units[-1]} {part}"
-                counts["merged_fragments"] += 1
-            else:
-                units.append(part)
+        units = sentences(joined)
+        counts["merged_fragments"] += getattr(sentences, "merged", 0)
         if units:
             key = cur["key"]
             senses = [
@@ -235,33 +198,6 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
 
     close()
     return roots, counts
-
-
-# Anything that survives into a rendered run means the strip config is wrong and
-# everything downstream is built on garbage. ADDENDUM-adding-sources.md calls
-# this "the single most useful signal that a config is right", and it is checked
-# here rather than trusted.
-RESIDUAL = re.compile(r"###|~~|PageV\d|<div|\bms\d{3,}\b|\[\s*ص\s*:")
-
-
-def audit(roots: dict[str, dict]) -> list[str]:
-    problems = []
-    hits = [
-        (r, run["v"][:60])
-        for r, payload in roots.items()
-        for e in payload["entries"]
-        for s in e["senses"]
-        for run in s["runs"]
-        if RESIDUAL.search(run["v"])
-    ]
-    if hits:
-        problems.append(
-            f"{len(hits)} runs carry residual markers, e.g. {hits[0][0]}: {hits[0][1]!r}"
-        )
-    empty = [r for r, p in roots.items() if not p["entries"][0]["senses"]]
-    if empty:
-        problems.append(f"{len(empty)} roots have no senses, e.g. {empty[:3]}")
-    return problems
 
 
 def main() -> int:
