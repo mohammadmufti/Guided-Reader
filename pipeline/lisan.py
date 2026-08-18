@@ -61,7 +61,37 @@ OUT = ROOT / "build" / "lisan"
 
 sys.path.insert(0, str(ROOT))
 from corpus import ConfigError, load_config, source_path  # noqa: E402
-from normalise import root_key  # noqa: E402
+from normalise import root_key, root_variants  # noqa: E402
+
+# The final-weak axis, extended for THIS SOURCE ONLY.
+#
+# Ibn Manẓūr files final-weak roots under a bare alif — صلا, not صلو or صلى.
+# 390 of the book's three-letter heads end in ا. `root_variants()` treats the
+# weak axis as ي/ى/و, so without this every final-weak root in every corpus
+# misses its article and the reader is shown a section with nothing in it —
+# the exact failure `normalise.py` documents for Lane's own spellings.
+#
+# Measured: coverage of al-Tajrid's rooted forms rises 89.0% -> 96.5%.
+#
+# WHY NOT JUST ADD ا TO `root_variants()`. Because Lane holds 213 alif-final
+# roots of its own, so widening the shared function would move live Lane
+# resolution and silently re-point entries that are currently correct. A
+# dictionary's filing convention is a property of that dictionary. If Lane
+# should gain the same variant, that is its own change with its own held-out
+# measurement — not a side effect of adding a second book.
+WEAK = ("\u064a", "\u0649", "\u0648", "\u0627")  # ي ى و ا
+
+
+def lisan_root_variants(root: str) -> list[str]:
+    """`root_variants()` plus the bare-alif spelling of a final-weak root."""
+    out = list(root_variants(root))
+    for v in list(out):
+        if v and v[-1] in WEAK:
+            for w in WEAK:
+                cand = v[:-1] + w
+                if cand not in out:
+                    out.append(cand)
+    return out
 
 # Sentence enders. The Arabic comma and semicolon are NOT here: Ibn Manẓūr
 # strings clauses with و and ؛ for pages at a time, and splitting on them
