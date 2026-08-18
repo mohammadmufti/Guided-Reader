@@ -607,12 +607,19 @@ export interface ShardConfig {
    * whichever text is being read. Null until share.py has run.
    */
   sharedLisan: number | null;
+  /**
+   * Route al-Nihāya ARTICLES by hash(nihaya_root) % this, under data/lexicon/. Null until
+   * share.py has run.
+   */
+  sharedNihaya: number | null;
   /** Route by hash(lane_root) % this. */
   classical: number;
   /** Route by hash(lane_root) % this. */
   lane: number;
   /** Route by hash(lisan_root) % this. */
   lisan: number;
+  /** Route by hash(nihaya_root) % this. */
+  nihaya: number;
   /** Hash name. 'fnv1a-32' — 32-bit FNV-1a over UTF-8 bytes. */
   hash: string;
   /** Per-shard brotli budget the counts were derived from. */
@@ -809,6 +816,14 @@ export interface PanelEntry {
   lane_root: string | null;
   /** Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root. */
   laneEntry: string | null;
+  /**
+   * Root of Ibn al-Athīr's al-Nihāya article, or null. NOT an attestation flag: the root-level
+   * signal fires on 84% of rooted forms and is flat across every frequency band, so it says
+   * almost nothing about whether a word is gharīb. It opens a section, and the copy must say
+   * 'Ibn al-Athīr's article on this root' rather than 'this word is gharīb'. Null for
+   * closed-class words.
+   */
+  nihaya_root: string | null;
   /**
    * Root of the Lisān al-ʿArab article, or null. There is NO entry-id companion: Ibn Manẓūr
    * writes one article per root, so a word reaches its root's article or nothing, and the panel

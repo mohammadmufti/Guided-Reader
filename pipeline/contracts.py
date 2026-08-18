@@ -649,9 +649,14 @@ class ShardConfig(TypedDict):
         "Shared: the same book whichever text is being read. Null until "
         "share.py has run."
     )]
+    sharedNihaya: Annotated[int | None, Doc(
+        "Route al-Nihāya ARTICLES by hash(nihaya_root) % this, under "
+        "data/lexicon/. Null until share.py has run."
+    )]
     classical: Annotated[int, Doc("Route by hash(lane_root) % this.")]
     lane: Annotated[int, Doc("Route by hash(lane_root) % this.")]
     lisan: Annotated[int, Doc("Route by hash(lisan_root) % this.")]
+    nihaya: Annotated[int, Doc("Route by hash(nihaya_root) % this.")]
     hash: Annotated[str, Doc("Hash name. 'fnv1a-32' — 32-bit FNV-1a over UTF-8 bytes.")]
     budgetBytes: Annotated[int, Doc("Per-shard brotli budget the counts were derived from.")]
 
@@ -880,6 +885,17 @@ class PanelEntry(TypedDict):
     laneEntry: Annotated[
         str | None,
         Doc("Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root."),
+    ]
+    nihaya_root: Annotated[
+        str | None,
+        Doc(
+            "Root of Ibn al-Athīr's al-Nihāya article, or null. NOT an "
+            "attestation flag: the root-level signal fires on 84% of rooted "
+            "forms and is flat across every frequency band, so it says almost "
+            "nothing about whether a word is gharīb. It opens a section, and "
+            "the copy must say 'Ibn al-Athīr's article on this root' rather "
+            "than 'this word is gharīb'. Null for closed-class words."
+        ),
     ]
     lisan_root: Annotated[
         str | None,

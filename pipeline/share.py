@@ -209,11 +209,14 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
     # build.py refused it. 7.6% of al-Tajrid's tokens measure this.
     scrubbed_lisan = 0
     for e in entries.values():
-        if e.get("pos") in CLOSED_CLASS_POS and e.get("lisan_root"):
+        if e.get("pos") in CLOSED_CLASS_POS and (
+            e.get("lisan_root") or e.get("nihaya_root")
+        ):
             e["lisan_root"] = None
+            e["nihaya_root"] = None
             scrubbed_lisan += 1
     if scrubbed_lisan:
-        print(f"  scrubbed {scrubbed_lisan} closed-class Lisān links "
+        print(f"  scrubbed {scrubbed_lisan} closed-class Arabic-dictionary links "
               f"from the merged view")
     return entries, seen_in, conflicts
 
@@ -293,7 +296,7 @@ def main() -> int:
     # because the merge that uses them happens after.
     carried = {
         stem: collect_named(corpora, stem, None if args.rebuild else out)
-        for stem in ("classical", "lane", "lisan")
+        for stem in ("classical", "lane", "lisan", "nihaya")
     }
     if out.exists():
         shutil.rmtree(out)

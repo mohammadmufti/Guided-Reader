@@ -1,0 +1,109 @@
+# A corpus-INDEPENDENT lexical source, fetched as a corpus. See lane.yaml and
+# lisan.yaml — same arrangement, same reason.
+#
+# WHY THIS BOOK, AND WHY IT IS A SECTION RATHER THAN A BADGE.
+#
+# Ibn al-Athir wrote a dictionary of the DIFFICULT words in hadith, which makes
+# it the most specific classical apparatus there is for four hadith corpora.
+# The feature was originally specified as a flag — "if a word occurs here, say
+# so" — and that was measured and abandoned. At root level the flag fires on
+# 84.0% of al-Tajrid's rooted forms; at form level 53.1%; excluding the hadith
+# quotations Ibn al-Athir cites, 43.9%. Under every variant the top hits are
+# qala, al-nabiyy, rasul, qultu, sami'tu — the citation formulae of the genre,
+# not gharib words. And it does not discriminate in any frequency band: 74.7%
+# at hapax, 78.4% above 100 occurrences, flat throughout.
+#
+# The cause is structural: gharib dictionaries are organised by root, and roots
+# are shared. A badge that fires on half the corpus carries no information, and
+# on a product built on calibrated confidence that is worse than no badge.
+#
+# What the book DOES have is Ibn al-Athir's own attribution sigla on 40.3% of
+# its units — (ه) for al-Harawi's *Gharibayn*, (س) for Abu Musa al-Madini's
+# supplement to it, unmarked for Ibn al-Athir himself. That is provenance of
+# exactly the kind lane.py already preserves through Lane's SIGLA, and it is
+# the honest thing to show.
+id: nihaya
+
+# Apparatus, not a text to read. See corpus.is_lexical_source.
+role: lexical_source
+
+display:
+  titleAr: "النهاية في غريب الحديث والأثر"
+  titleEn: "al-Nihāya fī Gharīb al-Ḥadīth wa-l-Athar"
+  author: "al-Mubārak b. Muḥammad, Majd al-Dīn Ibn al-Athīr al-Jazarī"
+  authorDied: "606 AH / 1210 CE"
+  edition: "OpenITI Shamela0023691-ara1"
+  # DELIBERATELY THINNER THAN LISAN'S, and the difference is real. Lisan's
+  # OpenITI version metadata records its annotator, its printed base (OCLC
+  # 173667495), that it was collated against the first edition and that the
+  # pagination matches. This one's is an UNFILLED TEMPLATE: the annotator field
+  # still reads "the name of the annotator", the date "YYYY-MM-DD", the source
+  # "permalink, permalink, permalink". There is no recorded printed edition, so
+  # there is no edition to cite and the page numbers below are internal to this
+  # digitisation rather than checkable against a book. The panel says so.
+  rights: "text public-domain; digitisation Shamela via OpenITI (see NOTICE.md)"
+  provenance: unattested_edition
+
+sources:
+  text:
+    kind: http
+    uri: https://raw.githubusercontent.com/OpenITI/0625AH/master/data/0606IbnAthirMajdDin/0606IbnAthirMajdDin.NihayaFiGharib/0606IbnAthirMajdDin.NihayaFiGharib.Shamela0023691-ara1
+    filename: nihaya.txt
+    encoding: utf-8
+
+# Read by nihaya.py, not segment.py.
+segmentation:
+  # Entry heads are the root in parentheses: `### | (صلا)`. Structural headings
+  # share the `### |` marker — باب الهمزة مع الباء, حرف الهمزة — but contain
+  # spaces, so the no-space class inside the parentheses separates them without
+  # a keyword list. The `struct` pattern below is belt and braces for the few
+  # that ARE parenthesised, e.g. `(باب الهمزة مع الدال)`.
+  #
+  # STRIPPING HAPPENS BEFORE MATCHING. 57 heads carry a trailing manuscript
+  # marker — `### | (أجر) ms0022` — and would not match otherwise. Those 57
+  # are 15 roots the strict pattern silently dropped.
+  entry: '^\(([^\s()]{2,7})\)[.\s]*$'
+  struct: '^\(?\s*(باب|حرف|فصل|مقدمة|كتاب)\b'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  # ORDER MATTERS, as everywhere: manuscript markers nest inside the tags.
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    # One stray, unpaired `</span>` survives in this conversion. Left in, it
+    # would reach a run and trip the residual-marker audit.
+    - name: html_span
+      pattern: '</?span[^>]*>'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+    - name: bracket_page
+      pattern: '\[\s*ص\s*:\s*\d+\s*\]'
+    - name: footnote_ref
+      pattern: '«\d+»'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+
+# Ibn al-Athir's attribution sigla, opening a unit. Both bracket styles occur —
+# (ه) 5,274 times, [ه] 815, (س) 4,237, [س] twice — and they mean the same thing,
+# so both are matched and normalised to the parenthesised form for display.
+sigla:
+  # DELIBERATELY UNANCHORED. The sigla open a `#` line in the source, so an
+  # anchored `^...` pattern looks right — and matches nothing, because the
+  # article is rejoined into continuous prose before the scan (see
+  # dictionaries.sentences for why the rejoin is necessary). Anchored, this
+  # found 0 of 10,467 sigla and the labels silently vanished.
+  pattern: '([\(\[]\s*[هس]\s*[\)\]])+'
+  meanings:
+    "ه": "al-Harawī, Gharībay al-Qurʾān wa-l-Ḥadīth"
+    "س": "Abū Mūsā al-Madīnī, his supplement to al-Harawī"
+
+# Every figure nihaya.py asserts against. Measured 2026-08 at the pinned
+# checksum; change one only with a measurement in hand.
+expected:
+  entry_heads: 4295        # parenthesised root headings
+  unique_roots: 4238
+  # Share of SENTENCE units carrying an attribution. Not the same denominator
+  # as the 40.3% measured over raw `#` lines: a siglum labels the first
+  # sentence of its item, and items run to several sentences.
+  min_siglum_share: 0.34

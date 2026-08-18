@@ -45,6 +45,7 @@ const statsShards = new Map<number, Promise<Record<string, CorpusStats>>>();
 const classicalShards = new Map<number, Promise<Record<string, ClassicalEntry>>>();
 const laneShards = new Map<number, Promise<Record<string, LaneRoot>>>();
 const lisanShards = new Map<number, Promise<Record<string, DictRoot>>>();
+const nihayaShards = new Map<number, Promise<Record<string, DictRoot>>>();
 
 function fetchJson<T>(url: string): Promise<T> {
   return fetch(url).then((r) => {
@@ -70,6 +71,8 @@ export interface PanelData {
    * say "the article on the root" and never "this word's own entry".
    */
   lisan: DictRoot | null;
+  /** Ibn al-Athir's gharib article on this root, or null. Same shape, same rule. */
+  nihaya: DictRoot | null;
 }
 
 /**
@@ -158,6 +161,7 @@ async function loadPanelOnce(
   // below would have silently dropped exactly the words the second dictionary
   // was added to serve.
   const lisanPromise = entry.lisan_root ? loadLisan(entry.lisan_root, index) : null;
+  const nihayaPromise = entry.nihaya_root ? loadNihaya(entry.nihaya_root, index) : null;
 
   if (!entry.lane_root) {
     return {
@@ -167,6 +171,7 @@ async function loadPanelOnce(
       lane: null,
       laneEntry: null,
       lisan: lisanPromise ? await lisanPromise : null,
+      nihaya: nihayaPromise ? await nihayaPromise : null,
     };
   }
 
@@ -194,10 +199,11 @@ async function loadPanelOnce(
   }
   // All three in flight together. Serialising the third costs the measured
   // 100 ms first-panel budget for no benefit — it depends on nothing here.
-  const [classicalMap, laneMap, lisan] = await Promise.all([
+  const [classicalMap, laneMap, lisan, nihaya] = await Promise.all([
     cShard,
     lShard,
     lisanPromise ?? Promise.resolve(null),
+    nihayaPromise ?? Promise.resolve(null),
   ]);
   const lane = laneMap[entry.lane_root] ?? null;
   const laneEntry =
@@ -209,20 +215,34 @@ async function loadPanelOnce(
     lane,
     laneEntry,
     lisan,
+    nihaya,
   };
 }
 
-/** One Lisan shard, cached for the session like the others. */
-function loadLisan(root: string, index: IndexFile): Promise<DictRoot | null> {
-  const n = index.shards.sharedLisan ?? index.shards.lisan;
+/** One shard of a shared Arabic dictionary, cached for the session. */
+function loadDict(
+  stem: string,
+  cache: Map<number, Promise<Record<string, DictRoot>>>,
+  n: number | null | undefined,
+  root: string,
+  index: IndexFile,
+): Promise<DictRoot | null> {
   if (!n) return Promise.resolve(null);
   const i = fnv1a(root) % n;
-  let shard = lisanShards.get(i);
+  let shard = cache.get(i);
   if (!shard) {
     shard = fetchJson<Record<string, DictRoot>>(
-      `${dataRoot()}/lexicon/lisan-${pad(i)}.json${lexVer(index)}`,
+      `${dataRoot()}/lexicon/${stem}-${pad(i)}.json${lexVer(index)}`,
     );
-    lisanShards.set(i, shard);
+    cache.set(i, shard);
   }
   return shard.then((m) => m[root] ?? null);
+}
+
+function loadLisan(root: string, index: IndexFile): Promise<DictRoot | null> {
+  return loadDict("lisan", lisanShards, index.shards.sharedLisan ?? index.shards.lisan, root, index);
+}
+
+function loadNihaya(root: string, index: IndexFile): Promise<DictRoot | null> {
+  return loadDict("nihaya", nihayaShards, index.shards.sharedNihaya ?? index.shards.nihaya, root, index);
 }

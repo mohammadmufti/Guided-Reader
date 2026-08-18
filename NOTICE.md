@@ -62,6 +62,33 @@ project ingests and restructures 47,919 of its entries. A derived database is
 the case where the GPL plausibly does reach the data, which is a second and
 independent reason this repository is GPL-3.0.
 
+**Lisān al-ʿArab** — the text is public domain: Ibn Manẓūr died in 711/1311.
+The digitisation is Shamela's, distributed through OpenITI
+(`0711IbnManzurIfriqi.LisanCarab.Shamela0001687-ara1`), and this project
+ingests 9,152 of its entries into 8,973 root articles. The OpenITI version
+metadata is complete and worth recording: annotated by SP Loynes, based on and
+collated against OCLC 173667495 (Beirut: Dār Ṣādir), with pagination confirmed
+identical to the first edition and the version marked `PRIMARY_VERSION`. The
+volume and page shipped with each article are therefore citable against a
+printed book. The `### $` entry markup this ingest joins on is deliberate
+human annotation — the reviewer's note records tagging the second-level
+headers "and all the entries" — not an artefact of conversion.
+
+**al-Nihāya fī Gharīb al-Ḥadīth wa-l-Athar** — the text is public domain: Ibn
+al-Athīr al-Jazarī died in 606/1210. The digitisation is Shamela's through
+OpenITI (`0606IbnAthirMajdDin.NihayaFiGharib.Shamela0023691-ara1`), and 4,295
+entries are ingested into 4,238 root articles. **Its provenance is materially
+thinner than Lisān's, and the difference is recorded rather than smoothed
+over:** that version's OpenITI metadata is an unfilled template — the annotator
+field still reads "the name of the annotator", the date "YYYY-MM-DD", the base
+"permalink, permalink, permalink". There is no recorded printed edition, so
+there is nothing to cite the pagination to. The word panel says so, and the
+config carries `provenance: unattested_edition` so nothing downstream can
+quietly treat it as equivalent.
+
+Neither text is redistributed whole. Both are filtered at build time to the
+roots the corpora actually use, and `pipeline/cache/` is not committed.
+
 **Ṣaḥīḥ al-Bukhārī, diacritised** — `abdelrahmaan/Hadith-Data-Sets`, which
 states no licence. It is used **only as an alignment reference**, to transfer
 vowelling onto words this project already holds. No Bukhārī text is
@@ -115,3 +142,5 @@ Lane; three of those four are GPL, which is consistent with everything above.
 - sunnah.com, from which all three of those datasets were scraped
 - the `laneslexicon` project, for a digitisation that would otherwise have taken
   years
+- SP Loynes and the OpenITI annotators, whose hand-tagged dictionary entries in
+  Lisān al-ʿArab are what make it joinable to a root at all

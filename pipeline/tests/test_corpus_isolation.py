@@ -273,7 +273,7 @@ def test_corpus_independent_reference_data_is_shared():
     # Every shared dictionary set, not a fixed pair: a new source that is
     # collected per corpus but never merged reproduces the original defect
     # for itself, one book at a time.
-    assert '"classical", "lane", "lisan"' in src
+    assert '"classical", "lane", "lisan", "nihaya"' in src
 
 
 def test_derived_lexicon_keeps_every_enriched_field():
@@ -862,7 +862,7 @@ def test_corpus_independent_reference_data_is_shared():
     # Every shared dictionary set, not a fixed pair: a new source that is
     # collected per corpus but never merged reproduces the original defect
     # for itself, one book at a time.
-    assert '"classical", "lane", "lisan"' in src
+    assert '"classical", "lane", "lisan", "nihaya"' in src
 
 
 def test_derived_lexicon_keeps_every_enriched_field():

@@ -116,6 +116,9 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       {/* Below Lane: English first is the panel's existing "most useful
           first" ordering, and most readers here reach for it first. */}
       <Lisan lisan={data.lisan} />
+      {/* Last of the three: the most specialised, and the one a reader is
+          least often looking for. */}
+      <Nihaya nihaya={data.nihaya} />
       <Divergence entry={entry} />
       <InThisCorpus stats={data.stats} index={index} record={record} token={token} />
       <ProperNoun entry={entry} />
@@ -752,6 +755,129 @@ function Lisan({ lisan }: { lisan: DictRoot | null }) {
         the divisions are the edition's sentences, not numbered senses, because
         he wrote none. This text carries no harakat: every digital copy of it is
         unvowelled, and we would rather show you that than guess.
+      </p>
+    </Section>
+  );
+}
+
+/* --------------------------------------- 4c. al-Nihaya fi Gharib al-Hadith  */
+
+/** Ibn al-Athir's attribution sigla, expanded in the footnote. */
+const NIHAYA_SIGLA: Record<string, string> = {
+  "(ه)": "al-Harawī",
+  "(س)": "Abū Mūsā al-Madīnī",
+};
+
+/**
+ * Ibn al-Athir on the difficult words of hadith.
+ *
+ * DELIBERATELY NOT A BADGE, though it was specified as one. "This root has a
+ * gharib article" fires on 84% of al-Tajrid's rooted forms and is flat across
+ * every frequency band -- 74.7% at hapax, 78.4% above a hundred occurrences.
+ * At form level it is 53%, and the top hits under every variant are qala,
+ * al-nabiyy, rasul: the citation formulae of the genre, not gharib words. A
+ * flag that fires on half the corpus tells a reader nothing, and this panel's
+ * whole value is that its claims are calibrated. So it opens a section, and
+ * the copy never says "this word is gharib".
+ *
+ * What it DOES carry that the other two do not is Ibn al-Athir's attribution
+ * on 34.6% of its units: (ه) for al-Harawi's Gharibayn, (س) for Abu Musa
+ * al-Madini's supplement, unmarked for Ibn al-Athir himself. Those are shown
+ * as labels, the way Lane's bracketed sigla already are.
+ */
+function Nihaya({ nihaya }: { nihaya: DictRoot | null }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  if (!nihaya) return null;
+
+  const senses = nihaya.entries[0]?.senses ?? [];
+  if (senses.length === 0) return null;
+
+  let budget = LISAN_PREVIEW_CHARS;
+  const preview = senses.filter((sense) => {
+    if (budget <= 0) return false;
+    budget -= sense.runs.reduce((n, r) => n + r.v.length, 0);
+    return true;
+  });
+  const visible = expanded ? senses : preview;
+
+  return (
+    <Section subtitle="al-Nihāya fī Gharīb al-Ḥadīth" testId="nihaya">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mb-2 flex w-full items-baseline gap-2 text-start"
+      >
+        <span
+          className="text-(--color-ink-muted) transition-transform"
+          aria-hidden="true"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ›
+        </span>
+        <span className="arabic text-xl" lang="ar" dir="rtl">
+          {nihaya.root}
+        </span>
+        {/* No page citation, unlike the other two. This digitisation records
+            no printed edition -- its OpenITI metadata is an unfilled template
+            -- so its page numbers are internal to the file and check against
+            nothing. Showing them would imply a citation a reader cannot use. */}
+        <span
+          className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
+          dir="ltr"
+        >
+          Ibn al-Athīr's article on this root
+        </span>
+      </button>
+
+      <div
+        className={`mb-1 select-text arabic text-lg ${open ? "" : "hidden"}`}
+        lang="ar"
+        dir="rtl"
+      >
+        {nihaya.root}
+      </div>
+
+      <div className={`space-y-2 ${open ? "" : "hidden"}`} lang="ar" dir="rtl">
+        {visible.map((sense, i) => (
+          <p key={i} className="panel-scaled arabic leading-loose">
+            {sense.label && (
+              <span
+                className="ms-1.5 rounded bg-(--color-rule) px-1 text-[0.65rem] text-(--color-ink-muted)"
+                title={NIHAYA_SIGLA[sense.label] ?? undefined}
+              >
+                {sense.label}
+              </span>
+            )}
+            {sense.runs.map((run, j) => (
+              <Run key={j} run={run} />
+            ))}
+          </p>
+        ))}
+      </div>
+
+      {open && senses.length > preview.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+          className="mt-2 text-xs text-(--color-ink-muted) underline underline-offset-2"
+          dir="ltr"
+        >
+          {expanded ? "Show less" : `Show the whole article (${senses.length} sentences)`}
+        </button>
+      )}
+
+      <p className="mt-3 text-[0.65rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+        Ibn al-Athīr (d. 606/1210) on words he judged difficult in hadith — so an
+        article here means the root drew comment, not that this word is rare.
+        Bracketed letters are his sources:{" "}
+        {Object.entries(NIHAYA_SIGLA)
+          .map(([k, v]) => `${k} = ${v}`)
+          .join(", ")}
+        ; unmarked is his own. Unvocalised, and from a digitisation that records
+        no printed edition, so it cannot be cited to a page.
       </p>
     </Section>
   );

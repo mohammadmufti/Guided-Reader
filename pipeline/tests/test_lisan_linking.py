@@ -108,7 +108,12 @@ def test_shard_set_is_wired_everywhere():
     assert "missing_lisan" in build, "no orphan check for lisan_root"
     assert '"lisan": lisan_shards_n' in build, "shard count is not in the index"
     lex = (PIPELINE.parent / "web" / "src" / "lib" / "lexicon.ts").read_text(encoding="utf-8")
-    assert "sharedLisan" in lex and "lisan-" in lex
+    # The URL stem is a parameter now that a third dictionary shares the
+    # loader, so assert on the call rather than on a literal path fragment —
+    # the earlier version of this test failed on the refactor, which is the
+    # test working, but it was checking spelling rather than behaviour.
+    assert "sharedLisan" in lex
+    assert 'loadDict("lisan"' in lex
 
 
 def test_lisan_is_fetched_independently_of_lane_root():

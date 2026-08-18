@@ -48,7 +48,7 @@ from gloss import parse_gloss, says_the_same
 from morphology import Recoverer
 from normalise import dediac, normalise, root_variants, root_key, voc_key
 import lane_links
-from lisan import lisan_root_variants
+from dictionaries import dict_root_variants
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -837,6 +837,14 @@ def main() -> int:
     else:
         print("  (no Lisān build found — run pipeline/lisan.py; no Arabic dictionary section)")
 
+    # Ibn al-Athīr's gharīb dictionary. Optional in the same way.
+    nihaya_path = BUILD / "nihaya" / "entries.json"
+    nihaya: dict = {}
+    if nihaya_path.exists():
+        nihaya = json.loads(nihaya_path.read_text(encoding="utf-8"))
+    else:
+        print("  (no Nihāya build found — run pipeline/nihaya.py; no gharīb section)")
+
     # Index every Lane entry by root and headword — in TWO tiers, because the
     # fully-folded key collides where it must not: normalise() maps tāʾ
     # marbūṭa and hāʾ to the same letter, so هِجْرَة (emigration) and
@@ -926,6 +934,7 @@ def main() -> int:
     # ship-only-what-this-corpus-uses filter, exactly as `used_roots` does
     # for Lane: the book is ingested once, whole, and shared.
     lisan_seen: set[str] = set()
+    nihaya_seen: set[str] = set()
 
     # How often THIS pipeline bound each entry, which is not the same as the
     # workbook's `freq`. We agree with its binding on 96% of tokens and differ
@@ -1289,13 +1298,29 @@ def main() -> int:
             for cand in _cands if not _ov_hit else [lr]:
                 if not cand:
                     continue
-                hit = next((v for v in lisan_root_variants(cand) if v in lisan), None)
+                hit = next((v for v in dict_root_variants(cand) if v in lisan), None)
                 if hit:
                     lisan_root = hit
                     break
         trimmed["lisan_root"] = lisan_root
         if lisan_root:
             lisan_seen.add(lisan_root)
+
+        # al-Nihāya, on identical terms. Same ladder, same alif variant, same
+        # closed-class prohibition — it files roots the same way and has the
+        # same one-article-per-root shape, so nothing here is a special case.
+        nihaya_root = None
+        if nihaya and _pos not in CLOSED_CLASS_POS:
+            for cand in _cands if not _ov_hit else [lr]:
+                if not cand:
+                    continue
+                hit = next((v for v in dict_root_variants(cand) if v in nihaya), None)
+                if hit:
+                    nihaya_root = hit
+                    break
+        trimmed["nihaya_root"] = nihaya_root
+        if nihaya_root:
+            nihaya_seen.add(nihaya_root)
 
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
@@ -1433,10 +1458,33 @@ def main() -> int:
         write(CORPUS_DATA / "lex" / f"lisan-{i:03d}.json", s) for i, s in enumerate(lisan_shards)
     ]
 
+    # al-Nihāya. A quarter of Lisān's size — it is a selective dictionary of
+    # difficult words, not a comprehensive one, which is the whole reason it is
+    # worth showing separately.
+    nihaya_payload = {
+        root: {
+            "root": root,
+            "page": nihaya[root].get("page"),
+            "vol": nihaya[root].get("vol"),
+            "entries": nihaya[root].get("entries", []),
+        }
+        for root in sorted(nihaya_seen)
+        if root in nihaya
+    }
+    nihaya_shards_n = shard_count(nihaya_payload, lambda k: k) if nihaya_payload else 1
+    nihaya_shards: list[dict] = [{} for _ in range(nihaya_shards_n)]
+    for root, payload in nihaya_payload.items():
+        nihaya_shards[fnv1a(root) % nihaya_shards_n][root] = payload
+    sizes["lex/nihaya-*.json"] = [
+        write(CORPUS_DATA / "lex" / f"nihaya-{i:03d}.json", s)
+        for i, s in enumerate(nihaya_shards)
+    ]
+
     # ---- index, written last because it records the shard counts ------------
     index = build_index(records["records"], records["corpus"], lexicon, bid,
                         {"surface": surface_n, "classical": classical_n,
                          "lane": lane_shards_n, "lisan": lisan_shards_n,
+                         "nihaya": nihaya_shards_n,
                          "hash": "fnv1a-32",
                          "budgetBytes": SHARD_BUDGET_BYTES},
                         binding_tally)
@@ -1575,14 +1623,23 @@ def main() -> int:
                 missing_lisan += 1
     if missing_lisan:
         problems.append(f"{missing_lisan} lisan_root references do not resolve")
+    missing_nihaya = 0
+    for shard in surface_shards:
+        for e in shard.values():
+            nr = e.get("nihaya_root")
+            if nr and nr not in nihaya_shards[fnv1a(nr) % nihaya_shards_n]:
+                missing_nihaya += 1
+    if missing_nihaya:
+        problems.append(f"{missing_nihaya} nihaya_root references do not resolve")
     # The rule that cost 7.6% of the corpus in wrong articles when absent.
     closed_linked = sum(
         1 for shard in surface_shards for e in shard.values()
-        if e.get("lisan_root") and (e.get("pos") or "") in CLOSED_CLASS_POS
+        if (e.get("lisan_root") or e.get("nihaya_root"))
+        and (e.get("pos") or "") in CLOSED_CLASS_POS
     )
     if closed_linked:
         problems.append(
-            f"{closed_linked} closed-class entries carry a lisan_root — "
+            f"{closed_linked} closed-class entries carry a dictionary root — "
             "the article would be about a root the word does not belong to"
         )
 
@@ -1639,6 +1696,7 @@ def main() -> int:
     L.append(f"  lane_root references resolving {'all' if not missing_lr else missing_lr}")
     L.append(f"  laneEntry references resolving {'all' if not missing_node else missing_node}")
     L.append(f"  lisan_root references resolving {'all' if not missing_lisan else missing_lisan}")
+    L.append(f"  nihaya_root references resolving {'all' if not missing_nihaya else missing_nihaya}")
     L.append("")
     L.append("  **" + ("PASS — no orphans, every reference resolves" if not problems
                        else "FAIL: " + "; ".join(problems)) + "**")
