@@ -71,9 +71,19 @@ def compatible(form: str, voc_lemma: str) -> bool:
     form's (prefixes like \u0648\u064e/\u0627\u0644\u0652 and suffixes sit outside it), and on the
     shared letters every mark BOTH sides wrote must agree — a mark only one
     side wrote is not evidence either way, since neither source vocalises
-    exhaustively. Shadda is compared strictly; the final shared letter's
-    short vowels are ignored, because there the candidate carries a citation
-    case and the form a contextual one.
+    exhaustively. The final shared letter's short vowels are ignored,
+    because there the candidate carries a citation case and the form a
+    contextual one.
+
+    Shadda is compared strictly ONLY where the form vocalised the letter at
+    all. The first draft compared it unconditionally, which quietly broke
+    the function's own principle on every bare word: صلى with no marks —
+    the taslya formula, whose witness happens not to vowel it — REJECTED
+    the reading صَلَّى for its shadda and accepted صَلَى by elimination,
+    and the reader was told the Prophet's formula means "roast". A letter
+    the form wrote marks on and no shadda is still evidence against a
+    shadda'd candidate (بْنِ keeps rejecting the coffee bean بُنٌّ); a
+    letter the form left bare is not evidence of anything.
 
     Module-level because the CAMeL bake-off harness applies the SAME test to
     a different candidate source; one implementation, one behaviour.
@@ -91,7 +101,8 @@ def compatible(form: str, voc_lemma: str) -> bool:
         for j in range(m):
             mf = set(gf[off + j][1])
             ml = set(gl[j][1])
-            if ("\u0651" in mf) != ("\u0651" in ml):  # shadda differs
+            if ("\u0651" in mf) != ("\u0651" in ml) and mf:
+                # shadda differs, and the form vocalised this letter
                 ok = False
                 break
             if j == m - 1:
@@ -245,8 +256,19 @@ def build_camel():
             analyses = az.analyze(dediac_ar(form))
         except Exception:
             return []
-        keep = [a for a in analyses if compatible(form, a.get("diac", ""))] \
-            or analyses
+        keep_strict = [a for a in analyses
+                       if compatible(form, a.get("diac", ""))]
+        # ROOTS may fall back to the full set when nothing is compatible —
+        # the DB's marking conventions must not veto a correct root, and
+        # root recovery tolerates a wrong sibling in the count. The LEMMA
+        # and GLOSS may NOT: they name one reading, and naming the reading
+        # the written harakat contradict is how بْنِ — sukun on the ب —
+        # was glossed "coffee beans" (بُنٌّ, damma): every analysis failed
+        # the diacritic test, the old fallback resurrected all of them,
+        # and the best-supported lemma of the wrong set won. No lemma and
+        # no gloss is the honest output there; the donor gloss and the
+        # bare lemma still say "son".
+        keep = keep_strict or analyses
         # Count analyses per recovered root: when several roots survive, the
         # one more analyses support leads. NOT sorted() — this project has
         # already shipped one alphabet-as-tiebreak and will not ship another.
@@ -262,7 +284,7 @@ def build_camel():
         # clitic and case tag — `with;by_+_the+concealment;silence+[def.gen.]`
         # where the word means "concealment". The stem gloss is the word.
         gloss_for: dict[str, str] = {}
-        for a in keep:
+        for a in keep_strict:
             _lex = a.get("lex")
             if _lex and _lex not in ("NOAN", "NTWS"):
                 lex_support[str(_lex)] = lex_support.get(str(_lex), 0) + 1
