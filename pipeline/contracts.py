@@ -961,56 +961,73 @@ class PanelEntry(TypedDict):
     ]
 
 
-class LaneRun(TypedDict):
-    """One inline run of a Lane sense: plain text, Arabic, italic, or a ref."""
+class DictRun(TypedDict):
+    """
+    One inline run of a dictionary sense: plain text, Arabic, italic, or a ref.
+
+    Inline content is flattened to runs rather than shipped as markup, so the
+    client renders it without an HTML parser and no source can inject markup.
+    That is a security boundary, not a convenience — every dictionary ingested
+    into this store must flatten to these same runs.
+    """
 
     t: Annotated[str, Doc('"t" text · "ar" Arabic · "i" italic · "ref" cross-reference · "q" quote · "trop" figurative')]
     v: str
 
 
-class LaneSense(TypedDict):
+class DictSense(TypedDict):
     """
-    One sense of a Lane entry.
+    One sense of a dictionary entry.
 
-    `label` follows Lane's own two-level scheme — `A2` is a major division,
-    `b3` a sub-sense — and `null` marks the entry's opening material, which
-    carries the morphology and usually the primary signification.
+    `label` and `level` carry the SOURCE'S OWN divisions and nothing invented.
+    Lane's scheme is two-level — `A2` is a major division, `b3` a sub-sense —
+    and `null` marks an entry's opening material, which carries the morphology
+    and usually the primary signification. A source with no sense structure of
+    its own must leave `label` null and say `level: "sentence"`; numbering
+    divisions the author did not write is the sampling error this project
+    already paid for once.
     """
 
     label: str | None
-    level: Annotated[str, Doc("primary | major | sub")]
-    runs: list[LaneRun]
+    level: Annotated[str, Doc("primary | major | sub | sentence")]
+    runs: list[DictRun]
 
 
-class LaneEntry(TypedDict):
+class DictEntry(TypedDict):
     """One headword entry under a root, e.g. صَلَاةٌ under صلو."""
 
-    nodeid: Annotated[str, Doc("Stable Lane node id, e.g. n24821.")]
+    nodeid: Annotated[
+        str,
+        Doc(
+            "Stable per-entry id, e.g. Lane's n24821. A source with one article "
+            "per root and no per-headword entries uses the root itself."
+        ),
+    ]
     headword: str
     itypes: list[str] | None
-    senses: list[LaneSense]
+    senses: list[DictSense]
 
 
-class LaneRoot(TypedDict):
+class DictRoot(TypedDict):
     """
-    Every Lane entry under one root, in a lane shard.
+    Every entry one dictionary holds under one root, in that source's shard.
 
-    This replaces v1's single sampled sense. The mean root here holds 15.8
+    This replaces v1's single sampled sense. The mean Lane root holds 15.8
     entries and 36 senses; v1 showed one sense, chosen mechanically, and for
     صلو that sense was "the middle of the back of a human being" — which is
     real, and is sense A2 of the صَلَاةٌ entry, not its definition.
     """
 
     root: str
-    page: int | None
-    entries: list[LaneEntry]
+    page: Annotated[int | None, Doc("Page in the source's own printed edition.")]
+    entries: list[DictEntry]
 
 
 class ClassicalEntry(TypedDict):
     """
     Root-level summary in a classical shard: the keyword cluster and counts.
 
-    The sampled sense that used to live here is gone — see LaneRoot.
+    The sampled sense that used to live here is gone — see DictRoot.
     """
 
     keywords: Annotated[
@@ -1054,10 +1071,10 @@ EXPORTED: list[type] = [
     HadithFile,
     BabNode,
     KitabNode,
-    LaneRun,
-    LaneSense,
-    LaneEntry,
-    LaneRoot,
+    DictRun,
+    DictSense,
+    DictEntry,
+    DictRoot,
     ShardConfig,
     BindingTally,
     CliticSegment,
@@ -1072,6 +1089,26 @@ EXPORTED: list[type] = [
     CorpusStats,
     PanelEntry,
     ClassicalEntry,
+]
+
+# Old names for renamed contracts, emitted as TypeScript type aliases.
+#
+# The four dictionary types were called LaneRun/LaneSense/LaneEntry/LaneRoot
+# when Lane's Lexicon was the only dictionary in the store. They were never
+# Lane-specific in shape, and a second source made the name a lie. Renaming
+# them alone would have been a breaking change to every importing component
+# for no behavioural gain, so the old names stay reachable and the components
+# migrate when they are next touched.
+#
+# NOT the same mechanism as EXPORTED_ALIASES above: that renders a Literal
+# union, and `typing.get_args()` on a TypedDict returns () — putting one there
+# emits `export type LaneRun = ;`, which is a syntax error that --check would
+# happily pass through, because it compares text and does not parse TypeScript.
+EXPORTED_TYPE_ALIASES: list[tuple[str, type]] = [
+    ("LaneRun", DictRun),
+    ("LaneSense", DictSense),
+    ("LaneEntry", DictEntry),
+    ("LaneRoot", DictRoot),
 ]
 
 EXPORTED_ALIASES: list[tuple[str, object]] = [

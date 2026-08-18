@@ -34,6 +34,10 @@ PRIMITIVES: dict[object, str] = {
 }
 
 _ALIASES = list(C.EXPORTED_ALIASES)
+# Deliberately a SEPARATE list from _ALIASES. A literal alias is rendered by
+# expanding its union; a type alias is rendered by naming its target. They are
+# not interchangeable, and mixing them emits `export type X = ;`.
+_TYPE_ALIASES = list(getattr(C, "EXPORTED_TYPE_ALIASES", []))
 _EXPORTED_NAMES = {cls.__name__ for cls in C.EXPORTED}
 
 # TypeScript's global utility and lib types. A contract named `Record` silently
@@ -54,7 +58,31 @@ def check_names() -> None:
     # taken before any caller can modify EXPORTED, which made an earlier version
     # of this guard silently pass.
     exported = [cls.__name__ for cls in C.EXPORTED]
-    all_names = set(exported) | {n for n, _ in C.EXPORTED_ALIASES}
+    type_aliases = list(getattr(C, "EXPORTED_TYPE_ALIASES", []))
+    all_names = (
+        set(exported)
+        | {n for n, _ in C.EXPORTED_ALIASES}
+        | {n for n, _ in type_aliases}
+    )
+    # A type alias whose target is not exported would emit a reference to an
+    # interface that does not exist in the file — valid text, broken TypeScript,
+    # and --check compares text. Catch it here instead.
+    dangling = sorted(
+        f"{name} -> {target.__name__}"
+        for name, target in type_aliases
+        if target.__name__ not in set(exported)
+    )
+    if dangling:
+        raise SystemExit(
+            "EXPORTED_TYPE_ALIASES target(s) missing from EXPORTED: "
+            + ", ".join(dangling)
+        )
+    shadowed = sorted({n for n, _ in type_aliases} & set(exported))
+    if shadowed:
+        raise SystemExit(
+            "type alias name(s) collide with an exported interface: "
+            + ", ".join(shadowed)
+        )
     clashes = sorted(all_names & TS_RESERVED)
     if clashes:
         raise SystemExit(
@@ -177,6 +205,15 @@ def emit() -> str:
                 out += wrap(doc)
             out.append(f"  {field}: {render(tp)};")
         out.append("}")
+        out.append("")
+
+    # After the interfaces, so the file reads top-down even though TypeScript
+    # hoists types. These exist so a rename in contracts.py is not a breaking
+    # change for every importing component at once — see EXPORTED_TYPE_ALIASES.
+    if _TYPE_ALIASES:
+        out.append("// Compatibility aliases for renamed contracts.")
+        for name, target in _TYPE_ALIASES:
+            out.append(f"export type {name} = {target.__name__};")
         out.append("")
 
     return "\n".join(out)

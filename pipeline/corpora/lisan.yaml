@@ -1,0 +1,93 @@
+# A corpus-INDEPENDENT lexical source, fetched as a corpus. Same arrangement as
+# lane.yaml and for the same reason: it is not a text to read, it is classical
+# apparatus every corpus draws on, and routing it through fetch.py buys the
+# checksum and idempotence guarantees for free.
+#
+# WHY THIS BOOK. Four candidates were surveyed against OpenITI (see the measured
+# table in the phase notes). The decision rests on three facts:
+#
+#   * It is the only one OpenITI ships with DICTIONARY ENTRY ANNOTATION. Each
+#     article opens `### $ جذر: ...` with the root explicit and colon-terminated,
+#     so entry boundaries and the join key are given rather than inferred. The
+#     version yml records that the OpenITI reviewer tagged the second-level
+#     headers "and all the entries" by hand — this markup is deliberate.
+#   * Best root coverage of the candidates: 8,974 articles against Lane's 5,078
+#     roots, resolving 96.5% of al-Tajrid's rooted forms and 81-83% of every
+#     other corpus's CAMeL-rooted tokens.
+#   * It is the `L` siglum the word panel already expands in Lane's brackets.
+#
+# al-Muhkam was rejected outright: it is ordered Khalilian-phonetically and its
+# headings are letter-pair bab names, not headwords, so there is no root key to
+# join on. Taj al-Carus was deferred: of its 13,207 headings roughly 4,800 are
+# line-break damage from the conversion, and it quotes this book at length.
+id: lisan
+
+# Apparatus, not a text to read. Declared rather than inferred: this source IS
+# a text file, so the old `"text" not in sources` heuristic would have handed
+# Lisan al-Carab to segment.py.
+role: lexical_source
+
+display:
+  titleAr: "لسان العرب"
+  titleEn: "Lisān al-ʿArab"
+  author: "Muḥammad b. Mukarram Ibn Manẓūr al-Ifrīqī"
+  authorDied: "711 AH / 1311 CE"
+  edition: "Beirut: Dār Ṣādir (OCLC 173667495); OpenITI Shamela0001687-ara1"
+  # The TEXT is public domain — Ibn Manzur died in 1311. The DIGITISATION is
+  # Shamela's, annotated by SP Loynes for OpenITI and collated against the
+  # first edition with pagination confirmed identical. Unlike the Nihaya
+  # version, whose OpenITI yml is an unfilled template, this one records its
+  # printed source, which is why the page numbers below are citable.
+  rights: "text public-domain; digitisation Shamela via OpenITI (see NOTICE.md)"
+
+sources:
+  text:
+    kind: http
+    uri: https://raw.githubusercontent.com/OpenITI/0725AH/master/data/0711IbnManzurIfriqi/0711IbnManzurIfriqi.LisanCarab/0711IbnManzurIfriqi.LisanCarab.Shamela0001687-ara1.mARkdown
+    filename: lisan.mARkdown
+    encoding: utf-8
+
+# NOT read by segment.py — this source is ingested by lisan.py, which is a
+# lexicon builder and not a reading surface. The block is kept in the corpus
+# grammar so the patterns live in configuration rather than in code, exactly as
+# ADDENDUM-adding-sources.md requires.
+segmentation:
+  # The dictionary entry marker. `$` is OpenITI's semantic tag for a dictionary
+  # unit; al-Rawd uses the expanded `$DIC_TOP$` spelling of the same idea.
+  # Group 1 is the root, group 2 the first line of the article body.
+  entry: '^###\s*\$\s*([^:\s]+)\s*:\s*(.*)$'
+  paragraph: '^#\s(.*)$'
+  continuation: '^~~(.*)$'
+  # ORDER MATTERS. Manuscript markers occur inside both the div tags and the
+  # page brackets, so the marker that can nest is stripped first — the same
+  # rule, and the same order, as every other corpus here.
+  strip:
+    - name: manuscript_marker
+      pattern: '\bms\d+\b'
+    - name: page_volume
+      pattern: 'PageV\d+P\d+'
+    - name: shamela_div
+      pattern: '<div[^>]*>'
+    - name: bracket_page
+      pattern: '\[\s*ص\s*:\s*\d+\s*\]'
+    # Editorial footnote markers: «1», «2». Guillemets are also used for
+    # quotation in this text, so the pattern is anchored on digits ONLY.
+    # Widening it to bare «...» would delete the Qur'anic and hadith citations
+    # that are the substance of an article.
+    - name: footnote_ref
+      pattern: '«\d+»'
+  page_marker_alt: 'PageV(\d+)P(\d+)'
+
+# Every figure lisan.py asserts against. Change one only with a measurement in
+# hand: they are the difference between a config that is right and a config that
+# merely runs. Measured 2026-08 against the pinned checksum above.
+expected:
+  entry_heads: 9152        # `### $ root:` lines
+  # After root_key() folding, and one fewer than the distinct head count:
+  # `### $ هرث: «6»` is an entry head whose entire body is a footnote marker,
+  # so once the footnote is stripped the article is empty and is not filed.
+  # That is the panel's own rule applied upstream — a section with nothing to
+  # say is not rendered — and the alternative is shipping one empty box.
+  # The other 178 collisions are two heads folding to one root; those APPEND.
+  unique_roots: 8973
+  min_page_coverage: 0.98  # share of heads with a recoverable volume/page

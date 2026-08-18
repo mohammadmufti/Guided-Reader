@@ -515,44 +515,56 @@ export interface KitabNode {
   babs: BabNode[];
 }
 
-/** One inline run of a Lane sense: plain text, Arabic, italic, or a ref. */
-export interface LaneRun {
+/**
+ * One inline run of a dictionary sense: plain text, Arabic, italic, or a ref. Inline content
+ * is flattened to runs rather than shipped as markup, so the client renders it without an HTML
+ * parser and no source can inject markup. That is a security boundary, not a convenience —
+ * every dictionary ingested into this store must flatten to these same runs.
+ */
+export interface DictRun {
   /** "t" text · "ar" Arabic · "i" italic · "ref" cross-reference · "q" quote · "trop" figurative */
   t: string;
   v: string;
 }
 
 /**
- * One sense of a Lane entry. `label` follows Lane's own two-level scheme — `A2` is a major
- * division, `b3` a sub-sense — and `null` marks the entry's opening material, which carries
- * the morphology and usually the primary signification.
+ * One sense of a dictionary entry. `label` and `level` carry the SOURCE'S OWN divisions and
+ * nothing invented. Lane's scheme is two-level — `A2` is a major division, `b3` a sub-sense —
+ * and `null` marks an entry's opening material, which carries the morphology and usually the
+ * primary signification. A source with no sense structure of its own must leave `label` null
+ * and say `level: "sentence"`; numbering divisions the author did not write is the sampling
+ * error this project already paid for once.
  */
-export interface LaneSense {
+export interface DictSense {
   label: string | null;
-  /** primary | major | sub */
+  /** primary | major | sub | sentence */
   level: string;
-  runs: LaneRun[];
+  runs: DictRun[];
 }
 
 /** One headword entry under a root, e.g. صَلَاةٌ under صلو. */
-export interface LaneEntry {
-  /** Stable Lane node id, e.g. n24821. */
+export interface DictEntry {
+  /**
+   * Stable per-entry id, e.g. Lane's n24821. A source with one article per root and no
+   * per-headword entries uses the root itself.
+   */
   nodeid: string;
   headword: string;
   itypes: string[] | null;
-  senses: LaneSense[];
+  senses: DictSense[];
 }
 
 /**
- * Every Lane entry under one root, in a lane shard. This replaces v1's single sampled sense.
- * The mean root here holds 15.8 entries and 36 senses; v1 showed one sense, chosen
- * mechanically, and for صلو that sense was "the middle of the back of a human being" — which
- * is real, and is sense A2 of the صَلَاةٌ entry, not its definition.
+ * Every entry one dictionary holds under one root, in that source's shard. This replaces v1's
+ * single sampled sense. The mean Lane root holds 15.8 entries and 36 senses; v1 showed one
+ * sense, chosen mechanically, and for صلو that sense was "the middle of the back of a human
+ * being" — which is real, and is sense A2 of the صَلَاةٌ entry, not its definition.
  */
-export interface LaneRoot {
+export interface DictRoot {
   root: string;
+  /** Page in the source's own printed edition. */
   page: number | null;
-  entries: LaneEntry[];
+  entries: DictEntry[];
 }
 
 /**
@@ -852,7 +864,7 @@ export interface PanelEntry {
 
 /**
  * Root-level summary in a classical shard: the keyword cluster and counts. The sampled sense
- * that used to live here is gone — see LaneRoot.
+ * that used to live here is gone — see DictRoot.
  */
 export interface ClassicalEntry {
   /**
@@ -868,3 +880,9 @@ export interface ClassicalEntry {
   topLemmas: string | null;
   rootFreq: number | null;
 }
+
+// Compatibility aliases for renamed contracts.
+export type LaneRun = DictRun;
+export type LaneSense = DictSense;
+export type LaneEntry = DictEntry;
+export type LaneRoot = DictRoot;

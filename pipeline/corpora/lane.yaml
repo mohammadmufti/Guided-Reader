@@ -7,6 +7,11 @@
 # `--corpus lane`, which keeps it in its own manifest.
 id: lane
 
+# Apparatus, not a text to read: never segmented, never bound, no about panel.
+# See corpus.is_lexical_source — this used to be inferred from the fact that
+# the source below is called `db` rather than `text`.
+role: lexical_source
+
 display:
   titleEn: "Lane's Arabic-English Lexicon"
   author: "Edward William Lane"

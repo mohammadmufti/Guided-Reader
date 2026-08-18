@@ -48,6 +48,26 @@ def cache_dir(corpus: str) -> Path:
     return CACHE / corpus
 
 
+def is_lexical_source(cfg: dict) -> bool:
+    """
+    Is this config a DICTIONARY rather than a text to read?
+
+    Both live under `corpora/` and both are fetched by `fetch.py`, because that
+    is where the checksum and idempotence guarantees live. But a lexical source
+    is never segmented, never bound, never navigated, and has no `about` panel
+    — it is apparatus every corpus draws on.
+
+    Until now the difference was inferred from an ACCIDENT: `lane.yaml` happens
+    to call its source `db`, so tests that iterate every config skipped it via
+    `"text" not in sources`. The second dictionary is a text file and does
+    declare `sources.text`, at which point the heuristic silently asked
+    `segment.py` to segment Lisān al-ʿArab. Inference replaced by declaration.
+
+    Defaults to False, so an existing corpus config means exactly what it did.
+    """
+    return (cfg.get("role") or "corpus") == "lexical_source"
+
+
 def source_path(cfg: dict, key: str, *, required: bool = True) -> Path | None:
     """
     Resolve one declared source to its cached file.

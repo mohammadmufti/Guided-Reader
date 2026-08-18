@@ -346,10 +346,16 @@ def test_every_corpus_segments_without_residual_markers():
     pipeline_dir = _p.Path(__file__).resolve().parent.parent
     corpora = sorted(c.stem for c in (pipeline_dir / "corpora").glob("*.yaml"))
     for cid in corpora:
-        # `lane` is reference data — a dictionary, not a text — and declares no
-        # `sources.text` to segment.
+        # A lexical source is a dictionary, not a text: never segmented. This
+        # used to be inferred from `"text" not in sources`, which worked only
+        # because `lane.yaml` calls its source `db`. Lisān is a text FILE and
+        # declares `sources.text`, so the heuristic asked segment.py to segment
+        # a dictionary. The role is now declared — see corpus.is_lexical_source.
         import yaml as _yaml
+        import corpus as _corpus
         cfg = _yaml.safe_load((pipeline_dir / "corpora" / f"{cid}.yaml").read_text(encoding="utf-8"))
+        if _corpus.is_lexical_source(cfg):
+            continue
         if "text" not in (cfg.get("sources") or {}):
             continue
         src = pipeline_dir / "cache" / cid

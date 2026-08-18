@@ -297,8 +297,10 @@ def test_every_corpus_can_describe_itself():
     """
     for cid in CORPORA:
         cfg = corpus.load_config(cid)
-        if cid in ("lane", "rawd"):
-            continue          # reference data and a segmentation-only corpus
+        if corpus.is_lexical_source(cfg):
+            continue          # apparatus, not a book a reader opens
+        if cid == "rawd":
+            continue          # a segmentation-only corpus
         about = cfg.get("about")
         assert about, f"{cid} has no `about` block"
         assert about.get("description"), f"{cid} describes nothing"
@@ -881,8 +883,10 @@ def test_every_corpus_can_describe_itself():
     """
     for cid in CORPORA:
         cfg = corpus.load_config(cid)
-        if cid in ("lane", "rawd"):
-            continue          # reference data and a segmentation-only corpus
+        if corpus.is_lexical_source(cfg):
+            continue          # apparatus, not a book a reader opens
+        if cid == "rawd":
+            continue          # a segmentation-only corpus
         about = cfg.get("about")
         assert about, f"{cid} has no `about` block"
         assert about.get("description"), f"{cid} describes nothing"
