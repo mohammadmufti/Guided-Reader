@@ -202,6 +202,19 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
     if scrubbed:
         print(f"  scrubbed {scrubbed} exists-only closed-class Lane links "
               f"from the merged view")
+    # The same hazard for the second dictionary, and STRICTER, because it has
+    # no per-headword entries and so no `laneEntry` clause to qualify the link.
+    # Every closed-class Lisān link is an exists-only link by construction, and
+    # a corpus whose analyser was less sure can gap-fill one in here even when
+    # build.py refused it. 7.6% of al-Tajrid's tokens measure this.
+    scrubbed_lisan = 0
+    for e in entries.values():
+        if e.get("pos") in CLOSED_CLASS_POS and e.get("lisan_root"):
+            e["lisan_root"] = None
+            scrubbed_lisan += 1
+    if scrubbed_lisan:
+        print(f"  scrubbed {scrubbed_lisan} closed-class Lisān links "
+              f"from the merged view")
     return entries, seen_in, conflicts
 
 
@@ -280,7 +293,7 @@ def main() -> int:
     # because the merge that uses them happens after.
     carried = {
         stem: collect_named(corpora, stem, None if args.rebuild else out)
-        for stem in ("classical", "lane")
+        for stem in ("classical", "lane", "lisan")
     }
     if out.exists():
         shutil.rmtree(out)

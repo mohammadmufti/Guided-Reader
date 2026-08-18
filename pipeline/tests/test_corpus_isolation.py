@@ -270,7 +270,10 @@ def test_corpus_independent_reference_data_is_shared():
     import share
     src = (corpus.ROOT / "share.py").read_text(encoding="utf-8")
     assert hasattr(share, "collect_named")
-    assert '"classical", "lane"' in src
+    # Every shared dictionary set, not a fixed pair: a new source that is
+    # collected per corpus but never merged reproduces the original defect
+    # for itself, one book at a time.
+    assert '"classical", "lane", "lisan"' in src
 
 
 def test_derived_lexicon_keeps_every_enriched_field():
@@ -856,7 +859,10 @@ def test_corpus_independent_reference_data_is_shared():
     import share
     src = (corpus.ROOT / "share.py").read_text(encoding="utf-8")
     assert hasattr(share, "collect_named")
-    assert '"classical", "lane"' in src
+    # Every shared dictionary set, not a fixed pair: a new source that is
+    # collected per corpus but never merged reproduces the original defect
+    # for itself, one book at a time.
+    assert '"classical", "lane", "lisan"' in src
 
 
 def test_derived_lexicon_keeps_every_enriched_field():

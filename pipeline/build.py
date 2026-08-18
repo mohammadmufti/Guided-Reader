@@ -48,6 +48,7 @@ from gloss import parse_gloss, says_the_same
 from morphology import Recoverer
 from normalise import dediac, normalise, root_variants, root_key, voc_key
 import lane_links
+from lisan import lisan_root_variants
 from tokenise import tokenise
 
 ROOT = Path(__file__).resolve().parent
@@ -826,6 +827,16 @@ def main() -> int:
     else:
         print("  (no Lane build found — run pipeline/lane.py; falling back to workbook samples)")
 
+    # The second dictionary. Optional in exactly the way Lane is: absent, the
+    # panel loses a section and says nothing about it, and every other stage
+    # behaves identically. A corpus does not depend on it existing.
+    lisan_path = BUILD / "lisan" / "entries.json"
+    lisan: dict = {}
+    if lisan_path.exists():
+        lisan = json.loads(lisan_path.read_text(encoding="utf-8"))
+    else:
+        print("  (no Lisān build found — run pipeline/lisan.py; no Arabic dictionary section)")
+
     # Index every Lane entry by root and headword — in TWO tiers, because the
     # fully-folded key collides where it must not: normalise() maps tāʾ
     # marbūṭa and hāʾ to the same letter, so هِجْرَة (emigration) and
@@ -911,6 +922,10 @@ def main() -> int:
     stats_shards: list[dict] = [{} for _ in range(surface_n)]
     classical_shards: list[dict] = [{} for _ in range(classical_n)]
     classical_seen: set[str] = set()
+    # Roots any entry actually reached in the second dictionary. Drives the
+    # ship-only-what-this-corpus-uses filter, exactly as `used_roots` does
+    # for Lane: the book is ingested once, whole, and shared.
+    lisan_seen: set[str] = set()
 
     # How often THIS pipeline bound each entry, which is not the same as the
     # workbook's `freq`. We agree with its binding on 96% of tokens and differ
@@ -1234,6 +1249,54 @@ def main() -> int:
                 # by it, and a root with no shard draws an empty section.
                 lr, trimmed["laneEntry"] = fallback, None
                 trimmed["lane_root"] = lr
+        # ---- the second dictionary ------------------------------------------
+        #
+        # SAME candidate ladder, deliberately: the authority order below is the
+        # list `_cands` above, reused rather than rebuilt, so a fix to root
+        # authority fixes both books at once.
+        #
+        # THREE THINGS DIFFER FROM LANE, each measured:
+        #
+        # 1. No per-headword match. Ibn Manẓūr writes ONE article per root, so
+        #    there is no `laneEntry` analogue and no headword tier to score. A
+        #    word resolves to its root's article or to nothing, and the panel
+        #    must say "the article on the root" — never "this word's own
+        #    entry", which would be false for every word here.
+        #
+        # 2. The alif variant. See `lisan_root_variants`: this book files
+        #    final-weak roots under bare alif, worth 7.5 points of coverage,
+        #    and `root_variants()` must NOT be widened to suit it.
+        #
+        # 3. Closed-class words link to NOTHING. Full stop, and this is the
+        #    one place the rule is stricter than Lane's. Lane's rescue is
+        #    "link only where the article holds this word's own headword";
+        #    with no per-headword entries that clause is unstateable here, so
+        #    the only available rule is existence — which is precisely what
+        #    cost two CI failures on Lane. Measured with CAMeL over every
+        #    closed-class form in al-Tajrid: 644 forms / 9,704 tokens — 7.6%
+        #    of the corpus — would otherwise open an article, and they are the
+        #    same failure class as before. ذَلِكَ takes the root ذلل (to be
+        #    abased), اللَّهُمَّ takes لهم (to swallow greedily), فَمَا takes
+        #    فمم (mouth), حَتَّى takes حتت (to scrape).
+        #
+        #    The obvious refinement — block only where the workbook AND the
+        #    analyser agree it is closed-class — was tested and FAILS: CAMeL's
+        #    `analyze()` returns every candidate reading, so ذَلِكَ comes back
+        #    ['noun', 'pron_dem'] and only 9 forms / 69 tokens would be caught.
+        #    Its permissiveness is the bug, not a rescue.
+        lisan_root = None
+        if lisan and _pos not in CLOSED_CLASS_POS:
+            for cand in _cands if not _ov_hit else [lr]:
+                if not cand:
+                    continue
+                hit = next((v for v in lisan_root_variants(cand) if v in lisan), None)
+                if hit:
+                    lisan_root = hit
+                    break
+        trimmed["lisan_root"] = lisan_root
+        if lisan_root:
+            lisan_seen.add(lisan_root)
+
         if lr and lr not in classical_seen:
             classical_seen.add(lr)
             # `.get`: a minted entry has a Lane root but none of the
@@ -1313,6 +1376,10 @@ def main() -> int:
         root: {
             "root": root,
             "page": lane[root].get("page"),
+            # Lane's digitisation records one page sequence, not volumes. Null
+            # rather than absent: the contract is shared with a multi-volume
+            # source now, and a missing key is not the same as a known absence.
+            "vol": None,
             "entries": [
                 {
                     "nodeid": e["nodeid"],
@@ -1339,10 +1406,38 @@ def main() -> int:
         write(CORPUS_DATA / "lex" / f"lane-{i:03d}.json", s) for i, s in enumerate(lane_shards)
     ]
 
+    # Lisān entries, sharded on the same budget and filtered the same way.
+    #
+    # Cheap by construction: per-root brotli runs a median 550 bytes against
+    # Lane's, because one prose article compresses far better than 15 entries
+    # of structured senses. Nothing here is in the cold path — the 27 KB first
+    # paint is unchanged, and this is fetched only when a panel opens.
+    lisan_payload = {
+        root: {
+            "root": root,
+            "page": lisan[root].get("page"),
+            # Volume matters here and does not for Lane: this is a 15-volume
+            # work whose digitisation was collated against the printed Dār
+            # Ṣādir pagination, so vol+page is a citation a reader can check.
+            "vol": lisan[root].get("vol"),
+            "entries": lisan[root].get("entries", []),
+        }
+        for root in sorted(lisan_seen)
+        if root in lisan
+    }
+    lisan_shards_n = shard_count(lisan_payload, lambda k: k) if lisan_payload else 1
+    lisan_shards: list[dict] = [{} for _ in range(lisan_shards_n)]
+    for root, payload in lisan_payload.items():
+        lisan_shards[fnv1a(root) % lisan_shards_n][root] = payload
+    sizes["lex/lisan-*.json"] = [
+        write(CORPUS_DATA / "lex" / f"lisan-{i:03d}.json", s) for i, s in enumerate(lisan_shards)
+    ]
+
     # ---- index, written last because it records the shard counts ------------
     index = build_index(records["records"], records["corpus"], lexicon, bid,
                         {"surface": surface_n, "classical": classical_n,
-                         "lane": lane_shards_n, "hash": "fnv1a-32",
+                         "lane": lane_shards_n, "lisan": lisan_shards_n,
+                         "hash": "fnv1a-32",
                          "budgetBytes": SHARD_BUDGET_BYTES},
                         binding_tally)
     sizes["index.json"] = [write(CORPUS_DATA / "index.json", index)]
@@ -1468,6 +1563,28 @@ def main() -> int:
                 missing_node += 1
     if missing_node:
         problems.append(f"{missing_node} laneEntry references do not resolve")
+    # Every lisan_root must resolve in the shard IT hashes to. `fnv1a` is
+    # implemented twice — here and in web/src/lib/lexicon.ts — and each new
+    # shard set widens that seam, so the assertion goes in with the set rather
+    # than after it.
+    missing_lisan = 0
+    for shard in surface_shards:
+        for e in shard.values():
+            lsr = e.get("lisan_root")
+            if lsr and lsr not in lisan_shards[fnv1a(lsr) % lisan_shards_n]:
+                missing_lisan += 1
+    if missing_lisan:
+        problems.append(f"{missing_lisan} lisan_root references do not resolve")
+    # The rule that cost 7.6% of the corpus in wrong articles when absent.
+    closed_linked = sum(
+        1 for shard in surface_shards for e in shard.values()
+        if e.get("lisan_root") and (e.get("pos") or "") in CLOSED_CLASS_POS
+    )
+    if closed_linked:
+        problems.append(
+            f"{closed_linked} closed-class entries carry a lisan_root — "
+            "the article would be about a root the word does not belong to"
+        )
 
     # ---- report ------------------------------------------------------------
     L: list[str] = ["# Phase 4 — build report", ""]
@@ -1521,6 +1638,7 @@ def main() -> int:
     L.append(f"  bound match_ids resolving      {'all' if not missing_mid else missing_mid}")
     L.append(f"  lane_root references resolving {'all' if not missing_lr else missing_lr}")
     L.append(f"  laneEntry references resolving {'all' if not missing_node else missing_node}")
+    L.append(f"  lisan_root references resolving {'all' if not missing_lisan else missing_lisan}")
     L.append("")
     L.append("  **" + ("PASS — no orphans, every reference resolves" if not problems
                        else "FAIL: " + "; ".join(problems)) + "**")

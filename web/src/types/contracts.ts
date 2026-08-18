@@ -564,6 +564,11 @@ export interface DictRoot {
   root: string;
   /** Page in the source's own printed edition. */
   page: number | null;
+  /**
+   * Volume, for a multi-volume source. Null for Lane, whose digitisation records a single page
+   * sequence.
+   */
+  vol: number | null;
   entries: DictEntry[];
 }
 
@@ -597,10 +602,17 @@ export interface ShardConfig {
    * `surface`.
    */
   sharedSurface: number | null;
+  /**
+   * Route Lisān ARTICLES by hash(lisan_root) % this, under data/lexicon/. Shared: the same book
+   * whichever text is being read. Null until share.py has run.
+   */
+  sharedLisan: number | null;
   /** Route by hash(lane_root) % this. */
   classical: number;
   /** Route by hash(lane_root) % this. */
   lane: number;
+  /** Route by hash(lisan_root) % this. */
+  lisan: number;
   /** Hash name. 'fnv1a-32' — 32-bit FNV-1a over UTF-8 bytes. */
   hash: string;
   /** Per-shard brotli budget the counts were derived from. */
@@ -797,6 +809,13 @@ export interface PanelEntry {
   lane_root: string | null;
   /** Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root. */
   laneEntry: string | null;
+  /**
+   * Root of the Lisān al-ʿArab article, or null. There is NO entry-id companion: Ibn Manẓūr
+   * writes one article per root, so a word reaches its root's article or nothing, and the panel
+   * must say 'the article on the root' rather than 'this word's own entry'. Always null for
+   * closed-class words — see build.py for the 7.6% of the corpus that measures.
+   */
+  lisan_root: string | null;
   literal_sense: string | null;
   technical_sense: string | null;
   domain: string | null;

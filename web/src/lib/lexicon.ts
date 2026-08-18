@@ -7,6 +7,7 @@ import type {
   CorpusStats,
   LaneRoot,
   LaneEntry,
+  DictRoot,
 } from "@/types/contracts";
 
 // Per-corpus payload root. Shared with data.ts so a corpus switch moves
@@ -43,6 +44,7 @@ const surfaceShards = new Map<number, Promise<Record<string, PanelEntry>>>();
 const statsShards = new Map<number, Promise<Record<string, CorpusStats>>>();
 const classicalShards = new Map<number, Promise<Record<string, ClassicalEntry>>>();
 const laneShards = new Map<number, Promise<Record<string, LaneRoot>>>();
+const lisanShards = new Map<number, Promise<Record<string, DictRoot>>>();
 
 function fetchJson<T>(url: string): Promise<T> {
   return fetch(url).then((r) => {
@@ -60,6 +62,14 @@ export interface PanelData {
   lane: LaneRoot | null;
   /** The entry for THIS lemma specifically, when one was matched at build time. */
   laneEntry: LaneEntry | null;
+  /**
+   * Ibn Manzur's article on this root, or null.
+   *
+   * No entry-level companion, unlike `laneEntry`: the Lisan holds ONE article
+   * per root, so a word reaches its root's article or nothing. The panel must
+   * say "the article on the root" and never "this word's own entry".
+   */
+  lisan: DictRoot | null;
 }
 
 /**
@@ -142,8 +152,23 @@ async function loadPanelOnce(
   if (!entry) throw new Error(`${matchId} is not in surface shard ${s}`);
   const stats = statsMap[matchId] ?? null;
 
-  if (!entry.lane_root)
-    return { entry, stats, classical: null, lane: null, laneEntry: null };
+  // The Lisan article is fetched INDEPENDENTLY of lane_root, and that is not
+  // tidiness. Lisan holds 8,973 roots against Lane's 5,160, so a word can have
+  // an Arabic article and no English one; hanging this off the early return
+  // below would have silently dropped exactly the words the second dictionary
+  // was added to serve.
+  const lisanPromise = entry.lisan_root ? loadLisan(entry.lisan_root, index) : null;
+
+  if (!entry.lane_root) {
+    return {
+      entry,
+      stats,
+      classical: null,
+      lane: null,
+      laneEntry: null,
+      lisan: lisanPromise ? await lisanPromise : null,
+    };
+  }
 
   // Classical summary and Lane entries are separate shard sets — the summary is
   // tiny and read for every rooted word, the entries are large and only worth
@@ -167,9 +192,37 @@ async function loadPanelOnce(
     );
     laneShards.set(l, lShard);
   }
-  const [classicalMap, laneMap] = await Promise.all([cShard, lShard]);
+  // All three in flight together. Serialising the third costs the measured
+  // 100 ms first-panel budget for no benefit — it depends on nothing here.
+  const [classicalMap, laneMap, lisan] = await Promise.all([
+    cShard,
+    lShard,
+    lisanPromise ?? Promise.resolve(null),
+  ]);
   const lane = laneMap[entry.lane_root] ?? null;
   const laneEntry =
     (entry.laneEntry && lane?.entries.find((e) => e.nodeid === entry.laneEntry)) || null;
-  return { entry, stats, classical: classicalMap[entry.lane_root] ?? null, lane, laneEntry };
+  return {
+    entry,
+    stats,
+    classical: classicalMap[entry.lane_root] ?? null,
+    lane,
+    laneEntry,
+    lisan,
+  };
+}
+
+/** One Lisan shard, cached for the session like the others. */
+function loadLisan(root: string, index: IndexFile): Promise<DictRoot | null> {
+  const n = index.shards.sharedLisan ?? index.shards.lisan;
+  if (!n) return Promise.resolve(null);
+  const i = fnv1a(root) % n;
+  let shard = lisanShards.get(i);
+  if (!shard) {
+    shard = fetchJson<Record<string, DictRoot>>(
+      `${dataRoot()}/lexicon/lisan-${pad(i)}.json${lexVer(index)}`,
+    );
+    lisanShards.set(i, shard);
+  }
+  return shard.then((m) => m[root] ?? null);
 }

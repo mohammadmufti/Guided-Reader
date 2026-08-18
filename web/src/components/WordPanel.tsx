@@ -10,6 +10,7 @@ import type {
   LaneRoot,
   LaneEntry,
   LaneRun,
+  DictRoot,
   Gloss,
 } from "@/types/contracts";
 import { loadPanel, type PanelData } from "@/lib/lexicon";
@@ -112,6 +113,9 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       <Meaning gloss={entry.gloss ?? entry.glossQuick} isName={entry.isName} />
       <RootAndLemma entry={entry} classical={classical} token={token} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
+      {/* Below Lane: English first is the panel's existing "most useful
+          first" ordering, and most readers here reach for it first. */}
+      <Lisan lisan={data.lisan} />
       <Divergence entry={entry} />
       <InThisCorpus stats={data.stats} index={index} record={record} token={token} />
       <ProperNoun entry={entry} />
@@ -625,6 +629,129 @@ function Classical({
           .slice(0, 4)
           .map(([k, v]) => `${k} = ${v}`)
           .join(", ")}.
+      </p>
+    </Section>
+  );
+}
+
+/* ------------------------------------------------ 4b. Lisan al-Carab  */
+
+/**
+ * Ibn Manzur's article on the root, in Arabic.
+ *
+ * A SIBLING of Classical, not a copy of it. The two share what is genuinely
+ * shared — `Section` and `Run` — and differ everywhere a reader would notice:
+ *
+ *   * RTL THROUGHOUT. Lane's block is dir="ltr" with .arabic spans inside
+ *     because Lane wrote English. This is Arabic end to end, and mixing the
+ *     two scrambles the punctuation.
+ *   * NO "this word's own entry". The Lisan holds one article per root, so
+ *     there is no per-headword entry to match and no honest way to claim one.
+ *     The label says what is true: the article on the root.
+ *   * NO "other entries under this root". For the same reason — there is
+ *     exactly one.
+ *   * A CHARACTER BUDGET, not a sense count. Lane's senses are numbered
+ *     units of similar size; these are the edition's sentences, running a
+ *     median 72 characters but with articles from 631 to 43,252. Two
+ *     sentences of salah is a phrase; two of a short root is the whole
+ *     article. Budgeting characters shows a comparable amount either way.
+ *
+ * Unifying the disclosure shell is deliberately NOT done here: the two now
+ * differ in four visible ways, and a shared shell would have to be
+ * parameterised on all of them. Worth revisiting once the e2e suite covers
+ * both and can prove a refactor changed nothing.
+ */
+const LISAN_PREVIEW_CHARS = 400;
+
+function Lisan({ lisan }: { lisan: DictRoot | null }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // Nothing to say renders nothing — the panel's rule everywhere else.
+  if (!lisan) return null;
+
+  const senses = lisan.entries[0]?.senses ?? [];
+  if (senses.length === 0) return null;
+
+  let budget = LISAN_PREVIEW_CHARS;
+  const preview = senses.filter((sense) => {
+    if (budget <= 0) return false;
+    budget -= sense.runs.reduce((n, r) => n + r.v.length, 0);
+    return true;
+  });
+  const visible = expanded ? senses : preview;
+
+  return (
+    <Section subtitle="Lisān al-ʿArab" testId="lisan">
+      {/* The headword line IS the control, above what it reveals, collapsed
+          by default — the same three rules as the Lane section, because they
+          were right there and a reader should not have to learn two idioms
+          in one panel. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mb-2 flex w-full items-baseline gap-2 text-start"
+      >
+        <span
+          className="text-(--color-ink-muted) transition-transform"
+          aria-hidden="true"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ›
+        </span>
+        <span className="arabic text-xl" lang="ar" dir="rtl">
+          {lisan.root}
+        </span>
+        <span
+          className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
+          dir="ltr"
+        >
+          the article on this root
+          {lisan.vol ? ` · vol. ${lisan.vol}` : ""}
+          {lisan.page ? ` p. ${lisan.page}` : ""}
+        </span>
+      </button>
+
+      {/* The root again, outside the button, so it can be selected and copied
+          — text inside a button cannot be. Same reason as the Lane block. */}
+      <div
+        className={`mb-1 select-text arabic text-lg ${open ? "" : "hidden"}`}
+        lang="ar"
+        dir="rtl"
+      >
+        {lisan.root}
+      </div>
+
+      {/* NOT an <ol>. Numbering these would tell the reader Ibn Manzur wrote
+          numbered senses; he wrote continuous prose, and the divisions are
+          the edition's sentences. */}
+      <div className={`space-y-2 ${open ? "" : "hidden"}`} lang="ar" dir="rtl">
+        {visible.map((sense, i) => (
+          <p key={i} className="panel-scaled arabic leading-loose">
+            {sense.runs.map((run, j) => (
+              <Run key={j} run={run} />
+            ))}
+          </p>
+        ))}
+      </div>
+
+      {open && senses.length > preview.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+          className="mt-2 text-xs text-(--color-ink-muted) underline underline-offset-2"
+          dir="ltr"
+        >
+          {expanded ? "Show less" : `Show the whole article (${senses.length} sentences)`}
+        </button>
+      )}
+
+      <p className="mt-3 text-[0.65rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+        Ibn Manẓūr (d. 711/1311), Dār Ṣādir edition. His own words and order —
+        the divisions are the edition's sentences, not numbered senses, because
+        he wrote none. This text carries no harakat: every digital copy of it is
+        unvowelled, and we would rather show you that than guess.
       </p>
     </Section>
   );

@@ -644,8 +644,14 @@ class ShardConfig(TypedDict):
         "and an entry is identical wherever it occurs. Null until share.py has "
         "run, in which case entries live under the corpus at `surface`."
     )]
+    sharedLisan: Annotated[int | None, Doc(
+        "Route Lisān ARTICLES by hash(lisan_root) % this, under data/lexicon/. "
+        "Shared: the same book whichever text is being read. Null until "
+        "share.py has run."
+    )]
     classical: Annotated[int, Doc("Route by hash(lane_root) % this.")]
     lane: Annotated[int, Doc("Route by hash(lane_root) % this.")]
+    lisan: Annotated[int, Doc("Route by hash(lisan_root) % this.")]
     hash: Annotated[str, Doc("Hash name. 'fnv1a-32' — 32-bit FNV-1a over UTF-8 bytes.")]
     budgetBytes: Annotated[int, Doc("Per-shard brotli budget the counts were derived from.")]
 
@@ -875,6 +881,17 @@ class PanelEntry(TypedDict):
         str | None,
         Doc("Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root."),
     ]
+    lisan_root: Annotated[
+        str | None,
+        Doc(
+            "Root of the Lisān al-ʿArab article, or null. There is NO entry-id "
+            "companion: Ibn Manẓūr writes one article per root, so a word "
+            "reaches its root's article or nothing, and the panel must say "
+            "'the article on the root' rather than 'this word's own entry'. "
+            "Always null for closed-class words — see build.py for the 7.6% "
+            "of the corpus that measures."
+        ),
+    ]
     literal_sense: str | None
     technical_sense: str | None
     domain: str | None
@@ -1020,6 +1037,13 @@ class DictRoot(TypedDict):
 
     root: str
     page: Annotated[int | None, Doc("Page in the source's own printed edition.")]
+    vol: Annotated[
+        int | None,
+        Doc(
+            "Volume, for a multi-volume source. Null for Lane, whose "
+            "digitisation records a single page sequence."
+        ),
+    ]
     entries: list[DictEntry]
 
 
