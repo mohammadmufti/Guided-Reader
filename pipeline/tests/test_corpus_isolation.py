@@ -1511,3 +1511,47 @@ def test_the_aside_merge_machinery_stays_fixed():
         "أخرجه فلان. (2)\nوصححه غيره يعني في روايته. (3)\nورواه آخر. (4)"
     matn = [r for r in s.records if r["layer"] == "matn"]
     assert len(matn) == 1 and "\n" not in matn[0]["textRaw"]
+
+
+def test_every_lexical_source_is_wired_into_the_deploy_workflow():
+    """
+    A dictionary that CI never ingests ships as an empty section.
+
+    THIS IS THE FAILURE THAT PROMPTED THE TEST. `build.py` degrades gracefully
+    when an ingest is missing — it prints a note and sets `lisan_root` to null
+    on every entry — which is right for a local run and silent in a deploy.
+    Lisān and al-Nihāya went to production with a green build, a valid payload,
+    correct contracts, passing tests, and no dictionary sections at all,
+    because the deploy workflow was never told to fetch or ingest them.
+
+    Registering a source in `corpora/` must be enough. Anything else that has
+    to be remembered separately is a bug in the configuration surface, which is
+    the same argument `ADDENDUM-adding-sources.md` makes about segment.py.
+    """
+    import yaml
+
+    wf = (corpus.ROOT.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    for path in sorted((corpus.ROOT / "corpora").glob("*.yaml")):
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not corpus.is_lexical_source(cfg):
+            continue
+        cid = cfg["id"]
+        assert f"--corpus {cid}" in wf, (
+            f"deploy.yml never fetches the lexical source {cid!r} — its section "
+            f"would render empty in production"
+        )
+        assert f"pipeline/{cid}.py" in wf, (
+            f"deploy.yml never runs pipeline/{cid}.py — build.py would ship "
+            f"{cid}_root as null on every entry and say nothing about it"
+        )
+
+
+def test_the_deploy_workflow_fails_when_an_ingest_is_missing():
+    """Graceful degradation needs somewhere to be ungraceful."""
+    wf = (corpus.ROOT.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "Assert every dictionary was ingested" in wf
+    assert "entries.json" in wf

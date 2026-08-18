@@ -90,6 +90,28 @@ jobs:
           path: pipeline/build/lane
           key: lane-${{ hashFiles('pipeline/lane.py') }}
 
+      # The two Arabic dictionaries. Cached like Lane and for the same reason:
+      # 35 MB of source and about a minute of parsing that changes only when
+      # the parser or its config does.
+      #
+      # THE KEY MUST NAME dictionaries.py. The shared helpers — the alif root
+      # variant, the sentence splitter, the residual-marker audit — live there,
+      # so a change to sentence boundaries with the key naming only lisan.py
+      # would serve a stale ingest indefinitely.
+      - name: Cache Lisān ingest
+        id: lisan-cache
+        uses: actions/cache@v5
+        with:
+          path: pipeline/build/lisan
+          key: lisan-${{ hashFiles('pipeline/lisan.py', 'pipeline/dictionaries.py', 'pipeline/corpora/lisan.yaml') }}
+
+      - name: Cache Nihāya ingest
+        id: nihaya-cache
+        uses: actions/cache@v5
+        with:
+          path: pipeline/build/nihaya
+          key: nihaya-${{ hashFiles('pipeline/nihaya.py', 'pipeline/dictionaries.py', 'pipeline/corpora/nihaya.yaml') }}
+
       # CAMeL's morphology database (44 MB, GPL Aramorph lineage — see
       # NOTICE.md). Cached; the key names the database, so switching
       # databases invalidates cleanly.
@@ -107,6 +129,8 @@ jobs:
       - name: Fetch sources
         run: |
           python pipeline/fetch.py --corpus lane
+          python pipeline/fetch.py --corpus lisan
+          python pipeline/fetch.py --corpus nihaya
           for c in tajrid rawd muwatta nawawi40 shahwaliullah40 bulugh shamail adab riyad mukhtasar; do
             python pipeline/fetch.py --corpus "$c"
           done
@@ -128,6 +152,30 @@ jobs:
       - name: Ingest Lane
         if: steps.lane-cache.outputs.cache-hit != 'true'
         run: python pipeline/lane.py
+
+      - name: Ingest Lisān
+        if: steps.lisan-cache.outputs.cache-hit != 'true'
+        run: python pipeline/lisan.py
+
+      - name: Ingest al-Nihāya
+        if: steps.nihaya-cache.outputs.cache-hit != 'true'
+        run: python pipeline/nihaya.py
+
+      # FAIL LOUDLY IF A DICTIONARY IS MISSING.
+      #
+      # build.py degrades gracefully when an ingest is absent: it prints a note
+      # and ships `lisan_root: null` on every entry. That is right for a local
+      # run and WRONG for a deploy — it is exactly how the two dictionaries
+      # reached production invisible, with a green build, a correct-looking
+      # payload, and the panel dutifully rendering nothing because there was
+      # nothing to render. Graceful degradation needs somewhere to be
+      # ungraceful, and this is it.
+      - name: Assert every dictionary was ingested
+        run: |
+          for d in lane lisan nihaya; do
+            test -f "pipeline/build/$d/entries.json" \
+              || { echo "::error::pipeline/build/$d/entries.json missing — build.py would silently ship no $d section"; exit 1; }
+          done
 
       # ---------------------------------------------------------------------
       # Contracts are generated from Python. If someone hand-edits the
