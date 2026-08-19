@@ -51,13 +51,26 @@ jobs:
       # sources are wanted. A checksum mismatch inside fetch.py still fails the
       # build loudly — the cache cannot smuggle in changed input.
       # ---------------------------------------------------------------------
+      # Cache keys that name only the configs a stage actually reads. A glob
+      # over corpora/*.yaml also matches the three dictionary configs, which
+      # analyse.py never opens — it walks build/*/records.json, and a
+      # dictionary never produces one. Keyed on the glob, editing a comment in
+      # lisan.yaml threw away the morphology cache and re-ran CAMeL over every
+      # corpus. The set is derived from the `role` field rather than listed, so
+      # a new corpus cannot be forgotten out of it.
+      - name: Compute config digests
+        id: digests
+        run: |
+          echo "reading=$(python pipeline/corpus_digest.py)" >> "$GITHUB_OUTPUT"
+          echo "lexical=$(python pipeline/corpus_digest.py --lexical)" >> "$GITHUB_OUTPUT"
+
       - name: Cache source downloads
         uses: actions/cache@v5
         with:
           path: pipeline/cache
           # v2: Phase 0 moved sources to cache/{corpus}/. A half-migrated
           # restore would trip the checksum guard on the wrong file.
-          key: sources-v2-${{ hashFiles('pipeline/corpora/*.yaml') }}
+          key: sources-v3-${{ steps.digests.outputs.reading }}-${{ steps.digests.outputs.lexical }}
 
       # Lane is ingested whole, once, and shared across every corpus. 72 MB of
       # parsed entries, ~90 s to produce. Keyed on the ingester itself.
@@ -72,7 +85,7 @@ jobs:
           # alone, so a corpus config change must invalidate this cache.
           # Without the configs in the key, adding or re-segmenting a text
           # would silently reuse an analysis that predates it.
-          key: morph-v2-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx', 'pipeline/corpora/*.yaml', 'pipeline/segment.py') }}
+          key: morph-v3-${{ hashFiles('pipeline/analyse.py', 'Tajrid_frequency_tables.xlsx', 'pipeline/segment.py') }}-${{ steps.digests.outputs.reading }}
 
       # Context disambiguation over 2,550 records takes about five minutes and
       # only changes when the records or the script do.

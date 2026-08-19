@@ -1555,3 +1555,58 @@ def test_the_deploy_workflow_fails_when_an_ingest_is_missing():
     )
     assert "Assert every dictionary was ingested" in wf
     assert "entries.json" in wf
+
+
+def test_expensive_caches_are_not_keyed_on_dictionary_configs():
+    """
+    Editing a dictionary config must not re-run the morphological analysis.
+
+    THE BUG THIS PINS. The morphology cache — the most expensive one in the
+    build — was keyed on `hashFiles('pipeline/corpora/*.yaml')`. That glob also
+    matches lane.yaml, lisan.yaml and nihaya.yaml, which `analyse.py` never
+    reads: it walks `build/*/records.json`, and a lexical source never produces
+    one. So editing a comment in a dictionary config threw away the cache and
+    re-ran CAMeL over every corpus for nothing.
+
+    The fix must stay DERIVED rather than listed. Naming the reading corpora
+    explicitly in the workflow would work today and rot at the next corpus,
+    and a forgotten corpus means a stale analysis silently reused — which is
+    the failure the glob was widened to prevent in the first place.
+    """
+    wf = (corpus.ROOT.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    morph = next(l for l in wf.splitlines() if "key: morph-" in l)
+    assert "corpora/*.yaml" not in morph, (
+        "the morphology cache is keyed on every corpus config again, including "
+        "the dictionaries analyse.py never opens"
+    )
+    assert "digests.outputs.reading" in morph, (
+        "the morphology cache should be keyed on the reading-corpus digest"
+    )
+    assert "corpus_digest.py" in wf
+
+
+def test_the_digest_separates_books_from_dictionaries():
+    """The property the cache keys rely on, checked directly rather than
+    trusted: a dictionary config must not move the reading digest."""
+    import subprocess
+    import sys
+
+    def run(*args):
+        return subprocess.run(
+            [sys.executable, str(corpus.ROOT / "corpus_digest.py"), *args],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    reading, lexical = run(), run("--lexical")
+    assert reading and lexical and reading != lexical
+
+    path = corpus.ROOT / "corpora" / "lisan.yaml"
+    original = path.read_bytes()
+    try:
+        path.write_bytes(original + b"\n# cache-key probe\n")
+        assert run() == reading, "a dictionary edit moved the reading digest"
+        assert run("--lexical") != lexical, "a dictionary edit left its own digest alone"
+    finally:
+        path.write_bytes(original)
