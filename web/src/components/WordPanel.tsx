@@ -751,10 +751,12 @@ function Lisan({ lisan }: { lisan: DictRoot | null }) {
       )}
 
       <p className="mt-3 text-[0.65rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
-        Ibn Manẓūr (d. 711/1311), Dār Ṣādir edition. His own words and order —
-        the divisions are the edition's sentences, not numbered senses, because
-        he wrote none. This text carries no harakat: every digital copy of it is
-        unvowelled, and we would rather show you that than guess.
+        Ibn Manẓūr (d. 711/1311), Dār Ṣādir edition, 3rd ed. with al-Yāzijī's
+        notes. His own words and order — the divisions are the edition's
+        sentences, not numbered senses, because he wrote none. The harakat are
+        the editors', as printed; none are generated. A few articles carry none
+        because the vocalised text could not be verified against the reference
+        copy, and we would rather leave those bare than guess.
       </p>
     </Section>
   );

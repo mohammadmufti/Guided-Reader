@@ -32,7 +32,7 @@ display:
   titleEn: "Lisān al-ʿArab"
   author: "Muḥammad b. Mukarram Ibn Manẓūr al-Ifrīqī"
   authorDied: "711 AH / 1311 CE"
-  edition: "Beirut: Dār Ṣādir (OCLC 173667495); OpenITI Shamela0001687-ara1"
+  edition: "Beirut: Dār Ṣādir, 3rd ed. 1414 AH, 15 vols, with al-Yāzijī's notes; text from Shamela book 1687, entry structure from OpenITI Shamela0001687-ara1"
   # The TEXT is public domain — Ibn Manzur died in 1311. The DIGITISATION is
   # Shamela's, annotated by SP Loynes for OpenITI and collated against the
   # first edition with pagination confirmed identical. Unlike the Nihaya
@@ -41,6 +41,45 @@ display:
   rights: "text public-domain; digitisation Shamela via OpenITI (see NOTICE.md)"
 
 sources:
+  # THE VOCALISED TEXT, and the reason this source has two.
+  #
+  # Every OpenITI version of this book is stripped of harakat — all four were
+  # checked (JK, ShamAY, Shamela, Shia) and every one has exactly zero
+  # combining marks of any Unicode category. That is an OpenITI-wide
+  # normalisation, not a bad version choice, and it is not something our fetch
+  # does: the downloaded file matches upstream's checksum byte for byte.
+  #
+  # Shamela's own distribution of the SAME EDITION keeps them:
+  #
+  #                        Arabic letters   combining marks   ratio
+  #     Shamela .bok           13,179,687         8,385,210   0.636
+  #     OpenITI                12,806,345                 0   0.000
+  #     Lane, for scale         1,335,698         1,016,223   0.761
+  #
+  # 8.4 million diacritics, plus the editors' footnotes OpenITI drops. These
+  # are the EDITORS' vowels as printed, not generated ones, so nothing in
+  # DIACRITISATION.md §4 is being bent — that prohibition is on inventing
+  # vocalisation, and this is the opposite of inventing it.
+  #
+  # `kind: local` because Shamela distributes this as a download rather than
+  # at a stable URL. Same arrangement as the workbook: it sits at the
+  # repository root, committed, and fetch.py copies it into the cache so the
+  # pipeline has a checksummed immutable input.
+  vocalised:
+    kind: local
+    path: Lisan_al-Arab_Shamela1687.bok
+    filename: lisan.bok
+
+  # THE STRUCTURE. Retained, and not merely for belt and braces: OpenITI's
+  # `### $` entry markers are hand-curated (the reviewer's note records tagging
+  # the second-level headers "and all the entries"), and the .bok has no entry
+  # markup at all — its heads are plain `root: ` lines, textually identical to
+  # the cross-references that appear INSIDE articles. Matching those naively
+  # yields 11,915 candidates for 8,973 real entries.
+  #
+  # So each source does what it is good at: OpenITI decides WHERE entries
+  # begin, Shamela supplies WHAT THEY SAY. Cross-validating the two is also
+  # what makes the swap safe — see lisan.py.
   text:
     kind: http
     uri: https://raw.githubusercontent.com/OpenITI/0725AH/master/data/0711IbnManzurIfriqi/0711IbnManzurIfriqi.LisanCarab/0711IbnManzurIfriqi.LisanCarab.Shamela0001687-ara1.mARkdown
@@ -91,3 +130,9 @@ expected:
   # The other 178 collisions are two heads folding to one root; those APPEND.
   unique_roots: 8973
   min_page_coverage: 0.98  # share of heads with a recoverable volume/page
+  # Combining marks per Arabic letter after the Shamela swap. Lane sits at
+  # 0.761; OpenITI alone is 0.000. A floor rather than an equality because the
+  # entries that fail verification keep their unvocalised OpenITI text, which
+  # is the correct outcome and moves the ratio slightly. If this trips, the
+  # .bok did not take and the panel would quietly go back to bare consonants.
+  min_harakat_ratio: 0.55

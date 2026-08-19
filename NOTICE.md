@@ -63,6 +63,14 @@ the case where the GPL plausibly does reach the data, which is a second and
 independent reason this repository is GPL-3.0.
 
 **Lisān al-ʿArab** — the text is public domain: Ibn Manẓūr died in 711/1311.
+The vocalised text is Shamela's own distribution of book 1687 (Dār Ṣādir, 3rd
+ed. 1414 AH, 15 vols, with al-Yāzijī's notes), downloaded directly from
+shamela.ws and committed at the repository root. The harakat are that edition's
+editors' work — 8.4 million of them — and are reproduced as printed; none are
+generated. Entry STRUCTURE comes from OpenITI, whose versions of this book are
+all stripped of diacritics; the two are cross-validated at build time, and any
+article whose de-diacritised Shamela text fails to reproduce the OpenITI text
+keeps the OpenITI text instead.
 The digitisation is Shamela's, distributed through OpenITI
 (`0711IbnManzurIfriqi.LisanCarab.Shamela0001687-ara1`), and this project
 ingests 9,152 of its entries into 8,973 root articles. The OpenITI version

@@ -103,7 +103,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: pipeline/build/lisan
-          key: lisan-${{ hashFiles('pipeline/lisan.py', 'pipeline/dictionaries.py', 'pipeline/corpora/lisan.yaml') }}
+          key: lisan-${{ hashFiles('pipeline/lisan.py', 'pipeline/lisan_vocalised.py', 'pipeline/dictionaries.py', 'pipeline/corpora/lisan.yaml', 'Lisan_al-Arab_Shamela1687.bok') }}
 
       - name: Cache Nihāya ingest
         id: nihaya-cache
@@ -125,6 +125,13 @@ jobs:
       - name: Fetch CAMeL database
         if: steps.camel-cache.outputs.cache-hit != 'true'
         run: camel_data -i morphology-db-msa-r13
+
+      # mdbtools reads the Access database Shamela distributes. Without it the
+      # ingest falls back to the unvocalised OpenITI text, which is a silent
+      # quality regression — so it is installed unconditionally and the harakat
+      # floor in lisan.yaml fails the build if the fallback ever engages.
+      - name: Install mdbtools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mdbtools
 
       - name: Fetch sources
         run: |

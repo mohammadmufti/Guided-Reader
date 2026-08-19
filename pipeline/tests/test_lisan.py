@@ -8,6 +8,7 @@ digitisation at its recorded checksum.
 """
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -96,14 +97,44 @@ def test_units_are_sentences_not_line_fragments(lisan):
     assert short < 0.45, f"{short:.1%} of units under 60 chars — rejoin regressed"
 
 
-def test_no_harakat_are_invented(runs):
-    """Every OpenITI version of this text is fully undiacritised — all six were
-    checked. DIACRITISATION.md §4 refuses generated vowelling on the grounds
-    that wrong vowels shown confidently are worse than none, so a mark
-    appearing here means someone ran a diacritiser."""
-    marks = set("\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670")
-    marked = [r["v"][:60] for r in runs if marks & set(r["v"])]
-    assert not marked, f"{len(marked)} runs carry harakat, e.g. {marked[:2]}"
+def test_the_harakat_are_the_editors_own(runs):
+    """
+    THIS TEST WAS INVERTED. It used to assert that NO mark ever appeared,
+    because every OpenITI version of this book is stripped — all four were
+    checked and each has exactly zero combining marks. Shamela's own
+    distribution of the same edition keeps them: 8.4 million of them, ratio
+    0.636 against Lane's 0.761.
+
+    DIACRITISATION.md §4 is untouched. That rule forbids INVENTING
+    vocalisation; these are the editors' vowels as printed, and `lisan.py`
+    refuses any entry whose de-diacritised text does not reproduce the
+    independently-derived OpenITI text it replaces.
+    """
+    marks = sum(
+        1 for r in runs for c in r["v"] if unicodedata.category(c).startswith("M")
+    )
+    letters = sum(1 for r in runs for c in r["v"] if "\u0621" <= c <= "\u064a")
+    ratio = marks / letters
+    assert ratio > 0.55, (
+        f"harakat ratio {ratio:.3f} — the Shamela .bok did not take, and the "
+        "panel has quietly gone back to bare consonants"
+    )
+
+
+def test_unverified_entries_keep_their_bare_text(lisan):
+    """A doubtful substitute is worse than a bare one.
+
+    Where the vocalised text does not verify against the OpenITI text it would
+    replace, the entry keeps what it had. That is a small, bounded, honest
+    residue — not a defect to paper over."""
+    bare = [
+        k for k, v in lisan.items()
+        if not any(
+            unicodedata.category(c).startswith("M")
+            for s in v["entries"][0]["senses"] for c in s["runs"][0]["v"]
+        )
+    ]
+    assert len(bare) / len(lisan) < 0.02, f"{len(bare)} entries unvocalised"
 
 
 def test_root_keys_are_canonical(lisan):
@@ -136,7 +167,13 @@ def test_salah_opens_with_the_definition(lisan):
     'Prayer, supplication, or petition'; Ibn Manẓūr opens with the classical
     definition, first, with no ranking heuristic and no sampling."""
     first = lisan["صلا"]["entries"][0]["senses"][0]["runs"][0]["v"]
-    assert first.startswith("الصلاة: الركوع والسجود")
+    bare = "".join(c for c in first if not unicodedata.category(c).startswith("M"))
+    assert bare.startswith("الصلاة: الركوع والسجود")
+    # And now with the vowels the reader actually needs. Asserted by counting
+    # marks rather than by matching a literal: mark ORDER on a letter is not
+    # normalised in this text, so a hand-typed comparison string is a trap.
+    marks = sum(1 for c in first[:20] if unicodedata.category(c).startswith("M"))
+    assert marks >= 4, f"the opening definition lost its harakat: {first[:40]!r}"
 
 
 def test_final_weak_roots_are_filed_under_alif(lisan):
