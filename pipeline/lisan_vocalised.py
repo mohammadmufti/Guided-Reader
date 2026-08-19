@@ -43,12 +43,8 @@ keep the OpenITI text rather than taking a doubtful substitute.
 
 from __future__ import annotations
 
-import csv
 import difflib
-import io
 import re
-import subprocess
-import sys
 import unicodedata
 from pathlib import Path
 
@@ -80,34 +76,49 @@ def strip_marks(s: str) -> str:
 
 def export_pages(bok: Path, table: str = "b1687") -> list[dict]:
     """
-    Read the Access database Shamela ships.
+    Read the Access database Shamela ships. Pure Python, deliberately.
 
-    `mdb-export` rather than a Python driver: mdbtools is packaged everywhere
-    and the alternative pure-Python readers do not handle the Memo fields this
-    file uses for page text.
+    THIS USED TO SHELL OUT TO `mdb-export`, which meant CI had to
+    `apt-get install mdbtools` on every cold runner. That step hung for six
+    hours and was killed by the job timeout — `apt-get update` blocks
+    indefinitely when the runner's background unattended-upgrades holds the
+    dpkg lock, and no timeout or DEBIAN_FRONTEND was set. Adding a timeout
+    would have papered over it; a build should not need a package manager to
+    read a file it already has.
+
+    `access_parser` returns Memo text as raw CP1256 bytes mis-decoded as
+    latin-1 — `Ü[áÓÇä ÇáÚÑÈ]Ü` for `ـ[لسان العرب]ـ` — because this is an old
+    Shamela database in the Windows Arabic codepage rather than UCS-2. The
+    round-trip below restores it, and reproduces mdbtools byte for byte:
+    13,179,687 Arabic letters and 8,385,210 combining marks either way.
     """
     try:
-        out = subprocess.run(
-            ["mdb-export", str(bok), table],
-            capture_output=True, text=True, check=True,
-        ).stdout
-    except FileNotFoundError:
+        from access_parser import AccessParser
+    except ImportError:
         raise SystemExit(
-            "mdb-export not found. Install mdbtools:\n"
-            "  apt-get install -y mdbtools   (Debian/Ubuntu)\n"
-            "  brew install mdbtools         (macOS)"
+            "access-parser not installed. Run:\n"
+            "  pip install access-parser"
         )
-    except subprocess.CalledProcessError as e:
-        raise SystemExit(f"mdb-export failed on {bok}: {e.stderr[:300]}")
-    csv.field_size_limit(sys.maxsize)
-    # io.StringIO, NOT out.splitlines(). The page text lives in Memo fields
-    # that contain the newlines separating the edition's lines, and those are
-    # precisely what an entry head is detected on. `splitlines()` consumes
-    # them, silently collapsing each page into one line: 936 candidate entries
-    # instead of 20,013, and an alignment that never syncs.
-    rows = list(csv.DictReader(io.StringIO(out)))
+    table_data = AccessParser(str(bok)).parse_table(table)
+    if "nass" not in table_data:
+        raise SystemExit(f"{bok}: table {table!r} has no `nass` column")
+    n = len(table_data["id"])
+    rows = [
+        {col: _cp1256(table_data[col][i]) for col in table_data}
+        for i in range(n)
+    ]
     rows.sort(key=lambda r: int(r["id"]))
     return rows
+
+
+def _cp1256(value):
+    """Undo access_parser's latin-1 reading of CP1256 Memo text."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return value.encode("latin-1").decode("cp1256")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return value
 
 
 def candidate_entries(rows: list[dict]) -> list[dict]:
@@ -118,7 +129,16 @@ def candidate_entries(rows: list[dict]) -> list[dict]:
     """
     out: list[dict] = []
     for row in rows:
-        page_text = (row.get("nass") or "").split(FOOTNOTE_RULE)[0]
+        # NORMALISE THE LINE SEPARATOR FIRST. Shamela stores page text with
+        # bare \r between the edition's lines. `mdb-export` rewrote those to \n
+        # on its way through CSV, so splitting on "\n" worked for as long as
+        # the reader was mdbtools and silently found nothing the moment it was
+        # not: 83 entries vocalised instead of 8,929. The harakat floor in
+        # lisan.yaml caught it. An entry head is defined by being at the start
+        # of a LINE, so which byte the source uses for that is not something
+        # this parser should know.
+        page_text = (row.get("nass") or "").replace("\r\n", "\n").replace("\r", "\n")
+        page_text = page_text.split(FOOTNOTE_RULE)[0]
         for line in page_text.split("\n"):
             line = line.strip()
             if not line:

@@ -15,7 +15,8 @@ import pytest
 
 from normalise import root_key, root_variants
 
-LISAN = Path(__file__).resolve().parents[1] / "build" / "lisan" / "entries.json"
+PIPELINE = Path(__file__).resolve().parents[1]
+LISAN = PIPELINE / "build" / "lisan" / "entries.json"
 pytestmark = pytest.mark.skipif(
     not LISAN.exists(), reason="Lisān not ingested here — run pipeline/lisan.py"
 )
@@ -189,3 +190,41 @@ def test_final_weak_roots_are_filed_under_alif(lisan):
         "root_variants() now reaches صلا — if that was deliberate, re-measure "
         "Lane resolution before deleting this test"
     )
+
+
+def test_line_separator_is_normalised():
+    """
+    The bug that silently un-vocalised the whole dictionary.
+
+    Shamela stores page text with bare \\r between the edition's lines.
+    `mdb-export` rewrote those to \\n on its way through CSV, so splitting on
+    "\\n" worked for exactly as long as the reader was mdbtools — and found
+    nothing the moment it was not. 83 entries vocalised instead of 8,929, with
+    the ingest reporting success. Only the harakat floor caught it.
+
+    An entry head is defined by being at the start of a LINE. Which byte the
+    source uses for that is not something the parser should know.
+    """
+    import lisan_vocalised
+
+    for sep in ("\n", "\r", "\r\n"):
+        page = sep.join(["فصل الهمزة", "أَبَأَ: قَالَ الشَّيْخُ", "ثانٍ من الكلام"])
+        got = lisan_vocalised.candidate_entries([
+            {"nass": page, "part": "1", "page": "23", "id": 1}
+        ])
+        assert len(got) == 1, f"separator {sep!r}: found {len(got)} entries"
+        assert got[0]["root"] == root_key("أبأ")
+
+
+def test_the_reader_needs_no_system_package():
+    """A build should not need a package manager to read a file it already has.
+
+    The previous implementation shelled out to `mdb-export`, so CI ran
+    `apt-get install mdbtools` on every cold runner. That step hung for six
+    hours and was killed by the job timeout — apt blocks indefinitely when the
+    runner's background unattended-upgrades holds the dpkg lock."""
+    src = (PIPELINE / "lisan_vocalised.py").read_text(encoding="utf-8")
+    assert "subprocess" not in src.split('"""', 2)[-1], "the ingest shells out again"
+    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
+    assert "apt-get" not in wf, "an apt-get step is back in the deploy workflow"
+    assert "access-parser" in wf, "the pure-Python reader is not installed in CI"
