@@ -886,6 +886,10 @@ class PanelEntry(TypedDict):
         str | None,
         Doc("Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root."),
     ]
+    nihaya_entry: Annotated[
+        str | None,
+        Doc("As lisan_entry, for al-Nihāya. Ordering, not a filter."),
+    ]
     nihaya_root: Annotated[
         str | None,
         Doc(
@@ -895,6 +899,18 @@ class PanelEntry(TypedDict):
             "nothing about whether a word is gharīb. It opens a section, and "
             "the copy must say 'Ibn al-Athīr's article on this root' rather "
             "than 'this word is gharīb'. Null for closed-class words."
+        ),
+    ]
+    lisan_entry: Annotated[
+        str | None,
+        Doc(
+            "Headword of the Lisān article this word most likely belongs to, "
+            "when its key carries more than one root. `root_key` folds hamza "
+            "so بدأ and بدا share a key; this says which. AN ORDERING, NOT A "
+            "FILTER — the panel puts it first and leaves the other visible, "
+            "because it is decided on the root's final radical and is right "
+            "about fifteen times in sixteen. Null when there is nothing to "
+            "choose between or nothing to choose on."
         ),
     ]
     lisan_root: Annotated[

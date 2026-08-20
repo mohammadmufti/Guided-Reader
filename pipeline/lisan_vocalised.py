@@ -162,24 +162,26 @@ def candidate_entries(rows: list[dict]) -> list[dict]:
     return out
 
 
-def align(openiti_roots: list[str], cands: list[dict]) -> dict[str, dict]:
+def align(openiti_heads: list[str], cands: list[dict]) -> dict[str, list[dict]]:
     """
-    Walk both sequences in the book's own order; match on root.
+    Walk both sequences in the book's own order; match on root key.
 
     A spurious head — a cross-reference inside an article — is out of order
     with respect to OpenITI's curated sequence, so it never matches and its
     text is absorbed into the article it actually belongs to. A real head is in
     order and matches on the first look.
 
-    The scan window forgives local disagreement (OpenITI folds a few spellings
-    together, and a handful of articles are filed twice) without letting the
-    two sequences drift apart silently.
+    RETURNS A LIST PER KEY, IN ORDER, not a single entry. `root_key` folds
+    hamza to bare alif, so 142 keys carry two genuinely different roots — بدأ
+    and بدا, قرأ and قرا. `lisan.py` files those as separate entries now, and
+    this has to hand back separate texts to match them against. Collapsing
+    them here would vocalise the first article with the second's prose.
     """
     WINDOW = 40
-    matched: dict[str, dict] = {}
-    last: dict | None = None   # the entry a skipped candidate belongs to
+    matched: dict[str, list[dict]] = {}
+    last: dict | None = None   # the article a skipped candidate belongs to
     i = 0
-    for root in openiti_roots:
+    for root in openiti_heads:
         for j in range(i, min(i + WINDOW, len(cands))):
             if cands[j]["root"] != root:
                 continue
@@ -191,14 +193,8 @@ def align(openiti_roots: list[str], cands: list[dict]) -> dict[str, dict]:
                 for k in range(i, j):
                     last["lines"].append(cands[k]["written"] + ":")
                     last["lines"].extend(cands[k]["lines"])
-            if root not in matched:
-                matched[root] = cands[j]
-            else:
-                # The same root filed twice. `lisan.py` concatenates the two
-                # articles rather than dropping one; do the same here or the
-                # verification compares one article against two.
-                matched[root]["lines"].extend(cands[j]["lines"])
-            last = matched[root]
+            matched.setdefault(root, []).append(cands[j])
+            last = cands[j]
             i = j + 1
             break
     return matched

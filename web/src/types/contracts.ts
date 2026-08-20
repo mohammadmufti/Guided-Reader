@@ -816,6 +816,8 @@ export interface PanelEntry {
   lane_root: string | null;
   /** Lane node id for THIS lemma's own entry, matched at build time. 83.2% of forms with a root. */
   laneEntry: string | null;
+  /** As lisan_entry, for al-Nihāya. Ordering, not a filter. */
+  nihaya_entry: string | null;
   /**
    * Root of Ibn al-Athīr's al-Nihāya article, or null. NOT an attestation flag: the root-level
    * signal fires on 84% of rooted forms and is flat across every frequency band, so it says
@@ -824,6 +826,14 @@ export interface PanelEntry {
    * closed-class words.
    */
   nihaya_root: string | null;
+  /**
+   * Headword of the Lisān article this word most likely belongs to, when its key carries more
+   * than one root. `root_key` folds hamza so بدأ and بدا share a key; this says which. AN
+   * ORDERING, NOT A FILTER — the panel puts it first and leaves the other visible, because it is
+   * decided on the root's final radical and is right about fifteen times in sixteen. Null when
+   * there is nothing to choose between or nothing to choose on.
+   */
+  lisan_entry: string | null;
   /**
    * Root of the Lisān al-ʿArab article, or null. There is NO entry-id companion: Ibn Manẓūr
    * writes one article per root, so a word reaches its root's article or nothing, and the panel

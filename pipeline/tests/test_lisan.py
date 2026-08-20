@@ -228,3 +228,53 @@ def test_the_reader_needs_no_system_package():
     wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
     assert "apt-get" not in wf, "an apt-get step is back in the deploy workflow"
     assert "access-parser" in wf, "the pure-Python reader is not installed in CI"
+
+
+def test_distinct_roots_are_not_concatenated(lisan):
+    """
+    بدأ (to begin) and بدا (to appear) are DIFFERENT ROOTS.
+
+    `root_key` folds hamza to bare alif so that CAMeL's spelling of a root and
+    the book's can meet. That is right for matching and wrong as an identity:
+    142 keys carry two genuinely different roots. They used to be concatenated
+    into one article, on the reasoning that dropping one would lose it. Not
+    dropping was right; concatenating was not — a reader opening بدا got 153
+    units, 89 on beginning and then, with no break at all, a different root's
+    article on appearing.
+    """
+    entry = lisan["بدا"]["entries"]
+    assert len(entry) == 2, "بدأ and بدا have been merged again"
+    heads = {e["headword"] for e in entry}
+    assert heads == {"بدأ", "بدا"}
+    first = {e["headword"]: e["senses"][0]["runs"][0]["v"] for e in entry}
+    assert "المُبْدئ" in first["بدأ"] or "أَنْشَأَ" in first["بدأ"]
+    assert "ظَهَرَ" in first["بدا"] or "يَبْدُو" in first["بدا"]
+
+
+def test_the_book_s_spelling_is_preserved(lisan):
+    """The panel shows `headword`, not the key.
+
+    The key is a join artefact. Rendering it told the reader بدا where Ibn
+    Manẓūr wrote بدأ, on 17.9% of shipped entries — quiet wrongness of exactly
+    the kind the sampled-sense bug was."""
+    differing = [
+        (k, e["headword"])
+        for k, v in lisan.items()
+        for e in v["entries"]
+        if e["headword"] != k
+    ]
+    assert differing, "no key differs from its spelling — folding may have stopped"
+    for key, head in differing:
+        assert root_key(head) == key, f"{head!r} does not fold to its key {key!r}"
+
+
+def test_one_article_per_source_head(lisan):
+    """Each entry is one article, and nodeid identifies it.
+
+    Using the key as nodeid made the two roots under a folded key
+    indistinguishable to anything downstream."""
+    for key, payload in lisan.items():
+        ids = [e["nodeid"] for e in payload["entries"]]
+        assert len(ids) == len(set(ids)), f"{key}: duplicate nodeids {ids}"
+        for e in payload["entries"]:
+            assert e["nodeid"] == e["headword"]

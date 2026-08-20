@@ -156,8 +156,24 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
                     # Same article, and the donor resolved the entry inside
                     # it: a strict refinement.
                     existing["laneEntry"] = row.get("laneEntry")
+                # The two Arabic dictionaries carry the same pairing, for the
+                # same reason: `{x}_entry` names an article INSIDE `{x}_root`,
+                # so filling the root from one corpus and the preference from
+                # another names an article that may not be in it.
+                for root_f, entry_f in (("lisan_root", "lisan_entry"),
+                                        ("nihaya_root", "nihaya_entry")):
+                    if not existing.get(root_f) and row.get(root_f):
+                        existing[root_f] = row.get(root_f)
+                        existing[entry_f] = row.get(entry_f)
+                    elif (existing.get(root_f)
+                          and existing.get(root_f) == row.get(root_f)
+                          and not existing.get(entry_f)
+                          and row.get(entry_f)):
+                        existing[entry_f] = row.get(entry_f)
                 for field, val in row.items():
-                    if field in ("lane_root", "laneEntry"):
+                    if field in ("lane_root", "laneEntry",
+                                 "lisan_root", "lisan_entry",
+                                 "nihaya_root", "nihaya_entry"):
                         continue
                     cur = existing.get(field)
                     # A DELIBERATE NULL IS NOT A GAP. `glossQuick` is set to
@@ -213,7 +229,9 @@ def collect(corpora: list[Path], previous: Path | None = None) -> tuple[dict, di
             e.get("lisan_root") or e.get("nihaya_root")
         ):
             e["lisan_root"] = None
+            e["lisan_entry"] = None
             e["nihaya_root"] = None
+            e["nihaya_entry"] = None
             scrubbed_lisan += 1
     if scrubbed_lisan:
         print(f"  scrubbed {scrubbed_lisan} closed-class Arabic-dictionary links "

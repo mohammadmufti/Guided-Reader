@@ -71,7 +71,7 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
     sig_re = re.compile(cfg["sigla"]["pattern"])
     strips = compile_strip(cfg)
 
-    counts = {"heads": 0, "structural": 0, "damaged_heads": 0,
+    counts = {"heads": 0, "structural": 0, "damaged_heads": 0, "split_roots": 0,
               "with_page": 0, "merged_fragments": 0, "labelled": 0}
 
     def clean(s: str) -> str:
@@ -133,23 +133,35 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
                 })
             key = cur["key"]
             existing = roots.get(key)
+            entry = {
+                "nodeid": cur["headword"],
+                "headword": cur["headword"],
+                "itypes": None,
+                "senses": senses,
+            }
             if existing is None:
                 roots[key] = {
                     "root": key,
                     "headword": cur["headword"],
                     "vol": cur["vol"],
                     "page": cur["page"],
-                    "entries": [{
-                        "nodeid": key,
-                        "headword": cur["headword"],
-                        "itypes": None,
-                        "senses": senses,
-                    }],
+                    "entries": [entry],
                 }
             else:
-                # A root filed twice, or two spellings folding together. Append
-                # rather than overwrite: dropping one loses an article.
-                existing["entries"][0]["senses"].extend(senses)
+                # Same rule as lisan.py, and for the same reason: `root_key`
+                # folds hamza, so a key can carry two genuinely distinct roots.
+                # Same spelling is one article filed in pieces — concatenate.
+                # Different spelling is two roots — keep them apart, or the
+                # reader gets one run-on article with no seam.
+                prior = next(
+                    (e for e in existing["entries"] if e["headword"] == cur["headword"]),
+                    None,
+                )
+                if prior is not None:
+                    prior["senses"].extend(senses)
+                else:
+                    existing["entries"].append(entry)
+                    counts["split_roots"] += 1
         cur, lines = None, []
 
     def open_entry(written: str) -> None:
@@ -263,6 +275,7 @@ def main() -> int:
     print(f"sentence units    {n_senses:>8,}   ({n_senses/max(len(roots),1):.1f} per root)")
     print(f"with a siglum     {counts['labelled']:>8,}   ({sig_share:.1%})")
     print(f"structural heads  {counts['structural']:>8,}")
+    print(f"roots sharing key {counts['split_roots']:>8,}   (separate entries, not concatenated)")
     print(f"damaged heads     {counts['damaged_heads']:>8,}   (kept with their article)")
     print(f"text              {chars/1e6:>8.1f} M chars")
     print(f"residual markers  {'NONE' if not problems else 'PRESENT':>8}")

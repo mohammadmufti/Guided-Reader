@@ -115,10 +115,10 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       {/* Below Lane: English first is the panel's existing "most useful
           first" ordering, and most readers here reach for it first. */}
-      <Lisan lisan={data.lisan} />
+      <Lisan lisan={data.lisan} prefer={entry.lisan_entry} />
       {/* Last of the three: the most specialised, and the one a reader is
           least often looking for. */}
-      <Nihaya nihaya={data.nihaya} />
+      <Nihaya nihaya={data.nihaya} prefer={entry.nihaya_entry} />
       <Divergence entry={entry} />
       <InThisCorpus stats={data.stats} index={index} record={record} token={token} />
       <ProperNoun entry={entry} />
@@ -666,29 +666,46 @@ function Classical({
  */
 const LISAN_PREVIEW_CHARS = 400;
 
-function Lisan({ lisan }: { lisan: DictRoot | null }) {
+function Lisan({ lisan, prefer }: { lisan: DictRoot | null; prefer: string | null }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   // Nothing to say renders nothing — the panel's rule everywhere else.
   if (!lisan) return null;
 
-  const senses = lisan.entries[0]?.senses ?? [];
-  if (senses.length === 0) return null;
+  // ONE OR MORE ARTICLES. `root_key` folds hamza to bare alif so that CAMeL's
+  // spelling of a root and the book's can meet; 142 keys therefore carry two
+  // genuinely different roots. They are separate entries, and shown as such.
+  const found = (lisan.entries ?? []).filter((e) => e.senses.length > 0);
+  if (found.length === 0) return null;
+
+  // ORDERED, NOT FILTERED. `prefer` is decided on the root's final radical and
+  // is right about fifteen times in sixteen, so the article it does not pick
+  // stays visible directly below. Where it decides nothing, this is a no-op
+  // and the reader sees exactly what they saw before.
+  const articles =
+    prefer && found.length > 1
+      ? [...found].sort((a, b) =>
+          a.headword === prefer ? -1 : b.headword === prefer ? 1 : 0,
+        )
+      : found;
+
+  // THE BOOK'S SPELLING, NOT THE KEY. The key is a join artefact: rendering it
+  // told the reader بدا where Ibn Manzur wrote بدأ, on 17.9% of entries.
+  const shown = articles.map((e) => e.headword).join(" · ");
+  const totalUnits = articles.reduce((n, e) => n + e.senses.length, 0);
 
   let budget = LISAN_PREVIEW_CHARS;
-  const preview = senses.filter((sense) => {
-    if (budget <= 0) return false;
-    budget -= sense.runs.reduce((n, r) => n + r.v.length, 0);
-    return true;
-  });
-  const visible = expanded ? senses : preview;
+  const preview = articles.map((entry) =>
+    entry.senses.filter((sense) => {
+      if (budget <= 0) return false;
+      budget -= sense.runs.reduce((n, r) => n + r.v.length, 0);
+      return true;
+    }),
+  );
+  const shownUnits = preview.reduce((n, ss) => n + ss.length, 0);
 
   return (
     <Section subtitle="Lisān al-ʿArab" testId="lisan">
-      {/* The headword line IS the control, above what it reveals, collapsed
-          by default — the same three rules as the Lane section, because they
-          were right there and a reader should not have to learn two idioms
-          in one panel. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -703,42 +720,59 @@ function Lisan({ lisan }: { lisan: DictRoot | null }) {
           ›
         </span>
         <span className="arabic text-xl" lang="ar" dir="rtl">
-          {lisan.root}
+          {shown}
         </span>
         <span
           className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
           dir="ltr"
         >
-          the article on this root
+          {articles.length > 1
+            ? `two roots spelled alike · ${articles.length} articles`
+            : "the article on this root"}
           {lisan.vol ? ` · vol. ${lisan.vol}` : ""}
           {lisan.page ? ` p. ${lisan.page}` : ""}
         </span>
       </button>
 
       {/* The root again, outside the button, so it can be selected and copied
-          — text inside a button cannot be. Same reason as the Lane block. */}
+          — text inside a button cannot be. */}
       <div
         className={`mb-1 select-text arabic text-lg ${open ? "" : "hidden"}`}
         lang="ar"
         dir="rtl"
       >
-        {lisan.root}
+        {shown}
       </div>
 
-      {/* NOT an <ol>. Numbering these would tell the reader Ibn Manzur wrote
-          numbered senses; he wrote continuous prose, and the divisions are
-          the edition's sentences. */}
-      <div className={`space-y-2 ${open ? "" : "hidden"}`} lang="ar" dir="rtl">
-        {visible.map((sense, i) => (
-          <p key={i} className="panel-scaled arabic leading-loose">
-            {sense.runs.map((run, j) => (
-              <Run key={j} run={run} />
-            ))}
-          </p>
+      <div className={`space-y-3 ${open ? "" : "hidden"}`} lang="ar" dir="rtl">
+        {articles.map((entry, ai) => (
+          <div key={ai}>
+            {/* Only labelled when there is something to tell apart. One
+                article needs no heading; two spelled alike very much do. */}
+            {articles.length > 1 && (
+              <p className="mb-1 flex items-baseline gap-2 arabic text-base text-(--color-ink-muted)">
+                <span>{entry.headword}</span>
+                {prefer === entry.headword && (
+                  <span className="text-[0.6rem]" dir="ltr">
+                    likely this one
+                  </span>
+                )}
+              </p>
+            )}
+            <div className="space-y-2">
+              {(expanded ? entry.senses : (preview[ai] ?? [])).map((sense, i) => (
+                <p key={i} className="panel-scaled arabic leading-loose">
+                  {sense.runs.map((run, j) => (
+                    <Run key={j} run={run} />
+                  ))}
+                </p>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
-      {open && senses.length > preview.length && (
+      {open && totalUnits > shownUnits && (
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
@@ -746,7 +780,9 @@ function Lisan({ lisan }: { lisan: DictRoot | null }) {
           className="mt-2 text-xs text-(--color-ink-muted) underline underline-offset-2"
           dir="ltr"
         >
-          {expanded ? "Show less" : `Show the whole article (${senses.length} sentences)`}
+          {expanded
+            ? "Show less"
+            : `Show ${articles.length > 1 ? "both articles" : "the whole article"} (${totalUnits} sentences)`}
         </button>
       )}
 
@@ -757,6 +793,15 @@ function Lisan({ lisan }: { lisan: DictRoot | null }) {
         the editors', as printed; none are generated. A few articles carry none
         because the vocalised text could not be verified against the reference
         copy, and we would rather leave those bare than guess.
+        {articles.length > 1 && (
+          <>
+            {" "}
+            Two roots here share a consonantal skeleton once hamza is
+            normalised; the book keeps them apart and so do we. Which one your
+            word belongs to is inferred from its root's final radical — usually
+            right, not always, so both are shown.
+          </>
+        )}
       </p>
     </Section>
   );
@@ -787,13 +832,23 @@ const NIHAYA_SIGLA: Record<string, string> = {
  * al-Madini's supplement, unmarked for Ibn al-Athir himself. Those are shown
  * as labels, the way Lane's bracketed sigla already are.
  */
-function Nihaya({ nihaya }: { nihaya: DictRoot | null }) {
+function Nihaya({ nihaya, prefer }: { nihaya: DictRoot | null; prefer: string | null }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   if (!nihaya) return null;
 
-  const senses = nihaya.entries[0]?.senses ?? [];
-  if (senses.length === 0) return null;
+  // Same shape as Lisan: `root_key` folds hamza, so a key can carry two
+  // distinct roots. They are separate entries and shown apart.
+  const found = (nihaya.entries ?? []).filter((e) => e.senses.length > 0);
+  if (found.length === 0) return null;
+  const articles =
+    prefer && found.length > 1
+      ? [...found].sort((a, b) =>
+          a.headword === prefer ? -1 : b.headword === prefer ? 1 : 0,
+        )
+      : found;
+  const senses = articles.flatMap((e) => e.senses);
+  const shown = articles.map((e) => e.headword).join(" · ");
 
   let budget = LISAN_PREVIEW_CHARS;
   const preview = senses.filter((sense) => {
@@ -819,7 +874,7 @@ function Nihaya({ nihaya }: { nihaya: DictRoot | null }) {
           ›
         </span>
         <span className="arabic text-xl" lang="ar" dir="rtl">
-          {nihaya.root}
+          {shown}
         </span>
         {/* No page citation, unlike the other two. This digitisation records
             no printed edition -- its OpenITI metadata is an unfilled template
@@ -829,7 +884,9 @@ function Nihaya({ nihaya }: { nihaya: DictRoot | null }) {
           className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
           dir="ltr"
         >
-          Ibn al-Athīr's article on this root
+          {articles.length > 1
+            ? `Ibn al-Athīr on two roots spelled alike`
+            : "Ibn al-Athīr's article on this root"}
         </span>
       </button>
 
@@ -838,7 +895,7 @@ function Nihaya({ nihaya }: { nihaya: DictRoot | null }) {
         lang="ar"
         dir="rtl"
       >
-        {nihaya.root}
+        {shown}
       </div>
 
       <div className={`space-y-2 ${open ? "" : "hidden"}`} lang="ar" dir="rtl">

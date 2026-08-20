@@ -139,6 +139,60 @@ CLOSED_CLASS_POS = {"pronoun", "stopword", "particle", "preposition",
                     "conjunction", "interjection"}
 
 
+# Two classes, not four, and the difference matters.
+#
+# `root_key` folds hamza and the weak letters together so CAMeL's spelling of a
+# root and a dictionary's can meet. That is right for MATCHING and destroys a
+# real distinction: بدأ and بدا are different roots, قرأ and قرا are different
+# roots.
+#
+# But the distinction that survives is only HAMZA vs WEAK. The dictionaries
+# write every weak-final root with a bare alif whatever the underlying radical
+# — بدا for b-d-w, بكا for b-k-y — so classifying و, ي and ا apart makes the
+# root بدو fail to match the head بدا, which is the same root.
+HAMZA = set("\u0623\u0625\u0622\u0621\u0626\u0624")
+WEAK = set("\u0627\u0648\u064a\u0649")
+
+
+def _final(root: str) -> str | None:
+    """`hamza`, `weak`, or the letter itself for a strong final radical."""
+    if not root:
+        return None
+    last = root[-1]
+    if last in HAMZA:
+        return "hamza"
+    if last in WEAK:
+        return "weak"
+    return last
+
+
+def prefer_entry(candidate_root: str, entries: list[dict]) -> str | None:
+    """
+    Which of a folded key's articles is this word's, if it can be told.
+
+    ORDERING, NOT FILTERING. The caller puts the chosen article first and
+    leaves the other visible, so the 3% this cannot decide and the roughly one
+    in sixteen it gets wrong both degrade to showing both — today's behaviour —
+    rather than hiding the right article.
+
+    THE SIGNAL IS THE ROOT, NOT THE WORD. Matching on hamza in the LEMMA was
+    measured first and reaches 93.7% coverage at about 61% precision, because
+    orthographic hamza in a word is usually not a radical: أَدْنَى takes the
+    form-IV prefix and resolves to دنأ (vile) rather than دنو, بُكاءٌ takes the
+    hamza of فُعال and resolves to بكأ (a she-camel's milk dried up), and
+    نَبِيٌّ shows no hamza at all although its root is نبأ.
+
+    The unfolded root string we already carry — `جيء`, `لجء`, `سوء`, `بكي`,
+    `نسي`, `ربو` — keeps the radical. Matching on THAT: 96.8% decided, 0.4%
+    with no candidate, and one wrong in a hand-checked sixteen.
+    """
+    want = _final(candidate_root)
+    if want is None:
+        return None
+    hits = [e for e in entries if _final(e["headword"]) == want]
+    return hits[0]["headword"] if len(hits) == 1 else None
+
+
 def fnv1a(text: str) -> int:
     """
     32-bit FNV-1a over UTF-8. Reimplemented identically in the client so a
@@ -1294,6 +1348,7 @@ def main() -> int:
         #    ['noun', 'pron_dem'] and only 9 forms / 69 tokens would be caught.
         #    Its permissiveness is the bug, not a rescue.
         lisan_root = None
+        lisan_entry = None
         if lisan and _pos not in CLOSED_CLASS_POS:
             for cand in _cands if not _ov_hit else [lr]:
                 if not cand:
@@ -1301,8 +1356,15 @@ def main() -> int:
                 hit = next((v for v in dict_root_variants(cand) if v in lisan), None)
                 if hit:
                     lisan_root = hit
+                    # Only where there is something to choose BETWEEN. A key
+                    # holding one article needs no preference and shipping one
+                    # would be noise on 96% of entries.
+                    articles = lisan[hit].get("entries") or []
+                    if len(articles) > 1:
+                        lisan_entry = prefer_entry(cand, articles)
                     break
         trimmed["lisan_root"] = lisan_root
+        trimmed["lisan_entry"] = lisan_entry
         if lisan_root:
             lisan_seen.add(lisan_root)
 
@@ -1310,6 +1372,7 @@ def main() -> int:
         # closed-class prohibition — it files roots the same way and has the
         # same one-article-per-root shape, so nothing here is a special case.
         nihaya_root = None
+        nihaya_entry = None
         if nihaya and _pos not in CLOSED_CLASS_POS:
             for cand in _cands if not _ov_hit else [lr]:
                 if not cand:
@@ -1317,8 +1380,12 @@ def main() -> int:
                 hit = next((v for v in dict_root_variants(cand) if v in nihaya), None)
                 if hit:
                     nihaya_root = hit
+                    articles = nihaya[hit].get("entries") or []
+                    if len(articles) > 1:
+                        nihaya_entry = prefer_entry(cand, articles)
                     break
         trimmed["nihaya_root"] = nihaya_root
+        trimmed["nihaya_entry"] = nihaya_entry
         if nihaya_root:
             nihaya_seen.add(nihaya_root)
 

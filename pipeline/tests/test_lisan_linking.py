@@ -133,3 +133,71 @@ def test_lane_payload_declares_a_null_volume():
     same as a known absence, and the client distinguishes them."""
     build = (PIPELINE / "build.py").read_text(encoding="utf-8")
     assert '"vol": None' in build
+
+
+# ------------------------------------------------------- choosing an article
+
+
+def test_preference_is_decided_on_the_root_not_the_word():
+    """
+    The approach that was measured and rejected, pinned so it does not return.
+
+    Matching hamza in the LEMMA reaches 93.7% coverage at roughly 61%
+    precision, because orthographic hamza in a word is usually not a radical:
+    أَدْنَى carries the form-IV prefix and lands on دنأ (vile) instead of دنو,
+    بُكاءٌ carries the hamza of فُعال and lands on بكأ (a she-camel's milk dried
+    up), and نَبِيٌّ shows no hamza although its root is نبأ.
+
+    The unfolded ROOT string keeps the radical — جيء, لجء, سوء, بكي, نسي, ربو
+    — and decides 96.8% correctly.
+    """
+    from build import prefer_entry
+
+    def art(h):
+        return {"headword": h, "senses": [{"label": None, "level": "sentence",
+                                           "runs": [{"t": "ar", "v": "x"}]}]}
+
+    both = [art("بدأ"), art("بدا")]
+    assert prefer_entry("بدأ", both) == "بدأ"
+    assert prefer_entry("بدو", both) == "بدا"
+    assert prefer_entry("قرء", [art("قرأ"), art("قرا")]) == "قرأ"
+    assert prefer_entry("سوء", [art("سوأ"), art("سوا")]) == "سوأ"
+    assert prefer_entry("بكي", [art("بكأ"), art("بكا")]) == "بكا"
+
+
+def test_preference_declines_rather_than_guesses():
+    """Null where it cannot tell. The panel then shows both, which is the
+    behaviour that predates this and is never worse than it."""
+    from build import prefer_entry
+
+    def art(h):
+        return {"headword": h, "senses": []}
+
+    assert prefer_entry("", [art("بدأ"), art("بدا")]) is None
+    # two candidates in the same class: nothing to choose on
+    assert prefer_entry("بدأ", [art("بدأ"), art("بدإ")]) is None
+    # no candidate in the word's class
+    assert prefer_entry("بدأ", [art("بدا"), art("بدو")]) is None
+
+
+def test_preference_orders_and_never_hides():
+    """A filter would be wrong here: this is right about fifteen times in
+    sixteen, so the article it does not pick must stay visible."""
+    panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
+        encoding="utf-8"
+    )
+    assert ".sort(" in panel, "the preference no longer orders the articles"
+    assert "prefer" in panel
+    # the unchosen article must not be filtered out
+    assert "e.headword === prefer)" not in panel.replace(" ", ""), (
+        "the preference is filtering articles rather than ordering them"
+    )
+
+
+def test_the_preference_moves_with_its_root_when_merging():
+    """`{x}_entry` names an article INSIDE `{x}_root`. Filling the root from
+    one corpus and the preference from another names an article that may not
+    be in it — the same hazard share.py already guards for lane_root."""
+    src = (PIPELINE / "share.py").read_text(encoding="utf-8")
+    assert '("lisan_root", "lisan_entry")' in src
+    assert '("nihaya_root", "nihaya_entry")' in src

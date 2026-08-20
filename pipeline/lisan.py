@@ -108,7 +108,7 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
     page_re = re.compile(seg["page_marker_alt"])
     strips = compile_strip(cfg)
 
-    counts = {"heads": 0, "unparsed": 0, "with_page": 0, "merged_fragments": 0}
+    counts = {"heads": 0, "unparsed": 0, "with_page": 0, "merged_fragments": 0, "split_roots": 0}
     # The order OpenITI declares entries in. `lisan_vocalised.align` walks
     # this against Shamela's heads; order is what tells a real head from a
     # cross-reference that happens to look identical.
@@ -141,27 +141,51 @@ def parse(text: str, cfg: dict) -> tuple[dict[str, dict], dict]:
                 for u in units
             ]
             existing = roots.get(key)
+            entry = {
+                # Unique per ARTICLE, not per key. `root_key` folds hamza to
+                # bare alif so that CAMeL's spelling and the book's can meet,
+                # which is right for matching and wrong as an identity: بدأ
+                # and بدا are different roots that fold to one key.
+                "nodeid": cur["headword"],
+                # THE BOOK'S OWN SPELLING, which is what the panel shows. The
+                # key is a join artefact and displaying it told the reader
+                # بدا where Ibn Manẓūr wrote بدأ — on 17.9% of entries.
+                "headword": cur["headword"],
+                "itypes": None,
+                "senses": senses,
+            }
             if existing is None:
                 roots[key] = {
                     "root": key,
                     "headword": cur["headword"],
                     "vol": cur["vol"],
                     "page": cur["page"],
-                    "entries": [
-                        {
-                            "nodeid": key,
-                            "headword": cur["headword"],
-                            "itypes": None,
-                            "senses": senses,
-                        }
-                    ],
+                    "entries": [entry],
                 }
             else:
-                # 178 of 9,152 heads fold onto a root another head already
-                # holds — the book files a few articles twice, and root_key
-                # folds a few spelling variants together. Append rather than
-                # overwrite: dropping one would silently lose an article.
-                existing["entries"][0]["senses"].extend(senses)
+                # 178 of 9,152 heads land on a key another head already holds,
+                # and the two cases are NOT the same:
+                #
+                #   * SAME spelling — the book files one article in two pieces.
+                #     Concatenate; they are one article.
+                #   * DIFFERENT spelling — two distinct roots that `root_key`
+                #     folded together, 142 keys' worth. Keep them APART.
+                #
+                # This used to concatenate both, on the reasoning that dropping
+                # one would silently lose an article. Not dropping was right;
+                # concatenating was not. A reader opening بدا got 153 units —
+                # 89 on beginning, then, with no break at all, a different
+                # root's article on appearing. `DictEntry` exists for exactly
+                # this: it is how Lane holds several headwords under one root.
+                prior = next(
+                    (e for e in existing["entries"] if e["headword"] == cur["headword"]),
+                    None,
+                )
+                if prior is not None:
+                    prior["senses"].extend(senses)
+                else:
+                    existing["entries"].append(entry)
+                    counts["split_roots"] += 1
         cur, lines = None, []
 
     for line in body.split("\n"):
@@ -246,37 +270,38 @@ def main() -> int:
     if bok and bok.exists():
         cands = lisan_vocalised.candidate_entries(lisan_vocalised.export_pages(bok))
         matched = lisan_vocalised.align(counts["head_order"], cands)
-        voc_stats["aligned"] = len(matched)
+        voc_stats["aligned"] = sum(len(v) for v in matched.values())
         for key, payload in roots.items():
-            hit = matched.get(key)
-            if hit is None:
-                voc_stats["absent"] += 1
-                continue
-            # SAME strip patterns as the OpenITI path. The Shamela text has
-            # its own editorial furniture — «1» footnote references above all —
-            # and skipping this leaves `السَّمُّ «2»` in a rendered run.
-            joined = re.sub(r"\s+", " ", " ".join(hit["lines"])).strip()
-            for _name, _pat in compile_strip(cfg):
-                joined = _pat.sub(" ", joined)
-            joined = re.sub(r"\s+", " ", joined).strip()
-            openiti = " ".join(
-                r["v"] for e in payload["entries"] for s_ in e["senses"] for r in s_["runs"]
-            )
-            score = lisan_vocalised.verify(key, joined, openiti)
-            if score < lisan_vocalised.MIN_SIMILARITY:
-                voc_stats["rejected"] += 1
-                continue
-            units = sentences(joined)
-            if not units:
-                voc_stats["rejected"] += 1
-                continue
-            payload["entries"][0]["senses"] = [
-                {"label": None, "level": "sentence", "runs": [{"t": "ar", "v": u}]}
-                for u in units
-            ]
-            payload["headword"] = hit["written"]
-            payload["entries"][0]["headword"] = hit["written"]
-            voc_stats["swapped"] += 1
+            hits = matched.get(key) or []
+            # ENTRY BY ENTRY, IN ORDER. Both sides list the articles under a
+            # key in the book's own order, so entry i pairs with hit i. A key
+            # carrying بدأ and بدا has two of each, and pairing by key alone
+            # would vocalise the first with the second's text.
+            for idx, entry in enumerate(payload["entries"]):
+                if idx >= len(hits):
+                    voc_stats["absent"] += 1
+                    continue
+                hit = hits[idx]
+                joined = re.sub(r"\s+", " ", " ".join(hit["lines"])).strip()
+                for _name, _pat in compile_strip(cfg):
+                    joined = _pat.sub(" ", joined)
+                joined = re.sub(r"\s+", " ", joined).strip()
+                openiti = " ".join(
+                    r["v"] for s_ in entry["senses"] for r in s_["runs"]
+                )
+                score = lisan_vocalised.verify(key, joined, openiti)
+                if score < lisan_vocalised.MIN_SIMILARITY:
+                    voc_stats["rejected"] += 1
+                    continue
+                units = sentences(joined)
+                if not units:
+                    voc_stats["rejected"] += 1
+                    continue
+                entry["senses"] = [
+                    {"label": None, "level": "sentence", "runs": [{"t": "ar", "v": u}]}
+                    for u in units
+                ]
+                voc_stats["swapped"] += 1
     else:
         print("  (no Shamela .bok — shipping the unvocalised OpenITI text)")
 
@@ -296,6 +321,7 @@ def main() -> int:
     print(f"sentence units    {n_senses:>8,}   ({n_senses/max(len(roots),1):.1f} per root)")
     print(f"fragments merged  {counts['merged_fragments']:>8,}")
     print(f"unparsed heads    {counts['unparsed']:>8,}")
+    print(f"distinct roots\n  sharing a key   {counts['split_roots']:>8,}   (kept as separate entries, not concatenated)")
     print(f"with vol/page     {counts['with_page']:>8,}   ({page_share:.1%})")
     print(f"text              {chars/1e6:>8.1f} M chars")
     print(f"residual markers  {'NONE' if not problems else 'PRESENT':>8}")
