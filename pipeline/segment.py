@@ -1031,6 +1031,45 @@ def main() -> int:
         + ([("Aside / addition", with_note["id"])] if with_note else []),
     }
 
+    # ---- the edition's own harakāt, where the corpus has them ------------
+    #
+    # OpenITI normalises diacritics away, so a text segmented from it is bare.
+    # Where a corpus declares `sources.vocalised` — Shamela's distribution of
+    # the SAME printed edition — each record's consonantal skeleton is located
+    # in that file and the vocalised span is taken back. Positional and
+    # lossless, because it is the same edition rather than a witness.
+    #
+    # OPTIONAL BY CONSTRUCTION: a corpus that declares no such source behaves
+    # exactly as it did, and this block does nothing.
+    voc_stats = None
+    from corpus import ConfigError, source_path
+    try:
+        bok = source_path(cfg, "vocalised", required=False)
+    except ConfigError:
+        bok = None
+    if bok is not None and bok.exists():
+        import vocalised_edition
+        table = (cfg["sources"]["vocalised"].get("table") or "").strip()
+        if not table:
+            raise ConfigError(
+                f"corpus {args.corpus!r} declares `sources.vocalised` but no "
+                f"`table`; the .bok holds one table per book and the name "
+                f"cannot be guessed"
+            )
+        voc_stats = vocalised_edition.restore(recs, vocalised_edition.read_bok(bok, table))
+        print(f"\nvocalised edition  {voc_stats['restored']:>7,} records restored")
+        print(f"  unmatched        {voc_stats['unmatched']:>7,}   (kept bare)")
+        print(f"  verify failed    {voc_stats['verify_failed']:>7,}   (kept bare)")
+        print(f"  too short        {voc_stats['skipped']:>7,}   (kept bare)")
+        print(f"  harakat ratio    {voc_stats['ratio']:>7.3f}")
+        floor = (cfg.get("gates") or {}).get("min_harakat_ratio")
+        if floor is not None and voc_stats["ratio"] < floor:
+            raise SystemExit(
+                f"harakat ratio {voc_stats['ratio']:.3f} below the configured "
+                f"floor {floor} — the vocalised edition did not take, and the "
+                f"corpus would silently ship bare consonants"
+            )
+
     if not args.report_only:
         out_dir = OUT / args.corpus
         out_dir.mkdir(parents=True, exist_ok=True)

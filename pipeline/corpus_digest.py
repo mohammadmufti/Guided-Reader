@@ -54,6 +54,16 @@ def digest(lexical: bool) -> str:
         h.update(cfg.get("id", path.stem).encode("utf-8"))
         h.update(b"\0")
         h.update(raw)
+        # AND THE CONTENT OF ANY `kind: local` SOURCE. A config names such a
+        # file by path, so replacing the file without touching the config
+        # would leave the digest unchanged and serve an analysis derived from
+        # the old bytes. Riyad's records are built from a Shamela .bok, so
+        # that is not hypothetical.
+        for spec in (cfg.get("sources") or {}).values():
+            if isinstance(spec, dict) and spec.get("kind") == "local":
+                local = ROOT.parent / str(spec.get("path", ""))
+                if local.is_file():
+                    h.update(hashlib.sha256(local.read_bytes()).digest())
     return h.hexdigest()
 
 

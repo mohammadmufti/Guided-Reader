@@ -32,6 +32,36 @@ sources:
     filename: riyad.mARkdown
     encoding: utf-8
 
+  # THE EDITION'S OWN HARAKAT. Every OpenITI version of this book is stripped
+  # — all six were checked and each has exactly zero combining marks of any
+  # Unicode category — and our fetch is not at fault: the file matches
+  # upstream's checksum byte for byte. Shamela's distribution of the SAME
+  # edition, al-Fahl's, keeps them:
+  #
+  #                       Arabic letters   combining marks   ratio
+  #     Shamela .bok             580,449           249,395   0.430
+  #     OpenITI                  491,003                 0   0.000
+  #
+  # A SWAP, NOT A WITNESS, and the measurement decided that. A witness is a
+  # different edition and its readings are attributed by inference — Tier 2.
+  # This is the very edition the stripped text was derived from, so 99.95% of
+  # our records appear in it VERBATIM once tatweel is discounted, the mapping
+  # is positional, and the corpus binds on Tier 0 instead: the source is
+  # vowelled. These are the editor's marks as printed; nothing is generated,
+  # so DIACRITISATION.md §4 is untouched.
+  #
+  # `kind: local` because Shamela distributes this as a download rather than at
+  # a stable URL — same arrangement as the workbook and the Lisan .bok.
+  vocalised:
+    kind: local
+    path: Riyad_al-Salihin_Shamela2348.bok
+    filename: riyad.bok
+    table: b2348
+    notes: |
+      Dr Mahir Yasin al-Fahl's edition (Dar Ibn Kathir, 1428/2007). He released
+      his tahqiq freely — Shamela's own record of the book says so — which is a
+      materially clearer position than most modern editions.
+
   vocalisation_reference:
     kind: http
     # THE WITNESS IS BARELY VOWELLED — 2.4% of tokens — because sunnah.com's
@@ -128,7 +158,19 @@ gates:
   # median 0.982 (the bare-rasm witness makes short hadith noisier — the
   # backwards filter dropped 5.2%, the highest of the map corpora, which is
   # the honest price). Thresholds below the measurements, per house rule.
-  min_witnessed_matn: 75.0
+  # Floor on the restored harakat ratio. Measured 0.52 over the matn; a floor
+  # rather than an equality because a handful of records keep their bare text
+  # where the span could not be verified. If this trips, the .bok did not take
+  # and the corpus would quietly go back to bare consonants — which is exactly
+  # how the two dictionaries once shipped invisible.
+  min_harakat_ratio: 0.40
+  # RAISED from 75.0. That floor was set for a corpus whose only vowelled
+  # evidence was a 2.4%-vowelled witness, so the harakat came from the shared
+  # lexicon and Tier 2 was thin by nature. With the edition's own vocalisation
+  # restored the measurement is 96.7% — Tier 0 alone carries 69.7% of matn
+  # tokens — so the old floor no longer says anything. Threshold below the
+  # measurement, per house rule.
+  min_witnessed_matn: 92.0
   min_retrieval_median: 0.85
 
 about:

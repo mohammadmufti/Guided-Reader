@@ -62,6 +62,18 @@ project ingests and restructures 47,919 of its entries. A derived database is
 the case where the GPL plausibly does reach the data, which is a second and
 independent reason this repository is GPL-3.0.
 
+**Riyāḍ al-Ṣāliḥīn, vocalised** — the text is public domain: al-Nawawī died in
+676/1277. The harakāt shipped with this corpus are Dr Māhir Yāsīn al-Faḥl's, from
+his edition (Dār Ibn Kathīr, Damascus/Beirut, 1st ed. 1428/2007), taken from
+Shamela's own distribution of book 2348 and committed at the repository root.
+Shamela's record of the book states that al-Faḥl released his taḥqīq freely
+(وقد جعل تحقيقه للكتاب مجانا) — a clearer position than most modern editions,
+and worth naming him for. The reading TEXT is still the OpenITI transcription
+of the same edition; only the vocalisation is restored from Shamela, and every
+restored span is verified at build time to reproduce the OpenITI text exactly
+once its marks are removed. sunnah.com continues to supply retrieval and the
+hadith numbering, and none of its text is redistributed.
+
 **Lisān al-ʿArab** — the text is public domain: Ibn Manẓūr died in 711/1311.
 The vocalised text is Shamela's own distribution of book 1687 (Dār Ṣādir, 3rd
 ed. 1414 AH, 15 vols, with al-Yāzijī's notes), downloaded directly from
