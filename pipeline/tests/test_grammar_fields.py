@@ -214,3 +214,58 @@ def test_the_unmeasured_tags_are_not_shipped():
         assert field not in contracts.Token.__annotations__, (
             f"{field} is shipped but nothing has measured it"
         )
+
+
+def test_every_built_corpus_is_disambiguated():
+    """
+    i`rab is a word-panel feature, so it belongs to every book we serve.
+
+    THE BUG THIS PINS. The workflow ran `disambiguate.py --corpus tajrid` and
+    nothing else, and cached `build/tajrid/disambiguated.json` alone. build.py
+    degrades quietly when the file is missing — it emits no `iraab` and says
+    nothing — so the feature would have shipped for one corpus out of nine with
+    a green build. That is the same shape as the dictionaries shipping empty:
+    a stage that is optional for a good reason, and a workflow that forgot to
+    call it.
+    """
+    import re
+
+    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    built = set(re.findall(r"python pipeline/build\.py\s+--corpus (\w+)", wf))
+    analysed = set(re.findall(r"python pipeline/disambiguate\.py --corpus (\w+)", wf))
+    missing = sorted(built - analysed)
+    assert not missing, (
+        f"these corpora are built but never disambiguated, so their word "
+        f"panels would carry no i`rab: {missing}"
+    )
+
+
+def test_the_disambiguation_cache_covers_every_corpus():
+    """Caching one book's analysis is why it was one book's feature."""
+    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "pipeline/build/*/disambiguated.json" in wf, (
+        "the context cache names a single corpus again"
+    )
+
+
+def test_disambiguation_runs_after_binding():
+    """It reads bind.py's vocalised surfaces. Run before, it sees the raw
+    source, which OpenITI strips for twelve of thirteen corpora — measured at
+    71.4% accuracy against 97.1%."""
+    import re
+
+    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+        encoding="utf-8"
+    )
+    for corpus in re.findall(r"python pipeline/disambiguate\.py --corpus (\w+)", wf):
+        bind = wf.find(f"pipeline/bind.py    --corpus {corpus}")
+        dis = wf.find(f"pipeline/disambiguate.py --corpus {corpus}")
+        build = wf.find(f"pipeline/build.py   --corpus {corpus}")
+        assert bind != -1 and dis != -1, corpus
+        assert bind < dis, f"{corpus}: disambiguate runs before bind"
+        if build != -1:
+            assert dis < build, f"{corpus}: disambiguate runs after build"

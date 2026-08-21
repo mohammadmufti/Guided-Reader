@@ -93,7 +93,10 @@ jobs:
         id: context-cache
         uses: actions/cache@v5
         with:
-          path: pipeline/build/tajrid/disambiguated.json
+          # EVERY corpus, not al-Tajrid alone. The i`rab in the word panel is
+          # a global feature; caching one book's analysis was the reason it
+          # was one book's feature.
+          path: pipeline/build/*/disambiguated.json
           # `bind.py` too: its vocalised surfaces are this stage's input now.
           key: context-v2-${{ hashFiles('pipeline/disambiguate.py', 'pipeline/segment.py', 'pipeline/bind.py') }}
 
@@ -223,9 +226,8 @@ jobs:
           # It must still come before build.py, which applies the context
           # overrides. Ordering it after build produced a payload with no
           # contextRoot at all, silently — the tests caught it, the build did not.
-          if [ ! -f pipeline/build/tajrid/disambiguated.json ]; then
-            python pipeline/disambiguate.py --corpus tajrid
-          fi
+          [ -f pipeline/build/tajrid/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus tajrid
           # GitHub Pages compresses on the fly and ignores .br/.gz siblings,
           # so producing them costs 136 s and 42 MB for nothing. On Cloudflare
           # Pages or Netlify, drop this flag — they do serve them.
@@ -250,6 +252,8 @@ jobs:
           # `lexicon_donors`, which makes it the only end-to-end check that
           # those two paths work at all.
           python pipeline/bind.py    --corpus muwatta
+          [ -f pipeline/build/muwatta/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus muwatta
           python pipeline/build.py   --corpus muwatta
 
           # Nawawi's Forty: 42 hadith, 3,465 tokens. The cheapest end-to-end
@@ -257,26 +261,36 @@ jobs:
           # scale, or only on a text with a curated workbook, fails here in
           # seconds rather than after a full Tajrid build.
           python pipeline/bind.py    --corpus nawawi40
+          [ -f pipeline/build/nawawi40/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus nawawi40
           python pipeline/build.py   --corpus nawawi40
 
           # Shah Wali Allah's Forty. The only corpus with no OpenITI text and
           # the only one whose source arrives vowelled, so it is the sole
           # end-to-end exercise of both the JSON source path and Tier 0.
           python pipeline/bind.py    --corpus shahwaliullah40
+          [ -f pipeline/build/shahwaliullah40/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus shahwaliullah40
           python pipeline/build.py   --corpus shahwaliullah40
 
           # Bulugh al-Maram and the Shama'il. Both take their sunnah.com link
           # number from the aligned witness, not from their own edition: the
           # two numberings agree on 1% of records.
           python pipeline/bind.py    --corpus bulugh
+          [ -f pipeline/build/bulugh/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus bulugh
           python pipeline/build.py   --corpus bulugh
           python pipeline/bind.py    --corpus shamail
+          [ -f pipeline/build/shamail/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus shamail
           python pipeline/build.py   --corpus shamail
 
           # al-Adab al-Mufrad: the only corpus that DROPS declared sections
           # (a modern editor's 1,348 interleaved gradings), so it is the sole
           # end-to-end exercise of drop_section_prefixes.
           python pipeline/bind.py    --corpus adab
+          [ -f pipeline/build/adab/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus adab
           python pipeline/build.py   --corpus adab
 
           # Riyad al-Salihin: the only corpus whose witness is not in the
@@ -285,6 +299,8 @@ jobs:
           # lexicon minted from the OTHER corpora, which nothing else
           # verifies end to end.
           python pipeline/bind.py    --corpus riyad
+          [ -f pipeline/build/riyad/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus riyad
           python pipeline/build.py   --corpus riyad
 
           # Mukhtasar Sahih Muslim: an abridgement bound against its full
@@ -292,6 +308,8 @@ jobs:
           # the order-constrained link assignment exists for, and the only
           # one exercising lettered site addresses and declared no-links.
           python pipeline/bind.py    --corpus mukhtasar
+          [ -f pipeline/build/mukhtasar/disambiguated.json ] \
+            || python pipeline/disambiguate.py --corpus mukhtasar
           python pipeline/build.py   --corpus mukhtasar
 
       # Runs LAST, after every corpus is built: it merges what they have in
