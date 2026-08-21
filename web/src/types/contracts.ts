@@ -461,6 +461,16 @@ export interface Token {
   /** False for unbound tokens — they are visually inert. */
   clickable: boolean;
   /**
+   * The token's case or mood IN THIS POSITION — مرفوع, منصوب, مجرور or مجزوم — from context
+   * disambiguation, or null where the analysis did not settle one. On the TOKEN and not the
+   * lexicon entry because case belongs to a position, not to a word: the same form is marfu` in
+   * one hadith and majrur in the next. Measured against the harakat al-Fahl printed in Riyad:
+   * 95.6% on nouns, 85.0% on the imperfect, 93.7% overall over 5,330 checkable tokens. Re-run it
+   * with pipeline/eval_grammar.py. Alkhalil's derivational tags are NOT shipped: nothing scores
+   * them.
+   */
+  iraab: string | null;
+  /**
    * Root from context disambiguation, overriding the workbook. Set ONLY where the workbook gave
    * a geminate and context gives a hollow root — the class where Lane backs context 18 of 18.
    * 605 tokens.

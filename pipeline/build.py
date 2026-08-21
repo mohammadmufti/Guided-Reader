@@ -374,6 +374,52 @@ def _hollow(root: str) -> bool:
     return len(root) == 3 and root[1] in WEAK_RADICALS
 
 
+# The four i`rab values Alkhalil reports. Anything else is a bug upstream, and
+# passing it through would put an unknown string in front of a student.
+IRAAB = {"مرفوع", "منصوب", "مجرور", "مجزوم"}
+
+
+def make_iraab(disambiguated: dict, counter: dict):
+    """
+    The i`rab of a token IN ITS POSITION, where the analysis settled one.
+
+    WHY THIS IS ON THE TOKEN AND NOT ON THE LEXICON ENTRY. Case is a property
+    of a word's position in a sentence, not of the word. The same form is
+    marfu` in one hadith and majrur in the next, so it cannot live in the
+    shared surface entry that every occurrence points at.
+
+    WHY ONLY THIS FIELD. Alkhalil also returns the derivational tags — اسم فاعل,
+    جامد, لازم/متعد — and they are NOT shipped. They leave no trace in the
+    vowelling, so `eval_grammar.py` cannot score them and nothing else has. The
+    one tag that looked measurable, مضاف, was measured and FAILED: the printed
+    text agrees it carries no tanwin, but that test is circular, and the real
+    test — is the following token majrur — holds in only 63.3% of the cases
+    where a case was predicted at all.
+
+    MEASURED, on Riyad, against the harakat al-Fahl printed:
+        noun                     n=4,273   95.6%
+        verb (mudari`)           n=  889   85.0%
+        verb: al-af`al al-khamsa n=  168   91.7%
+        ALL                      n=5,330   93.7%
+    Re-run it with `python pipeline/eval_grammar.py --corpus riyad`.
+    """
+
+    def iraab(record_id: str, index: int) -> dict:
+        got = disambiguated.get(f"{record_id}:{index}")
+        if not got:
+            return {}
+        value = got.get("case_or_mood")
+        if value not in IRAAB:
+            # Absent, or a value this build does not recognise. `disambiguate.py`
+            # already drops `-` and anything the solutions disagreed on, so a
+            # miss here means the analysis did not settle it. Say nothing.
+            return {}
+        counter["iraab"] += 1
+        return {"iraab": value}
+
+    return iraab
+
+
 def make_context_override(disambiguated: dict, surface: dict, counter: dict):
     """
     Override the workbook's root from context, in the ONE class where context
@@ -514,6 +560,8 @@ def main() -> int:
         print("  (no context disambiguation — run pipeline/disambiguate.py)")
 
     context_counts = {"disagreements": 0, "applied": 0}
+    iraab_counts = {"iraab": 0}
+    token_iraab = make_iraab(disambiguated, iraab_counts)
     context_override = make_context_override(
         disambiguated, lexicon["surface"], context_counts
     )
@@ -824,6 +872,7 @@ def main() -> int:
                     "matchId": t["matchId"], "binding": t["binding"],
                     "confidence": t["confidence"], "clickable": t["clickable"],
                     "punctuationAfter": t["punctuationAfter"],
+                    **token_iraab(rec["id"], t["i"]),
                     **context_override(rec["id"], t["i"], t["matchId"]),
                 }
                 for t in b["tokens"]
@@ -855,6 +904,8 @@ def main() -> int:
     print(f"  context morphology: {context_counts['applied']:,} roots overridden "
           f"of {context_counts['disagreements']:,} disagreements "
           f"(geminate -> hollow only)")
+    print(f"  i`rab on {iraab_counts['iraab']:,} tokens  "
+          f"(93.7% against the printed vowelling — see eval_grammar.py)")
 
     # ---- Lane: the classical apparatus, in full ----------------------------
     #

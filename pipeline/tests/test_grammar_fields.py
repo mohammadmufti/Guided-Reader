@@ -127,3 +127,53 @@ def test_ordinary_nouns_are_scored_from_the_printed_vowel():
 
 def test_a_verb_is_never_majrur():
     assert E.gold_for("يَذْهَبِ", {"فعل", "مضارع"})[0] is None
+
+
+# ------------------------------------------------------------------ G-2
+
+
+def test_only_the_four_iraab_values_ship():
+    """Anything else is a bug upstream, and passing it through would put an
+    unknown string in front of a student."""
+    import build
+
+    assert build.IRAAB == {"مرفوع", "منصوب", "مجرور", "مجزوم"}
+    counter = {"iraab": 0}
+    emit = build.make_iraab(
+        {
+            "r:0": {"case_or_mood": "مجرور"},
+            "r:1": {"case_or_mood": "مبني"},     # not an i`rab
+            "r:2": {"case_or_mood": "-"},        # absent
+            "r:3": {"lemma": "x"},               # unsettled
+        },
+        counter,
+    )
+    assert emit("r", 0) == {"iraab": "مجرور"}
+    assert emit("r", 1) == {} and emit("r", 2) == {} and emit("r", 3) == {}
+    assert emit("r", 99) == {}
+    assert counter["iraab"] == 1
+
+
+def test_iraab_is_on_the_token_not_the_entry():
+    """Case belongs to a position, not to a word. The same form is marfu` in
+    one hadith and majrur in the next, so it cannot live in the shared surface
+    entry that every occurrence points at."""
+    import contracts
+
+    assert "iraab" in contracts.Token.__annotations__
+    assert "iraab" not in contracts.PanelEntry.__annotations__
+
+
+def test_the_unmeasured_tags_are_not_shipped():
+    """Alkhalil's derivational tags — اسم فاعل, جامد, لازم/متعد — leave no
+    trace in the vowelling, so eval_grammar.py cannot score them and nothing
+    else has. مضاف looked measurable and FAILED: the printed text agrees it
+    carries no tanwin, but that test is circular, and the real test — is the
+    following token majrur — held in only 63.3% of cases with a predicted
+    case."""
+    import contracts
+
+    for field in ("tags", "mudaf", "pattern_stem", "pattern_lemma"):
+        assert field not in contracts.Token.__annotations__, (
+            f"{field} is shipped but nothing has measured it"
+        )
