@@ -138,7 +138,7 @@ def test_only_the_four_iraab_values_ship():
     import build
 
     assert build.IRAAB == {"مرفوع", "منصوب", "مجرور", "مجزوم"}
-    counter = {"iraab": 0}
+    counter = {"iraab": 0, "withheld": 0}
     emit = build.make_iraab(
         {
             "r:0": {"case_or_mood": "مجرور"},
@@ -148,10 +148,47 @@ def test_only_the_four_iraab_values_ship():
         },
         counter,
     )
-    assert emit("r", 0) == {"iraab": "مجرور"}
-    assert emit("r", 1) == {} and emit("r", 2) == {} and emit("r", 3) == {}
-    assert emit("r", 99) == {}
+    assert emit("r", 0, "بِكِتَابٍ") == {"iraab": "مجرور"}
+    assert emit("r", 1, "بِكِتَابٍ") == {}
+    assert emit("r", 2, "بِكِتَابٍ") == {}
+    assert emit("r", 3, "بِكِتَابٍ") == {}
+    assert emit("r", 99, "بِكِتَابٍ") == {}
     assert counter["iraab"] == 1
+
+
+def test_nothing_is_claimed_where_the_ending_is_bare():
+    """
+    The gate, and the measurement behind it.
+
+    Alkhalil does NOT infer i`rab from syntax — it READS the printed mark.
+    Masking the mark on the last consonant, so it cannot see the thing it is
+    scored on:
+
+        ending visible   n=1,681   accuracy 96.1%
+        ending masked    n=  140   accuracy 52.1%
+
+    Coverage falls twelvefold and accuracy falls to a coin toss. So where the
+    ending is bare the analyser is guessing, and we say nothing.
+    """
+    import build
+
+    counter = {"iraab": 0, "withheld": 0}
+    emit = build.make_iraab({"r:0": {"case_or_mood": "مجرور"}}, counter)
+    assert emit("r", 0, "بكتاب") == {}, "an i`rab was claimed on a bare ending"
+    assert counter["withheld"] == 1
+    assert emit("r", 0, "بِكِتَابٍ") == {"iraab": "مجرور"}
+
+
+def test_ending_detection_reads_the_last_consonant():
+    import build
+
+    assert build.ending_is_vowelled("بِكِتَابٍ")
+    assert build.ending_is_vowelled("كِتَابًا"), "tanwin fath precedes a final alif"
+    assert build.ending_is_vowelled("يَذْهَبْ"), "sukun can be a jussive marker"
+    assert not build.ending_is_vowelled("كتاب")
+    # vowelled inside, bare at the end — the common case in a partly pointed
+    # edition, and exactly the one to withhold on
+    assert not build.ending_is_vowelled("كِتَاب")
 
 
 def test_iraab_is_on_the_token_not_the_entry():

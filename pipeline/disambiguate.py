@@ -142,6 +142,31 @@ def main() -> int:
         print(f"no records at {records_path}; run segment.py first", file=sys.stderr)
         return 1
 
+    # THE ANALYSER READS THE VOWELS. It does not infer i`rab from syntax, and
+    # this was measured: hide the mark on the last consonant and its accuracy
+    # falls from 96.1% to 52.1% while its coverage falls by a factor of twelve.
+    # So what it is given matters more than anything else in this file.
+    #
+    # `records.json` is the text as the corpus supplies it, and OpenITI strips
+    # diacritics from twelve of our thirteen corpora. Feeding it that is asking
+    # the analyser to do the one thing it cannot.
+    #
+    # `bindings.json` carries the VOCALISED form of each token, which the
+    # pipeline has already worked out from the source or from a witness. On
+    # al-Tajrid, switching the input from `raw` to `surface`:
+    #
+    #     input = raw       predictions   275   accuracy 71.4%
+    #     input = surface   predictions 1,660   accuracy 97.1%
+    #
+    # This is why disambiguate.py must run AFTER bind.py, not before it.
+    bindings_path = OUT / args.corpus / "bindings.json"
+    bindings = {}
+    if bindings_path.exists():
+        bindings = json.loads(bindings_path.read_text(encoding="utf-8"))
+    else:
+        print("  (no bindings — falling back to the raw source text, which is "
+              "unvowelled for every corpus but riyad; run bind.py first)")
+
     try:
         from farahidi import Analyzer, Disambiguator
     except ImportError:
@@ -169,8 +194,14 @@ def main() -> int:
         _, tokens = tokenise(record["textRaw"], strip)
         if not tokens:
             continue
+        bound = (bindings.get(record["id"]) or {}).get("tokens") or []
+        by_index = {t["i"]: t for t in bound}
+        forms = [
+            (by_index.get(i, {}).get("surface") or t["raw"])
+            for i, t in enumerate(tokens)
+        ]
         try:
-            results = disambiguator.disambiguate([t["raw"] for t in tokens])
+            results = disambiguator.disambiguate(forms)
         except Exception:
             continue
         for i, result in enumerate(results):

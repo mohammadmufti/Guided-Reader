@@ -35,6 +35,7 @@ import collections
 import gzip
 import hashlib
 import json
+import unicodedata
 import os
 import re
 import shutil
@@ -378,10 +379,51 @@ def _hollow(root: str) -> bool:
 # passing it through would put an unknown string in front of a student.
 IRAAB = {"مرفوع", "منصوب", "مجرور", "مجزوم"}
 
+# The marks that can BE a case ending.
+CASE_MARKS = set("\u064b\u064c\u064d\u064e\u064f\u0650\u0652")
+
+
+def ending_is_vowelled(surface: str) -> bool:
+    """
+    Does the token carry a mark on its LAST consonant?
+
+    This is the whole gate, and it is the gate because of a measurement.
+    Alkhalil does NOT infer i`rab from syntax — it READS the printed vowel.
+    Masking the mark on the last consonant, so the analyser cannot see the very
+    thing it is scored on:
+
+        ending visible   n=1,681   accuracy 96.1%
+        ending masked    n=  140   accuracy 52.1%
+
+    Coverage falls by a factor of twelve and accuracy falls to a coin toss. So
+    where the ending is vowelled the label is trustworthy, and where it is not
+    the analyser is guessing. That is a per-token test, not a per-corpus one,
+    and it is what lets us speak where we are certain and stay silent otherwise.
+
+    IT ALSO CHANGES WHAT THE FEATURE IS. We are not deriving the case; we are
+    NAMING a mark the editor printed. The analyser's contribution is knowing
+    whether the mark is a case ending at all — a past-tense verb is mabni on
+    fatha, the five verbs are marfu` by a nun that carries fatha, a diptote
+    takes fatha in the genitive, sukun is not a case on a noun. That is the
+    hard part and it is worth having. Inferring the case is not what it does.
+    """
+    # THE ALIF OF TANWIN FATH IS NOT THE LAST CONSONANT. Accusative tanwin is
+    # written on the letter BEFORE a final alif — كِتَابًا — so scanning from the
+    # end of the string finds nothing and withholds on a whole class of mansub
+    # nouns. The same trap caught eval_grammar.py.
+    i = len(surface) - 1
+    if surface and surface[-1] in ("\u0627", "\u0649"):
+        i -= 1
+    while i >= 0 and unicodedata.category(surface[i]).startswith("M"):
+        if surface[i] in CASE_MARKS:
+            return True
+        i -= 1
+    return False
+
 
 def make_iraab(disambiguated: dict, counter: dict):
     """
-    The i`rab of a token IN ITS POSITION, where the analysis settled one.
+    The i`rab of a token IN ITS POSITION, where the ending shows one.
 
     WHY THIS IS ON THE TOKEN AND NOT ON THE LEXICON ENTRY. Case is a property
     of a word's position in a sentence, not of the word. The same form is
@@ -389,30 +431,23 @@ def make_iraab(disambiguated: dict, counter: dict):
     shared surface entry that every occurrence points at.
 
     WHY ONLY THIS FIELD. Alkhalil also returns the derivational tags — اسم فاعل,
-    جامد, لازم/متعد — and they are NOT shipped. They leave no trace in the
-    vowelling, so `eval_grammar.py` cannot score them and nothing else has. The
-    one tag that looked measurable, مضاف, was measured and FAILED: the printed
-    text agrees it carries no tanwin, but that test is circular, and the real
-    test — is the following token majrur — holds in only 63.3% of the cases
-    where a case was predicted at all.
-
-    MEASURED, on Riyad, against the harakat al-Fahl printed:
-        noun                     n=4,273   95.6%
-        verb (mudari`)           n=  889   85.0%
-        verb: al-af`al al-khamsa n=  168   91.7%
-        ALL                      n=5,330   93.7%
-    Re-run it with `python pipeline/eval_grammar.py --corpus riyad`.
+    جامد, لازم/متعد — and they are NOT shipped, because nothing scores them.
+    مضاف was measured and is promising rather than proven: against the printed
+    genitive of the following word it reaches 88.4% over a 39.7% base rate,
+    with a gold that is still finding its own errors (idafa to an attached
+    pronoun, diptotes, maqsur nouns, mabni demonstratives). Promising is not
+    measured.
     """
 
-    def iraab(record_id: str, index: int) -> dict:
+    def iraab(record_id: str, index: int, surface: str) -> dict:
         got = disambiguated.get(f"{record_id}:{index}")
         if not got:
             return {}
         value = got.get("case_or_mood")
         if value not in IRAAB:
-            # Absent, or a value this build does not recognise. `disambiguate.py`
-            # already drops `-` and anything the solutions disagreed on, so a
-            # miss here means the analysis did not settle it. Say nothing.
+            return {}
+        if not ending_is_vowelled(surface):
+            counter["withheld"] += 1
             return {}
         counter["iraab"] += 1
         return {"iraab": value}
@@ -560,7 +595,7 @@ def main() -> int:
         print("  (no context disambiguation — run pipeline/disambiguate.py)")
 
     context_counts = {"disagreements": 0, "applied": 0}
-    iraab_counts = {"iraab": 0}
+    iraab_counts = {"iraab": 0, "withheld": 0}
     token_iraab = make_iraab(disambiguated, iraab_counts)
     context_override = make_context_override(
         disambiguated, lexicon["surface"], context_counts
@@ -872,7 +907,7 @@ def main() -> int:
                     "matchId": t["matchId"], "binding": t["binding"],
                     "confidence": t["confidence"], "clickable": t["clickable"],
                     "punctuationAfter": t["punctuationAfter"],
-                    **token_iraab(rec["id"], t["i"]),
+                    **token_iraab(rec["id"], t["i"], t["surface"]),
                     **context_override(rec["id"], t["i"], t["matchId"]),
                 }
                 for t in b["tokens"]
@@ -904,8 +939,9 @@ def main() -> int:
     print(f"  context morphology: {context_counts['applied']:,} roots overridden "
           f"of {context_counts['disagreements']:,} disagreements "
           f"(geminate -> hollow only)")
-    print(f"  i`rab on {iraab_counts['iraab']:,} tokens  "
-          f"(93.7% against the printed vowelling — see eval_grammar.py)")
+    print(f"  i`rab on {iraab_counts['iraab']:,} tokens, withheld on "
+          f"{iraab_counts['withheld']:,} whose ending is unvowelled "
+          f"(96.1% where shown; see eval_grammar.py)")
 
     # ---- Lane: the classical apparatus, in full ----------------------------
     #

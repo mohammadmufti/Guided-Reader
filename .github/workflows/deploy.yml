@@ -94,7 +94,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: pipeline/build/tajrid/disambiguated.json
-          key: context-${{ hashFiles('pipeline/disambiguate.py', 'pipeline/segment.py') }}
+          # `bind.py` too: its vocalised surfaces are this stage's input now.
+          key: context-v2-${{ hashFiles('pipeline/disambiguate.py', 'pipeline/segment.py', 'pipeline/bind.py') }}
 
       - name: Cache Lane ingest
         id: lane-cache
@@ -209,15 +210,22 @@ jobs:
 
       - name: Run the pipeline
         run: |
-          # MUST come after segment (it reads records.json) and before build
-          # (which applies the context overrides). Ordering it after build
-          # produced a payload with no contextRoot at all, silently — the
-          # tests caught it, the build did not.
+          python pipeline/lexicon.py --corpus tajrid
+          python pipeline/bind.py    --corpus tajrid
+          # AFTER BIND, NOT BEFORE IT. This used to run before, on the reasoning
+          # that it reads records.json and build.py consumes its output. Both
+          # are true and the ordering was still wrong: the analyser READS the
+          # printed vowel rather than inferring case from syntax, and
+          # records.json is unvowelled for every corpus but riyad. Reading
+          # bind.py's vocalised surfaces instead took i`rab from 71.4% to 97.1%
+          # and multiplied its coverage sixfold.
+          #
+          # It must still come before build.py, which applies the context
+          # overrides. Ordering it after build produced a payload with no
+          # contextRoot at all, silently — the tests caught it, the build did not.
           if [ ! -f pipeline/build/tajrid/disambiguated.json ]; then
             python pipeline/disambiguate.py --corpus tajrid
           fi
-          python pipeline/lexicon.py --corpus tajrid
-          python pipeline/bind.py    --corpus tajrid
           # GitHub Pages compresses on the fly and ignores .br/.gz siblings,
           # so producing them costs 136 s and 42 MB for nothing. On Cloudflare
           # Pages or Netlify, drop this flag — they do serve them.

@@ -461,13 +461,14 @@ export interface Token {
   /** False for unbound tokens — they are visually inert. */
   clickable: boolean;
   /**
-   * The token's case or mood IN THIS POSITION — مرفوع, منصوب, مجرور or مجزوم — from context
-   * disambiguation, or null where the analysis did not settle one. On the TOKEN and not the
-   * lexicon entry because case belongs to a position, not to a word: the same form is marfu` in
-   * one hadith and majrur in the next. Measured against the harakat al-Fahl printed in Riyad:
-   * 95.6% on nouns, 85.0% on the imperfect, 93.7% overall over 5,330 checkable tokens. Re-run it
-   * with pipeline/eval_grammar.py. Alkhalil's derivational tags are NOT shipped: nothing scores
-   * them.
+   * The token's case or mood IN THIS POSITION — مرفوع, منصوب, مجرور or مجزوم — or null. On the
+   * TOKEN and not the lexicon entry because case belongs to a position: the same form is marfu`
+   * in one hadith and majrur in the next. SET ONLY WHERE THE ENDING IS VOWELLED. The analyser
+   * READS the printed mark rather than inferring the case from syntax: masking that mark drops
+   * it from 96.1% to 52.1% and cuts coverage twelvefold. So this NAMES the editor's own vowel,
+   * and the analyser's contribution is knowing whether the mark is a case ending at all — a
+   * past-tense verb is mabni on fatha, a diptote takes fatha in the genitive. Where the ending
+   * is bare, nothing is claimed. Re-measure with pipeline/eval_grammar.py.
    */
   iraab: string | null;
   /**
