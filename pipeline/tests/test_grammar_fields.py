@@ -1,0 +1,129 @@
+"""
+The grammar fields Alkhalil returns, and the gold signal used to score them.
+"""
+from pathlib import Path
+
+import pytest
+
+import disambiguate as D
+import eval_grammar as E
+
+PIPELINE = Path(__file__).resolve().parents[1]
+
+
+class _Result:
+    def __init__(self, token, lemma, root, stem):
+        self.token, self.lemma, self.root, self.stem = token, lemma, root, stem
+
+
+class _Sol:
+    def __init__(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
+def _analyser(solutions):
+    class A:
+        def analyze(self, _token):
+            return solutions
+    return A()
+
+
+# ------------------------------------------------------------------ G-0
+
+
+def test_absent_values_are_not_values():
+    """Alkhalil writes `-` for an absent tag and `#` for an empty clitic slot.
+    Kept, they put a bare dash in the panel and a meaningless bucket in every
+    measurement over this file."""
+    sol = _Sol(lemma="كَانَ", root="كون", stem="كُنْت", case_or_mood="-",
+               part_of_speech="فعل|ماض|-|معلوم", pattern_stem="فَعَلْتُ",
+               pattern_lemma="فَعَلَ", proclitic="#", enclitic="ت|تاء المتكلم",
+               voweled_word="كُنْتُ")
+    got = D.grammar_of(_Result("كُنْتُ", "كَانَ", "كون", "كُنْت"),
+                       _analyser([sol]), {})
+    assert "case_or_mood" not in got
+    assert "proclitic" not in got
+    assert got["tags"] == ["فعل", "ماض", "معلوم"]
+    assert got["enclitic"] == "ت|تاء المتكلم"
+
+
+def test_disagreement_yields_nothing():
+    """Where the surviving solutions disagree on a field, the disambiguation
+    did not settle it, and taking the first is taking one at random. This file
+    feeds a panel that tells a student what case a word is in."""
+    common = dict(lemma="رَجُل", root="رجل", stem="رَجُلَيْن",
+                  part_of_speech="اسم", pattern_stem="فَعُلَيْنِ",
+                  pattern_lemma="فَعُل", proclitic="#", enclitic="#",
+                  voweled_word="رَجُلَيْنِ")
+    sols = [_Sol(case_or_mood="مجرور", **common),
+            _Sol(case_or_mood="منصوب", **common)]
+    got = D.grammar_of(_Result("رَجُلَيْنِ", "رَجُل", "رجل", "رَجُلَيْن"),
+                       _analyser(sols), {})
+    assert "case_or_mood" not in got, "an unsettled case was reported anyway"
+    assert got["pattern_lemma"] == "فَعُل", "fields that DO agree must survive"
+
+
+def test_the_context_chosen_reading_is_the_one_read():
+    """Out of context the first solution is frequently wrong — that is why the
+    disambiguation stage exists. So the reading is selected by what the
+    disambiguator kept, not by position."""
+    wrong = _Sol(lemma="كُتّاب", root="كتب", stem="كُتّاب", case_or_mood="مرفوع",
+                 part_of_speech="اسم", pattern_stem="فُعّال", pattern_lemma="فُعّال",
+                 proclitic="#", enclitic="#", voweled_word="كُتّابٌ")
+    right = _Sol(lemma="كِتَاب", root="كتب", stem="كِتَاب", case_or_mood="مجرور",
+                 part_of_speech="اسم", pattern_stem="فِعَال", pattern_lemma="فِعَال",
+                 proclitic="#", enclitic="#", voweled_word="كِتَابٍ")
+    got = D.grammar_of(_Result("كِتَابٍ", "كِتَاب", "كتب", "كِتَاب"),
+                       _analyser([wrong, right]), {})
+    assert got["case_or_mood"] == "مجرور"
+    assert got["pattern_lemma"] == "فِعَال"
+
+
+def test_root_and_lemma_are_still_written():
+    """G-0 must not change what already existed."""
+    src = (PIPELINE / "disambiguate.py").read_text(encoding="utf-8")
+    assert '"root": result.root' in src and '"lemma": result.lemma' in src
+
+
+# ------------------------------------------------------------------ G-1
+
+
+def test_a_past_tense_verb_is_not_scored_for_case():
+    """It is MABNI on fatha. Scoring it as mansub measures our gold, not the
+    analyser — worth 15 points on the verb figure."""
+    assert E.gold_for("قَالَ", {"فعل", "ماض"})[0] is None
+    assert E.gold_for("اذْهَبْ", {"فعل", "أمر"})[0] is None
+
+
+def test_the_five_verbs_are_marfu_by_the_nun():
+    """al-af`al al-khamsa keep the nun to show raf`, and that nun carries
+    fatha. Read as a case vowel it says mansub, so يُخَالِفُونَ scores wrong
+    while being right — 169 false errors in a 400-record slice."""
+    assert E.gold_for("يُخَالِفُونَ", {"فعل", "مضارع"}) == (
+        "مرفوع", "verb: al-af`al al-khamsa")
+    assert E.gold_for("يَتَفَكَّرُونَ", {"فعل", "مضارع"})[0] == "مرفوع"
+
+
+def test_sukun_is_not_a_case_on_a_noun():
+    """It marks waqf or an indeclinable form."""
+    assert E.gold_for("الْبَيْتْ", {"اسم"})[0] is None
+    assert E.gold_for("يَذْهَبْ", {"فعل", "مضارع"})[0] == "مجزوم"
+
+
+def test_a_dual_marks_case_on_its_suffix():
+    assert E.gold_for("رَجُلَانِ", {"اسم", "مثنى"})[0] is None
+
+
+def test_particles_are_not_scored():
+    assert E.gold_for("فِي", {"حرف"})[0] is None
+
+
+def test_ordinary_nouns_are_scored_from_the_printed_vowel():
+    assert E.gold_for("كِتَابٌ", {"اسم"}) == ("مرفوع", "noun")
+    assert E.gold_for("كِتَابًا", {"اسم"}) == ("منصوب", "noun")
+    assert E.gold_for("بِكِتَابٍ", {"اسم"}) == ("مجرور", "noun")
+
+
+def test_a_verb_is_never_majrur():
+    assert E.gold_for("يَذْهَبِ", {"فعل", "مضارع"})[0] is None
