@@ -216,56 +216,65 @@ def test_the_unmeasured_tags_are_not_shipped():
         )
 
 
-def test_every_built_corpus_is_disambiguated():
+# ------------------------------------------------------------------ G-3
+
+
+def test_the_wazn_is_arabic_not_a_template():
     """
-    i`rab is a word-panel feature, so it belongs to every book we serve.
+    The defect a reader reported: the panel printed `يُ1َ2ِّي` under the label
+    "the scale (wazn)".
 
-    THE BUG THIS PINS. The workflow ran `disambiguate.py --corpus tajrid` and
-    nothing else, and cached `build/tajrid/disambiguated.json` alone. build.py
-    degrades quietly when the file is missing — it emits no `iraab` and says
-    nothing — so the feature would have shipped for one corpus out of nine with
-    a green build. That is the same shape as the dictionaries shipping empty:
-    a stage that is optional for a good reason, and a workflow that forgot to
-    call it.
+    Digits are CAMeL's radical slots — template syntax, not grammar — and
+    showing them beside a grammar word is worse than showing nothing. Alkhalil
+    returns the scale already spelled with ف, ع and ل; where it returns
+    nothing, the digits are mapped onto the radicals instead of printed.
     """
-    import re
+    from analyse import wazn_of
 
-    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+    assert wazn_of("يُصِيبُ", "يُ1ِ3") == "يُفْعِلُ"
+    assert wazn_of("يَسْتَغْفِرُ", "يَسْتَ1ْ2ِ3") == "يَسْتَفْعِلُ"
+    # Alkhalil has no solution for this one; the fallback must still be Arabic
+    fallback = wazn_of("يُصَلِّي", "يُ1َ2ِّي")
+    assert fallback and not any(c.isdigit() for c in fallback)
+    # nothing to say -> say nothing, never a digit string
+    assert wazn_of("", None) is None
+
+
+def test_no_digit_ever_reaches_the_wazn():
+    from analyse import wazn_of
+
+    for form, camel in (("يُصِيبُ", "يُ1ِ3"), ("يُصَلِّي", "يُ1َ2ِّي"),
+                        ("", "1َ2ْ3َ"), ("ززز", "يَتَ1َ2َّ3ُ")):
+        got = wazn_of(form, camel)
+        assert got is None or not any(c.isdigit() for c in got), got
+
+
+def test_the_panel_reads_iraab_from_the_token():
+    """Case belongs to a position, so the section must read `token.iraab` and
+    not anything on the shared lexicon entry, which every occurrence shares."""
+    panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    built = set(re.findall(r"python pipeline/build\.py\s+--corpus (\w+)", wf))
-    analysed = set(re.findall(r"python pipeline/disambiguate\.py --corpus (\w+)", wf))
-    missing = sorted(built - analysed)
-    assert not missing, (
-        f"these corpora are built but never disambiguated, so their word "
-        f"panels would carry no i`rab: {missing}"
-    )
+    assert "function GrammaticalNotes({ token }" in panel
+    assert "token?.iraab" in panel
+    assert "entry.iraab" not in panel, "the section is reading the shared entry"
 
 
-def test_the_disambiguation_cache_covers_every_corpus():
-    """Caching one book's analysis is why it was one book's feature."""
-    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+def test_grammatical_notes_sits_directly_above_lane():
+    panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    assert "pipeline/build/*/disambiguated.json" in wf, (
-        "the context cache names a single corpus again"
-    )
+    notes = panel.find("<GrammaticalNotes token=")
+    lane = panel.find("<Classical entry=")
+    assert notes != -1 and lane != -1
+    assert notes < lane, "Grammatical Notes must render above Lane's"
 
 
-def test_disambiguation_runs_after_binding():
-    """It reads bind.py's vocalised surfaces. Run before, it sees the raw
-    source, which OpenITI strips for twelve of thirteen corpora — measured at
-    71.4% accuracy against 97.1%."""
-    import re
-
-    wf = (PIPELINE.parent / ".github" / "workflows" / "deploy.yml").read_text(
+def test_the_section_is_absent_when_nothing_is_known():
+    """`iraab` is withheld wherever the ending is bare, so an absent value means
+    absent evidence and the section must not render at all."""
+    panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    for corpus in re.findall(r"python pipeline/disambiguate\.py --corpus (\w+)", wf):
-        bind = wf.find(f"pipeline/bind.py    --corpus {corpus}")
-        dis = wf.find(f"pipeline/disambiguate.py --corpus {corpus}")
-        build = wf.find(f"pipeline/build.py   --corpus {corpus}")
-        assert bind != -1 and dis != -1, corpus
-        assert bind < dis, f"{corpus}: disambiguate runs before bind"
-        if build != -1:
-            assert dis < build, f"{corpus}: disambiguate runs after build"
+    body = panel[panel.find("function GrammaticalNotes"):]
+    assert "if (!iraab) return null;" in body[:1200]

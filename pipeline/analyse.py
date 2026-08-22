@@ -371,6 +371,65 @@ def camel_db():
     return _CAMEL_DB
 
 
+# CAMeL writes a scale with DIGITS for the radical slots — `يُ1َ2ِّي` — and the
+# panel printed that verbatim under the label "the scale (wazn)". A student who
+# knows the sarf tables expects `يُفَعِّلُ`. Digits are template syntax, not
+# grammar, and showing them beside a grammar word is worse than showing nothing.
+RADICALS = {"1": "\u0641", "2": "\u0639", "3": "\u0644",
+            "4": "\u0644", "5": "\u0644"}
+
+
+def wazn_of(form: str, camel_pattern: str | None) -> str | None:
+    """
+    The scale of a verb form, in the letters a student reads.
+
+    ALKHALIL FIRST. It returns the scale already spelled with ف, ع and ل —
+    `يُفْعِلُ` for يُصِيبُ, `يَسْتَفْعِلُ` for يَسْتَغْفِرُ — which is the form
+    the sarf tables use.
+
+    CAMEL'S PATTERN, SUBSTITUTED, AS A FALLBACK. Alkhalil returns nothing for
+    some forms, and for those the digits are mapped onto the radicals rather
+    than printed. The mapping is positional, so a quadriliteral maps its fourth
+    slot to lam as well; that is a simplification, and it is still readable
+    Arabic rather than a template.
+
+    Returns None rather than a digit string. Nothing is better than syntax.
+    """
+    try:
+        from farahidi import Analyzer
+    except ImportError:
+        analyser = None
+    else:
+        analyser = _wazn_analyser()
+    if analyser is not None and form:
+        try:
+            found = analyser.analyze(form)
+        except Exception:
+            found = None
+        if found and getattr(found[0], "pattern_stem", None):
+            return found[0].pattern_stem
+    if camel_pattern:
+        mapped = "".join(RADICALS.get(ch, ch) for ch in camel_pattern)
+        if not any(ch.isdigit() for ch in mapped):
+            return mapped
+    return None
+
+
+_WAZN_ANALYSER = None
+
+
+def _wazn_analyser():
+    """One analyser, built on demand — it is expensive to construct."""
+    global _WAZN_ANALYSER
+    if _WAZN_ANALYSER is None:
+        try:
+            from farahidi import Analyzer
+            _WAZN_ANALYSER = Analyzer()
+        except Exception:
+            _WAZN_ANALYSER = False
+    return _WAZN_ANALYSER or None
+
+
 def build_verb_forms():
     """
     lemma -> (perfect, imperfect, wazn), for verbs.
@@ -422,7 +481,7 @@ def build_verb_forms():
             i_ += "\u064f"
         if p_ and i_:
             pat = next((r.get("pattern") for r in impf if r.get("pattern")), None)
-            out = {"perfect": p_, "imperfect": i_, "pattern": pat}
+            out = {"perfect": p_, "imperfect": i_, "pattern": wazn_of(i_, pat)}
         cache[lex] = out
         return out
 

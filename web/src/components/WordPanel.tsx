@@ -112,6 +112,9 @@ export function WordPanel({ index, record, token, onSelect }: Props) {
       )}
       <Meaning gloss={entry.gloss ?? entry.glossQuick} isName={entry.isName} />
       <RootAndLemma entry={entry} classical={classical} token={token} />
+      {/* Directly above Lane's, and in the same idiom: an underlined control
+          that expands in place. */}
+      <GrammaticalNotes token={token} />
       <Classical entry={entry} classical={classical} lane={data.lane} laneEntry={data.laneEntry} />
       {/* Below Lane: English first is the panel's existing "most useful
           first" ordering, and most readers here reach for it first. */}
@@ -432,6 +435,83 @@ function RootAndLemma({
           accurate on forms whose root is already known.
         </p>
       )}
+    </Section>
+  );
+}
+
+/* --------------------------------------------- 3b. Grammatical notes  */
+
+/** How each i`rab is expanded for a reader who does not yet know the term. */
+const IRAAB_GLOSS: Record<string, string> = {
+  "مرفوع": "nominative — marfūʿ",
+  "منصوب": "accusative — manṣūb",
+  "مجرور": "genitive — majrūr",
+  "مجزوم": "jussive — majzūm",
+};
+
+/**
+ * What the grammar of THIS occurrence is, where we can say it.
+ *
+ * TOKEN, NOT ENTRY. Case belongs to a position: the same word is marfūʿ in one
+ * hadith and majrūr in the next. So this reads `token.iraab`, which build.py
+ * writes per occurrence, and not anything on the shared lexicon entry.
+ *
+ * SILENT WHERE THE ENDING IS BARE. build.py already withholds `iraab` when the
+ * token carries no mark on its last consonant, because the analyser READS that
+ * mark rather than inferring the case — masking it drops accuracy from 96.1%
+ * to 52.1%. So an absent value here means the evidence was absent, and the
+ * section does not render at all.
+ *
+ * WHAT IS NOT HERE. Alkhalil also returns the derivational tags — اسم فاعل,
+ * جامد, لازم/متعد — and they are not shipped, because nothing scores them. The
+ * one that looked measurable, مضاف, reached 88.4% against a gold that was
+ * still finding its own errors. Promising is not measured.
+ */
+function GrammaticalNotes({ token }: { token: Token | null }) {
+  const [open, setOpen] = useState(false);
+  const iraab = token?.iraab ?? null;
+  // Nothing to say renders nothing — the panel's rule everywhere else.
+  if (!iraab) return null;
+
+  return (
+    <Section subtitle="Grammatical Notes" testId="grammar">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mb-2 flex w-full items-baseline gap-2 text-start"
+      >
+        <span
+          className="text-(--color-ink-muted) transition-transform"
+          aria-hidden="true"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ›
+        </span>
+        <span className="arabic text-xl" lang="ar" dir="rtl">
+          {iraab}
+        </span>
+        <span
+          className="text-[0.65rem] text-(--color-ink-muted) underline underline-offset-2"
+          dir="ltr"
+        >
+          this word here
+        </span>
+      </button>
+
+      <div className={open ? "" : "hidden"}>
+        <p className="panel-scaled" dir="ltr">
+          {IRAAB_GLOSS[iraab] ?? iraab}
+        </p>
+        <p className="mt-3 text-[0.65rem] leading-relaxed text-(--color-ink-muted)" dir="ltr">
+          The case of this word in THIS sentence — the same word is marfūʿ in one
+          place and majrūr in another. Read from the ending the editor printed,
+          not guessed: where the ending is bare, nothing is shown. Checked
+          against the vowelling of two editions, it is right about 96 times in a
+          hundred, and least often on a diptote, whose genitive is marked with a
+          fatḥa and can read as an accusative.
+        </p>
+      </div>
     </Section>
   );
 }

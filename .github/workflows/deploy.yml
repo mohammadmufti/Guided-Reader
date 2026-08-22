@@ -236,7 +236,11 @@ jobs:
       # The second corpus is the whole basis of the generalisation claim and is
       # exercised nowhere else. Segmenting it is cheap and it is the thing most
       # likely to rot unnoticed.
-      - name: Segment the other corpora
+      # Named for what it does: this step binds, analyses and builds eight
+      # corpora end to end. It was called "Segment the other corpora" when it
+      # only segmented them, and kept the name after it stopped — which left a
+      # 40-minute step looking like it had hung.
+      - name: Build the other corpora
         run: |
           # The Muwatta' exercises two things al-Tajrid and al-Rawd never do:
           # a file that states its own heading hierarchy (`### |` vs `### ||`)
