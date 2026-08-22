@@ -60,17 +60,18 @@ export function Limitations() {
         What you are trusting
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-(--color-ink-muted)" dir="ltr">
-        This reader shows the vowelling, root and meaning of every word. Some of
-        that is witnessed and some is inferred, and the difference matters when
-        you are learning. Every word panel ends with{" "}
-        <em>How this reading was arrived at</em>. Open it.
+        This reader shows the vowelling, root, meaning, case and classical
+        dictionary entries for every word. Some of that is witnessed and some
+        is inferred, and the difference matters when you are learning. Every
+        word panel ends with <em>How this reading was arrived at</em>. Open it.
       </p>
 
       <section className="mt-8" dir="ltr">
         <h2 className="text-lg">1. The vowelling is not always certain</h2>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
-          Half the words in this book have a spelling that could be read more
-          than one way — 49.7% of tokens, on 2,631 ambiguous spellings.
+          Arabic is written without vowels, so a great many words could be read
+          more than one way. Where the answer came from is set out below, for
+          the book you are reading — not for a different one.
         </p>
         <table className="mt-4 w-full text-sm">
           <thead>
@@ -111,14 +112,39 @@ export function Limitations() {
       </section>
 
       <section className="mt-8" dir="ltr">
-        <h2 className="text-lg">2. The classical definitions are sampled</h2>
+        <h2 className="text-lg">2. Three dictionaries, and what each is for</h2>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
-          The keyword cluster is reliable. The single definition beneath it is
-          one sample from Lane's <em>Lexicon</em>, picked mechanically, and often
-          not the sense the word carries here. Under <strong>ṣalāh</strong> the
-          sample reads <em>“the middle of the back of a human being.”</em> That is
-          a real sense of the root and useless as a gloss. Where a curated
-          literal/technical pair exists — 11.8% of tokens — trust that instead.
+          The panel shows Lane's <em>Lexicon</em> in English, Ibn Manẓūr's{" "}
+          <em>Lisān al-ʿArab</em> in Arabic, and — where the root has an article
+          — Ibn al-Athīr's <em>al-Nihāya fī Gharīb al-Ḥadīth</em>, a dictionary
+          of the words he judged difficult in hadith. Each shows the author's
+          own words and his own order. Nothing is summarised and nothing is
+          picked out as <em>the</em> definition.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          An earlier version of this reader chose one sense from Lane
+          mechanically and printed it as the meaning. Under{" "}
+          <strong>ṣalāh</strong> it read{" "}
+          <em>“the middle of the back of a human being”</em> — a real sense of
+          the root, and useless as a gloss. That is why you are now given the
+          entry rather than a sample of it.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          Lane and al-Nihāya are keyed to a root. Because hamza is normalised
+          when roots are matched, two different roots can share one key —{" "}
+          <span lang="ar" dir="rtl" className="arabic">بدأ</span> (to begin) and{" "}
+          <span lang="ar" dir="rtl" className="arabic">بدا</span> (to appear).
+          Where that happens both articles are shown, spelled as the book
+          spells them, and the one your word most likely belongs to is put
+          first. It is put first, not alone, because that guess is right about
+          fifteen times in sixteen.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          The Arabic dictionaries carry the harakāt their editors printed, which
+          is not every word: an editor points what he thinks needs pointing. A
+          few articles carry none at all, because their text could not be
+          verified against a second copy and we would rather leave those bare
+          than guess.
         </p>
       </section>
 
@@ -143,14 +169,47 @@ export function Limitations() {
       </section>
 
       <section className="mt-8" dir="ltr">
-        <h2 className="text-lg">4. The editorial layers are less reliable</h2>
+        <h2 className="text-lg">4. The case is read, not worked out</h2>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          Some words carry a second label beside the part of speech —{" "}
+          <span lang="ar" dir="rtl" className="arabic">مرفوع</span>,{" "}
+          <span lang="ar" dir="rtl" className="arabic">منصوب</span>,{" "}
+          <span lang="ar" dir="rtl" className="arabic">مجرور</span> or{" "}
+          <span lang="ar" dir="rtl" className="arabic">مجزوم</span>. It is the
+          case of that word <em>in that sentence</em>, so the same word carries
+          a different label elsewhere.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          It comes from reading the ending, not from parsing the sentence. The
+          work is in knowing whether the ending <em>is</em> a case marker: a
+          past-tense verb is <span lang="ar" dir="rtl" className="arabic">مبني</span>{" "}
+          on a fatḥa and takes no case, the five verbs are{" "}
+          <span lang="ar" dir="rtl" className="arabic">مرفوع</span> by keeping a
+          nūn that itself carries a fatḥa, and a sukūn is not a case on a noun.
+          Where the ending is bare, no label is shown at all — that is most of
+          the reason you will see it on some words and not others.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
+          Checked against the vowelling printed in two editions, on 5,000-plus
+          words in each, it is right about 96 times in a hundred. It is least
+          reliable on a{" "}
+          <span lang="ar" dir="rtl" className="arabic">ممنوع من الصرف</span>{" "}
+          noun, whose genitive is marked with a fatḥa and therefore reads as an
+          accusative — many of the names in an isnād are of this kind. Treat the
+          label as a prompt to check, not as an answer.
+        </p>
+      </section>
+
+      <section className="mt-8" dir="ltr">
+        <h2 className="text-lg">5. The editorial layers are less reliable</h2>
         <p className="mt-2 text-sm leading-relaxed text-(--color-ink-muted)">
           Where a book is aligned against a vocalised parent edition, only its
           hadith have such a target. Prefaces, headings and editorial additions
           do not, so their vowelling comes from the lower tiers. Additions are
-          marked in the text. One book here — Shāh Walī Allāh's Forty — arrives
-          vowelled and needs no alignment at all; its harakāt are the edition's
-          own, and the table above says so.
+          marked in the text. Some books arrive vowelled and need no alignment
+          at all — Shāh Walī Allāh's Forty, and Riyāḍ al-Ṣāliḥīn in Dr Māhir
+          Yāsīn al-Faḥl's edition, whose harakāt are the editor's own. The table
+          above says which, for the book you have open.
         </p>
       </section>
     </main>

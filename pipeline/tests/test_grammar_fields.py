@@ -250,31 +250,63 @@ def test_no_digit_ever_reaches_the_wazn():
 
 
 def test_the_panel_reads_iraab_from_the_token():
-    """Case belongs to a position, so the section must read `token.iraab` and
-    not anything on the shared lexicon entry, which every occurrence shares."""
+    """Case belongs to a position, so it must read `token.iraab` and not
+    anything on the shared lexicon entry, which every occurrence shares."""
     panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    assert "function GrammaticalNotes({ token }" in panel
     assert "token?.iraab" in panel
-    assert "entry.iraab" not in panel, "the section is reading the shared entry"
+    assert "entry.iraab" not in panel, "the chip is reading the shared entry"
 
 
-def test_grammatical_notes_sits_directly_above_lane():
+def test_iraab_is_a_chip_beside_the_part_of_speech():
+    """It is one word about what the word is doing here — the same kind of fact
+    as `noun` or `verb`, and shown the same way.
+
+    An expandable section was built first and was the wrong shape: a disclosure
+    control that opens to reveal a single word, wrapped in three sentences of
+    caveat nobody asked for. The caveats belong on the `what you are trusting`
+    page, which is where a reader goes to find them."""
     panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    notes = panel.find("<GrammaticalNotes token=")
-    lane = panel.find("<Classical entry=")
-    assert notes != -1 and lane != -1
-    assert notes < lane, "Grammatical Notes must render above Lane's"
+    assert "GrammaticalNotes" not in panel, "the disclosure section is back"
+    pos = panel.find("{entry.pos.replace(/_/g")
+    chip = panel.find("{token.iraab}")
+    assert pos != -1 and chip != -1
+    assert 0 < chip - pos < 900, "the chip is no longer beside the part of speech"
 
 
-def test_the_section_is_absent_when_nothing_is_known():
-    """`iraab` is withheld wherever the ending is bare, so an absent value means
-    absent evidence and the section must not render at all."""
+def test_the_trust_page_describes_what_is_actually_shown():
+    """
+    It goes stale silently, because nothing breaks when it does.
+
+    It described a sampled Lane sense for some time after the sample stopped
+    being rendered, and said one book arrives vowelled after a second one did.
+    """
+    page = (PIPELINE.parent / "web" / "src" / "routes" / "Limitations.tsx").read_text(
+        encoding="utf-8"
+    )
     panel = (PIPELINE.parent / "web" / "src" / "components" / "WordPanel.tsx").read_text(
         encoding="utf-8"
     )
-    body = panel[panel.find("function GrammaticalNotes"):]
-    assert "if (!iraab) return null;" in body[:1200]
+
+    # every dictionary the panel renders must be named there
+    for name, marker in (("Lane", "Lane's Lexicon"),
+                         ("Lisān", "Lisān al-ʿArab"),
+                         ("al-Nihāya", "al-Nihāya")):
+        if marker.split("'")[0] in panel or marker in panel:
+            assert name in page, f"the trust page does not mention {name}"
+
+    # the case chip must be explained where a reader goes to check
+    if "{token.iraab}" in panel:
+        assert "مجرور" in page, "the case label is shown but never explained"
+
+    # and it must not describe the sampled sense as a live feature
+    # RENDERED, not merely mentioned. The panel keeps a comment about the
+    # sampled sense as a record of why it was removed; that is not the same as
+    # showing it.
+    assert "{entry.classical_sense_sample" not in panel
+    assert "The classical definitions are sampled" not in page, (
+        "the trust page still describes the sampled sense as current"
+    )
